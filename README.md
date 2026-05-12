@@ -2,7 +2,17 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### ExpoPrint local dev
+
+From the project root, start the app with dependencies checked automatically:
+
+```bash
+npm run dev:local
+```
+
+The dev server runs at **http://localhost:3000**.
+
+Alternatively, run the development server directly:
 
 ```bash
 npm run dev
