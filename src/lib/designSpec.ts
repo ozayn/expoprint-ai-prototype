@@ -14,6 +14,10 @@ export interface DesignSpec {
   layers: DesignLayer[];
 }
 
+/** Fabric object origin; spec coordinates are top-left unless overridden. */
+export type SpecOriginX = "left" | "center" | "right";
+export type SpecOriginY = "top" | "center" | "bottom";
+
 export interface BackgroundLayer {
   type: "background";
   id?: string;
@@ -31,6 +35,8 @@ export interface RectLayer {
   stroke?: string;
   strokeWidth?: number;
   strokeDashArray?: number[];
+  originX?: SpecOriginX;
+  originY?: SpecOriginY;
 }
 
 export interface PolygonLayer {
@@ -42,6 +48,8 @@ export interface PolygonLayer {
   fill?: string;
   opacity?: number;
   strokeWidth?: number;
+  originX?: SpecOriginX;
+  originY?: SpecOriginY;
 }
 
 /** Rectangle or polygon artwork (not the dedicated full-canvas background). */
@@ -59,6 +67,8 @@ export interface TextLayer {
   fill: string;
   width?: number;
   opacity?: number;
+  originX?: SpecOriginX;
+  originY?: SpecOriginY;
 }
 
 export interface ImagePlaceholderLayer {
@@ -72,6 +82,8 @@ export interface ImagePlaceholderLayer {
   stroke: string;
   strokeWidth: number;
   strokeDashArray?: number[];
+  originX?: SpecOriginX;
+  originY?: SpecOriginY;
 }
 
 export type DesignLayer =

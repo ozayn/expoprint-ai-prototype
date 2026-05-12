@@ -6,10 +6,22 @@ import type {
   ImagePlaceholderLayer,
   PolygonLayer,
   RectLayer,
+  SpecOriginX,
+  SpecOriginY,
   TextLayer,
 } from "./designSpec";
 
 export type FabricModule = typeof import("fabric");
+
+function layerOrigin(layer: { originX?: SpecOriginX; originY?: SpecOriginY }): {
+  originX: SpecOriginX;
+  originY: SpecOriginY;
+} {
+  return {
+    originX: layer.originX ?? "left",
+    originY: layer.originY ?? "top",
+  };
+}
 
 function applyLayerId(target: { set: (key: string, value: unknown) => void }, id?: string) {
   if (id) {
@@ -30,6 +42,8 @@ function renderBackground(
     height: canvas.height,
     fill: layer.fill,
     strokeWidth: 0,
+    originX: "left",
+    originY: "top",
   });
   applyLayerId(rect, layer.id);
   return rect;
@@ -38,6 +52,7 @@ function renderBackground(
 function renderRect(fabric: FabricModule, layer: RectLayer) {
   const { Rect } = fabric;
   const rect = new Rect({
+    ...layerOrigin(layer),
     left: layer.left,
     top: layer.top,
     width: layer.width,
@@ -54,6 +69,7 @@ function renderRect(fabric: FabricModule, layer: RectLayer) {
 function renderPolygon(fabric: FabricModule, layer: PolygonLayer) {
   const { Polygon } = fabric;
   const poly = new Polygon(layer.points, {
+    ...layerOrigin(layer),
     left: layer.left,
     top: layer.top,
     fill: layer.fill,
@@ -67,6 +83,7 @@ function renderPolygon(fabric: FabricModule, layer: PolygonLayer) {
 function renderText(fabric: FabricModule, layer: TextLayer) {
   const { IText } = fabric;
   const text = new IText(layer.content, {
+    ...layerOrigin(layer),
     left: layer.left,
     top: layer.top,
     fill: layer.fill,
@@ -83,6 +100,7 @@ function renderText(fabric: FabricModule, layer: TextLayer) {
 function renderImagePlaceholder(fabric: FabricModule, layer: ImagePlaceholderLayer) {
   const { Rect } = fabric;
   const rect = new Rect({
+    ...layerOrigin(layer),
     left: layer.left,
     top: layer.top,
     width: layer.width,

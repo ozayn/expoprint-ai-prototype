@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
@@ -34,6 +34,8 @@ export function FabricDesignEditor() {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<Canvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Width slot for preview; backstore stays {CANVAS_W}×{CANVAS_H}px via Fabric `cssOnly` scaling. */
+  const previewSlotRef = useRef<HTMLDivElement>(null);
 
   const [canvasPhase, setCanvasPhase] = useState<CanvasPhase>("initializing");
   const [canvasErrorDetail, setCanvasErrorDetail] = useState<string | null>(null);
@@ -41,6 +43,24 @@ export function FabricDesignEditor() {
   const [status, setStatus] = useState<string | null>(null);
 
   const ready = canvasPhase === "ready";
+
+  const syncCanvasPreviewCss = useCallback(() => {
+    const canvas = fabricRef.current;
+    const slot = previewSlotRef.current;
+    if (!canvas || !slot) return;
+    const slotW = slot.clientWidth;
+    if (slotW <= 0) return;
+    const gutterPx = 8;
+    const scale = Math.min(1, Math.max(0.2, (slotW - gutterPx) / CANVAS_W));
+    const cssW = Math.max(1, Math.round(CANVAS_W * scale));
+    const cssH = Math.max(1, Math.round(CANVAS_H * scale));
+    canvas.setDimensions(
+      { width: `${cssW}px`, height: `${cssH}px` },
+      { cssOnly: true },
+    );
+    canvas.calcOffset();
+    canvas.requestRenderAll();
+  }, []);
 
   const refreshJson = useCallback(() => {
     const c = fabricRef.current;
@@ -56,6 +76,9 @@ export function FabricDesignEditor() {
       renderDesignSpecToFabric(c, fabric, sampleDesignSpec);
       setJsonText(JSON.stringify(c.toJSON(), null, 2));
       setStatus(null);
+      queueMicrotask(() => {
+        syncCanvasPreviewCss();
+      });
     }).catch((err) => {
       console.error("Generate sample: failed to load fabric:", err);
       setStatus(
@@ -64,7 +87,7 @@ export function FabricDesignEditor() {
           : "Could not load Fabric module.",
       );
     });
-  }, []);
+  }, [syncCanvasPreviewCss]);
 
   useEffect(() => {
     const el = canvasElRef.current;
@@ -140,7 +163,23 @@ export function FabricDesignEditor() {
       setCanvasPhase("initializing");
       setCanvasErrorDetail(null);
     };
-  }, []);
+  }, [syncCanvasPreviewCss]);
+
+  useLayoutEffect(() => {
+    if (!ready) return;
+    const slot = previewSlotRef.current;
+    const canvas = fabricRef.current;
+    if (!slot || !canvas) return;
+
+    const ro = new ResizeObserver(() => {
+      syncCanvasPreviewCss();
+    });
+    ro.observe(slot);
+    syncCanvasPreviewCss();
+    return () => {
+      ro.disconnect();
+    };
+  }, [ready, syncCanvasPreviewCss]);
 
   const exportJson = () => {
     refreshJson();
@@ -179,6 +218,9 @@ export function FabricDesignEditor() {
         c.requestRenderAll();
         setJsonText(JSON.stringify(c.toJSON(), null, 2));
         setStatus("Design loaded from JSON.");
+        queueMicrotask(() => {
+          syncCanvasPreviewCss();
+        });
       });
     } catch {
       setStatus("Could not parse JSON. Check the textarea contents.");
@@ -340,13 +382,20 @@ export function FabricDesignEditor() {
       <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-zinc-500">
-            Canvas {CANVAS_W}×{CANVAS_H}px — drag, scale, and double-click text
-            to edit.
+            Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
+            full size. Drag, scale, and double-click text to edit.
           </p>
         </div>
         <div className="flex flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-6 shadow-inner">
-          <div className="rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
-            <canvas ref={canvasElRef} width={CANVAS_W} height={CANVAS_H} />
+          <div
+            ref={previewSlotRef}
+            className="mx-auto w-full max-w-full min-w-0"
+          >
+            <div className="flex justify-center">
+              <div className="rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
+                <canvas ref={canvasElRef} width={CANVAS_W} height={CANVAS_H} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
