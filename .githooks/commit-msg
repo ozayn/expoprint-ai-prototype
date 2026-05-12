@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Strips Co-authored-by trailers that mention Cursor (e.g. CursorAgent).
+# Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+
+msgfile="${1:-}"
+[[ -n "$msgfile" && -f "$msgfile" ]] || exit 0
+
+tmp="$(mktemp "${TMPDIR:-/tmp}/commit-msg.XXXXXX")"
+
+while IFS= read -r line || [[ -n "${line:-}" ]]; do
+  if [[ "$line" =~ ^[[:space:]]*[Cc][Oo]-[Aa]uthored-[Bb][Yy]:.*[Cc]ursor ]]; then
+    continue
+  fi
+  printf '%s\n' "$line"
+done <"$msgfile" >"$tmp"
+
+mv "$tmp" "$msgfile"
+
+exit 0
