@@ -232,6 +232,21 @@ export function FabricDesignEditor() {
           </p>
         </div>
 
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2.5">
+          <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+            What this proves
+          </h2>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-snug text-zinc-600 marker:text-zinc-400">
+            <li>Generated concepts can be editable layers, not flat images.</li>
+            <li>Designers can move, resize, and edit text/shapes.</li>
+            <li>The app can export Fabric JSON, PNG, and SVG.</li>
+            <li>
+              Next step: generate DesignSpec from customer website, logo, and
+              request.
+            </li>
+          </ul>
+        </div>
+
         <div className="flex flex-col gap-2">
           <button
             type="button"
