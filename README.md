@@ -12,6 +12,11 @@ npm run dev:local
 
 The dev server runs at **http://localhost:3000**.
 
+### Project progress and work log
+
+- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (when the dev server is running).
+- **Clockify-style notes:** see [`docs/work-log.md`](docs/work-log.md).
+
 Alternatively, run the development server directly:
 
 ```bash

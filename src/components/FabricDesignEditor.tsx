@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Canvas } from "fabric";
+import { DesignIntakePanel } from "@/components/DesignIntakePanel";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
@@ -50,14 +51,31 @@ export function FabricDesignEditor() {
     if (!canvas || !slot) return;
     const slotW = slot.clientWidth;
     if (slotW <= 0) return;
-    const gutterPx = 8;
-    const scale = Math.min(1, Math.max(0.2, (slotW - gutterPx) / CANVAS_W));
+    /** Room for inner card padding (p-2×2) + ring + rounding safety */
+    const horizontalGutter = 40;
+    const scale = Math.min(
+      1,
+      Math.max(0.15, (slotW - horizontalGutter) / CANVAS_W),
+    );
     const cssW = Math.max(1, Math.round(CANVAS_W * scale));
     const cssH = Math.max(1, Math.round(CANVAS_H * scale));
     canvas.setDimensions(
       { width: `${cssW}px`, height: `${cssH}px` },
       { cssOnly: true },
     );
+
+    type CanvasWithContainer = Canvas & {
+      elements?: { container?: HTMLDivElement };
+    };
+    const container = (canvas as CanvasWithContainer).elements?.container;
+    if (container) {
+      container.style.width = `${cssW}px`;
+      container.style.maxWidth = "100%";
+      container.style.boxSizing = "border-box";
+      container.style.marginLeft = "auto";
+      container.style.marginRight = "auto";
+    }
+
     canvas.calcOffset();
     canvas.requestRenderAll();
   }, []);
@@ -176,7 +194,11 @@ export function FabricDesignEditor() {
     });
     ro.observe(slot);
     syncCanvasPreviewCss();
+    const raf = requestAnimationFrame(() => {
+      syncCanvasPreviewCss();
+    });
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
     };
   }, [ready, syncCanvasPreviewCss]);
@@ -251,8 +273,8 @@ export function FabricDesignEditor() {
     "disabled:hover:border-zinc-300 disabled:hover:bg-zinc-200 disabled:hover:text-zinc-600";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
-      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm lg:w-80">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row">
+      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm lg:w-96">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
             ExpoPrint AI
@@ -273,6 +295,8 @@ export function FabricDesignEditor() {
             {canvasStatusLabel(canvasPhase, canvasErrorDetail)}
           </p>
         </div>
+
+        <DesignIntakePanel />
 
         <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2.5">
           <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
@@ -379,20 +403,18 @@ export function FabricDesignEditor() {
         ) : null}
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-zinc-500">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+          <p className="min-w-0 shrink-0 text-sm text-zinc-500">
             Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
             full size. Drag, scale, and double-click text to edit.
           </p>
-        </div>
-        <div className="flex flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-6 shadow-inner">
-          <div
-            ref={previewSlotRef}
-            className="mx-auto w-full max-w-full min-w-0"
-          >
-            <div className="flex justify-center">
-              <div className="rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
+          <div className="flex min-h-0 min-w-0 w-full flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-4 shadow-inner sm:p-6">
+            <div
+              ref={previewSlotRef}
+              className="mx-auto box-border flex w-full min-w-0 max-w-full shrink-0 justify-center px-0.5"
+            >
+              <div className="max-w-full shrink-0 rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
                 <canvas ref={canvasElRef} width={CANVAS_W} height={CANVAS_H} />
               </div>
             </div>
