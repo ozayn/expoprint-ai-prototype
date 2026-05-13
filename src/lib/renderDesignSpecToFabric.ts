@@ -75,6 +75,7 @@ function renderPolygon(fabric: FabricModule, layer: PolygonLayer) {
     fill: layer.fill,
     opacity: layer.opacity,
     strokeWidth: layer.strokeWidth ?? 0,
+    angle: layer.angle ?? 0,
   });
   applyLayerId(poly, layer.id);
   return poly;
@@ -82,16 +83,36 @@ function renderPolygon(fabric: FabricModule, layer: PolygonLayer) {
 
 function renderText(fabric: FabricModule, layer: TextLayer) {
   const { IText } = fabric;
-  const text = new IText(layer.content, {
+  /** Fabric 7 may call string helpers on options; never pass `undefined` for text props. */
+  const content = layer.content == null ? "" : String(layer.content);
+  const fontFamily =
+    typeof layer.fontFamily === "string" && layer.fontFamily.length > 0
+      ? layer.fontFamily
+      : "sans-serif";
+  const fill =
+    typeof layer.fill === "string" && layer.fill.length > 0
+      ? layer.fill
+      : "#000000";
+  const fontSize =
+    typeof layer.fontSize === "number" && Number.isFinite(layer.fontSize)
+      ? layer.fontSize
+      : 16;
+
+  const base = {
     ...layerOrigin(layer),
     left: layer.left,
     top: layer.top,
-    fill: layer.fill,
-    fontSize: layer.fontSize,
-    fontFamily: layer.fontFamily,
-    fontWeight: layer.fontWeight,
-    width: layer.width,
-    opacity: layer.opacity,
+    fill,
+    fontSize,
+    fontFamily,
+  };
+
+  const text = new IText(content, {
+    ...base,
+    ...(layer.fontWeight !== undefined ? { fontWeight: layer.fontWeight } : {}),
+    ...(layer.width !== undefined ? { width: layer.width } : {}),
+    ...(layer.opacity !== undefined ? { opacity: layer.opacity } : {}),
+    ...(layer.textAlign !== undefined ? { textAlign: layer.textAlign } : {}),
   });
   applyLayerId(text, layer.id);
   return text;

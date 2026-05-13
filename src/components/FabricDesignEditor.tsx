@@ -1,8 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { DesignIntakePanel } from "@/components/DesignIntakePanel";
+import {
+  createDesignSpecFromIntake,
+  shouldUseIntakeDesignSpec,
+} from "@/lib/createDesignSpecFromIntake";
+import { buildMockExtracted, computeDesignBriefText, defaultDesignIntake, getSelectedProductComponents, type DesignIntakeState } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
@@ -37,11 +42,57 @@ export function FabricDesignEditor() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Width slot for preview; backstore stays {CANVAS_W}×{CANVAS_H}px via Fabric `cssOnly` scaling. */
   const previewSlotRef = useRef<HTMLDivElement>(null);
+  /** Always latest intake for async `import("fabric")` callbacks (avoids stale closures / races). */
+  const intakeRef = useRef<DesignIntakeState>(defaultDesignIntake());
+  /** Resolved tab for async generate (matches highlighted surface, including first paint). */
+  const displaySurfaceRef = useRef<string | null>(null);
+  const generateSampleRunIdRef = useRef(0);
 
   const [canvasPhase, setCanvasPhase] = useState<CanvasPhase>("initializing");
   const [canvasErrorDetail, setCanvasErrorDetail] = useState<string | null>(null);
   const [jsonText, setJsonText] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [intake, setIntake] = useState<DesignIntakeState>(() => defaultDesignIntake());
+  const [activeDesignSurface, setActiveDesignSurface] = useState<string | null>(null);
+
+  const selectedSurfaces = useMemo(
+    () => getSelectedProductComponents(intake),
+    [intake],
+  );
+
+  const displaySurface = useMemo(
+    () =>
+      (activeDesignSurface && selectedSurfaces.includes(activeDesignSurface)
+        ? activeDesignSurface
+        : null) ?? selectedSurfaces[0] ?? null,
+    [activeDesignSurface, selectedSurfaces],
+  );
+
+  useLayoutEffect(() => {
+    intakeRef.current = intake;
+    displaySurfaceRef.current = displaySurface;
+  }, [intake, displaySurface]);
+
+  const onIntakeChange = useCallback((patch: Partial<DesignIntakeState>) => {
+    setIntake((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const handleGenerateDesignBrief = useCallback(() => {
+    setIntake((prev) => {
+      const merged =
+        !prev.showExtracted
+          ? {
+              ...prev,
+              extracted: buildMockExtracted(),
+              showExtracted: true,
+            }
+          : prev;
+      return {
+        ...merged,
+        designBrief: computeDesignBriefText(merged),
+      };
+    });
+  }, []);
 
   const ready = canvasPhase === "ready";
 
@@ -90,21 +141,32 @@ export function FabricDesignEditor() {
     const c = fabricRef.current;
     if (!c) return;
 
-    void import("fabric").then((fabric) => {
-      renderDesignSpecToFabric(c, fabric, sampleDesignSpec);
-      setJsonText(JSON.stringify(c.toJSON(), null, 2));
-      setStatus(null);
-      queueMicrotask(() => {
-        syncCanvasPreviewCss();
+    const runId = ++generateSampleRunIdRef.current;
+    void import("fabric")
+      .then((fabric) => {
+        if (runId !== generateSampleRunIdRef.current) return;
+        const latestIntake = intakeRef.current;
+        const spec = shouldUseIntakeDesignSpec(latestIntake)
+          ? createDesignSpecFromIntake(
+              latestIntake,
+              displaySurfaceRef.current,
+            )
+          : sampleDesignSpec;
+        renderDesignSpecToFabric(c, fabric, spec);
+        setJsonText(JSON.stringify(c.toJSON(), null, 2));
+        setStatus(null);
+        queueMicrotask(() => {
+          syncCanvasPreviewCss();
+        });
+      })
+      .catch((err) => {
+        console.error("Generate sample: failed to load fabric:", err);
+        setStatus(
+          err instanceof Error
+            ? `Could not load Fabric: ${err.message}`
+            : "Could not load Fabric module.",
+        );
       });
-    }).catch((err) => {
-      console.error("Generate sample: failed to load fabric:", err);
-      setStatus(
-        err instanceof Error
-          ? `Could not load Fabric: ${err.message}`
-          : "Could not load Fabric module.",
-      );
-    });
   }, [syncCanvasPreviewCss]);
 
   useEffect(() => {
@@ -296,7 +358,11 @@ export function FabricDesignEditor() {
           </p>
         </div>
 
-        <DesignIntakePanel />
+        <DesignIntakePanel
+          intake={intake}
+          onIntakeChange={onIntakeChange}
+          onGenerateDesignBrief={handleGenerateDesignBrief}
+        />
 
         <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2.5">
           <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
@@ -322,6 +388,11 @@ export function FabricDesignEditor() {
           >
             Generate Sample Concept
           </button>
+          <p className="text-xs leading-snug text-zinc-500" aria-live="polite">
+            {shouldUseIntakeDesignSpec(intake)
+              ? "Canvas source: intake data"
+              : "Canvas source: fallback sample"}
+          </p>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
@@ -370,8 +441,13 @@ export function FabricDesignEditor() {
           >
             Choose JSON file…
           </button>
+          <label htmlFor="fabric-json-file" className="sr-only">
+            Upload canvas JSON file
+          </label>
           <input
+            id="fabric-json-file"
             ref={fileInputRef}
+            name="fabricCanvasJsonFile"
             type="file"
             accept="application/json,.json"
             className="hidden"
@@ -388,6 +464,7 @@ export function FabricDesignEditor() {
           </label>
           <textarea
             id="fabric-json"
+            name="fabricCanvasJson"
             className="min-h-[140px] flex-1 resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
             spellCheck={false}
             value={jsonText}
@@ -409,6 +486,51 @@ export function FabricDesignEditor() {
             Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
             full size. Drag, scale, and double-click text to edit.
           </p>
+          <div className="min-w-0 shrink-0 space-y-2">
+            <p className="text-sm font-medium text-zinc-800">
+              Current surface:{" "}
+              <span className="font-semibold text-zinc-900">
+                {displaySurface ?? "—"}
+              </span>
+            </p>
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Design surfaces
+              </p>
+              {selectedSurfaces.length === 0 ? (
+                <p className="text-xs text-zinc-500">
+                  Select product components in Design intake. One artboard is active; each surface
+                  can become its own board later.
+                </p>
+              ) : (
+                <div
+                  className="flex flex-wrap gap-1"
+                  role="tablist"
+                  aria-label="Design surfaces"
+                >
+                  {selectedSurfaces.map((name) => {
+                    const isActive = displaySurface === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={
+                          isActive
+                            ? "rounded-md border border-zinc-900 bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white"
+                            : "rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+                        }
+                        onClick={() => setActiveDesignSurface(name)}
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex min-h-0 min-w-0 w-full flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-4 shadow-inner sm:p-6">
             <div
               ref={previewSlotRef}

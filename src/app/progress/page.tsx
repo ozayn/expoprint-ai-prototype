@@ -70,14 +70,45 @@ const stages: Stage[] = [
   },
   {
     id: 5,
-    title: "AI-assisted design intake workflow",
-    status: "Planned",
+    title: "Design intake state / debugging milestone",
+    status: "Complete",
     summary:
-      "Add a form that collects product category, website, business name, style, components, and customer instructions.",
-    accomplishments: ["Not started yet."],
+      "Prototype intake panel is wired end-to-end to shared state, mock extraction, a generated brief, and intake-driven canvas output. No real website scraping or AI yet.",
+    accomplishments: [
+      "Controlled form fields for URL, business name, category, style preference, and instructions.",
+      "Product component and extracted-content checkboxes and style dropdown update nested intake state as expected.",
+      "“Generate Design Brief” fills the brief from the current selection (components, checked extracted rows, and edited field values).",
+      "“Generate Sample Concept” can render from intake-derived DesignSpec after mock extraction is in play; supporting copy and colors respect selected extracted rows where implemented.",
+      "Style choice applies simple layout differences on the canvas (accent treatment and text alignment), for visible A/B between presets.",
+      "Live “Selected for design” summary under the panel to confirm state without generating the canvas.",
+    ],
   },
   {
     id: 6,
+    title: "Intake-driven canvas and design surfaces",
+    status: "Complete",
+    summary:
+      "The Fabric preview can follow the same intake object as the form: copy, palette, contact strip, and per-component surface metadata. Still mock extraction and hand-authored mapping — real website scraping and AI generation remain planned.",
+    accomplishments: [
+      "Connected design intake state to canvas generation through `createDesignSpecFromIntake` and the existing DesignSpec → Fabric renderer.",
+      "Generated concepts can show business name, website/domain, supporting line from selected services, products, or checked components, and brand colors parsed from selected extracted swatches where present.",
+      "Optional compact contact/footer text on the canvas when phone, email, social, or (for trade show booth only) address rows are selected, with length kept short so the layout stays readable.",
+      "“Design surfaces” tab-style controls list checked product components (e.g. canopy tent, back wall, side wall, flag, or booth equivalents); one Fabric canvas stays active, and the chosen surface updates `productType` / `templateId` on the next generate.",
+      "Editable Fabric layers and JSON, PNG, and SVG exports preserved at the 1000×600 artboard size.",
+    ],
+  },
+  {
+    id: 7,
+    title: "AI-assisted design intake workflow",
+    status: "Planned",
+    summary:
+      "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
+    accomplishments: [
+      "Client-side intake and canvas wiring exist (Stages 5–6); LLM or agent-driven intake not implemented.",
+    ],
+  },
+  {
+    id: 8,
     title: "Website/content extraction",
     status: "Planned",
     summary:
@@ -85,7 +116,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 7,
+    id: 9,
     title: "Design brief generation",
     status: "Planned",
     summary:
@@ -93,7 +124,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 8,
+    id: 10,
     title: "AI-generated editable DesignSpec",
     status: "Planned",
     summary:

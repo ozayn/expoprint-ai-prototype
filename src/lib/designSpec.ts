@@ -48,6 +48,8 @@ export interface PolygonLayer {
   fill?: string;
   opacity?: number;
   strokeWidth?: number;
+  /** Degrees; passed to Fabric (e.g. playful accent). */
+  angle?: number;
   originX?: SpecOriginX;
   originY?: SpecOriginY;
 }
@@ -67,6 +69,7 @@ export interface TextLayer {
   fill: string;
   width?: number;
   opacity?: number;
+  textAlign?: "left" | "center" | "right" | "justify";
   originX?: SpecOriginX;
   originY?: SpecOriginY;
 }
