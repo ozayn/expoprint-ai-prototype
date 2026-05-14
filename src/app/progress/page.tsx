@@ -148,11 +148,15 @@ const stages: Stage[] = [
   },
   {
     id: 11,
-    title: "Design brief generation",
+    title: "Production-ready design brief generation",
     status: "Planned",
     summary:
-      "Generate a structured design brief for the internal ExpoPrint design team based on selected extracted content.",
-    accomplishments: ["Not started yet."],
+      "The prototype already generates a basic live design brief from selected intake and extracted rows. Planned work is to make this more structured, validated, and designer-ready for internal ExpoPrint workflows.",
+    accomplishments: [
+      "Basic prototype brief exists from selected intake and extracted content.",
+      "Planned: add stronger section structure, validation, prioritization, and designer handoff formatting.",
+      "Planned: optionally use AI to highlight important customer instructions and recommend which content should appear on each selected design surface.",
+    ],
   },
   {
     id: 12,

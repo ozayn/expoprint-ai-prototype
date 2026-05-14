@@ -40,4 +40,4 @@ Server-only `POST /api/analyze-website` (Anthropic SDK); key and model from env 
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: broader AI-assisted intake, real website extraction, team-facing brief generation, AI-generated DesignSpec — not started; log new dates here as work begins.
+Stages 9–12 on `/progress`: broader AI-assisted intake, real website extraction, production-ready designer-facing brief workflow (beyond the current live prototype brief), AI-generated DesignSpec — not started; log new dates here as work begins.
