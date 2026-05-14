@@ -27,8 +27,11 @@ Controlled intake fields; checkbox and dropdown handlers updating nested state; 
 **Intake-driven canvas and design surfaces (Stage 6)**  
 Intake state drives `createDesignSpecFromIntake` into Fabric: business name, domain, supporting copy from selected services/products/components (per mapper rules), brand hexes from extracted colors when selected, optional contact/footer line from selected phone/email/social/booth address with tight truncation. “Design surfaces” tabs for checked components; single canvas; active surface updates `productType` / `templateId` on generate. Async-safe refs for generate; canvas source hint in UI. Editable layers; JSON/PNG/SVG exports unchanged at 1000×600. Real scraping and AI-driven generation still out of scope for this prototype slice.
 
+**Demo layout and mobile clarity pass (Stage 7)**  
+Home layout only: clearer A→B→C vs. D column grouping (intake / extracted / brief vs. concept preview), generate + surfaces next to canvas, export/import + raw JSON behind collapsed details, shorter muted helper copy, mobile-friendly spacing. No new generation logic; Fabric behavior and 1000×600 exports unchanged.
+
 ---
 
 ## Later (planned)
 
-Stages 7–10 on `/progress`: AI-assisted intake, real website extraction, team-facing brief generation, AI-generated DesignSpec — not started; log new dates here as work begins.
+Stages 8–11 on `/progress`: AI-assisted intake, real website extraction, team-facing brief generation, AI-generated DesignSpec — not started; log new dates here as work begins.

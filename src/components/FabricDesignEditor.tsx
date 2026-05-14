@@ -338,8 +338,8 @@ export function FabricDesignEditor() {
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-lg">
             ExpoPrint AI
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-zinc-600 sm:text-zinc-500">
-            Prototype editor — 10×10 canopy tent concept. Navy, teal, and white.
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500 sm:text-sm">
+            Prototype — intake to editable canvas (mock extraction, no AI).
           </p>
           <p
             className={`mt-2 text-xs font-medium ${
@@ -361,133 +361,144 @@ export function FabricDesignEditor() {
           onRefreshDesignBrief={handleRefreshDesignBrief}
         />
 
-        <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2.5">
-          <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
-            What this proves
-          </h2>
-          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-snug text-zinc-600 marker:text-zinc-400">
-            <li>Generated concepts can be editable layers, not flat images.</li>
-            <li>Designers can move, resize, and edit text/shapes.</li>
-            <li>The app can export Fabric JSON, PNG, and SVG.</li>
-            <li>
-              Next step: generate DesignSpec from customer website, logo, and
-              request.
-            </li>
-          </ul>
-        </div>
+        <details className="group rounded-lg border border-zinc-200 bg-zinc-50/80">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium text-zinc-800 [&::-webkit-details-marker]:hidden">
+            <span>Export, import & developer tools</span>
+            <span
+              className="inline-block shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+              aria-hidden
+            >
+              ▼
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-zinc-200 px-3 pb-3 pt-3 sm:px-4">
+            <p className="text-xs leading-relaxed text-zinc-500">
+              PNG/SVG/JSON use the full {CANVAS_W}×{CANVAS_H}px canvas.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
+              <button
+                type="button"
+                className={panelBtn}
+                disabled={!ready}
+                onClick={exportJson}
+              >
+                Export JSON
+              </button>
+              <button
+                type="button"
+                className={panelBtn}
+                disabled={!ready}
+                onClick={loadFromTextarea}
+              >
+                Load JSON
+              </button>
+              <button
+                type="button"
+                className={panelBtn}
+                disabled={!ready}
+                onClick={exportPng}
+              >
+                Export PNG
+              </button>
+              <button
+                type="button"
+                className={panelBtn}
+                disabled={!ready}
+                onClick={exportSvg}
+              >
+                Export SVG
+              </button>
+            </div>
+            <button
+              type="button"
+              className={panelBtn}
+              disabled={!ready}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Choose JSON file…
+            </button>
+            <label htmlFor="fabric-json-file" className="sr-only">
+              Upload canvas JSON file
+            </label>
+            <input
+              id="fabric-json-file"
+              ref={fileInputRef}
+              name="fabricCanvasJsonFile"
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={onPickJsonFile}
+            />
 
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            className={generateSampleBtn}
-            disabled={!ready}
-            onClick={generateSampleConcept}
-          >
-            Generate Sample Concept
-          </button>
-          <p className="text-xs leading-snug text-zinc-500" aria-live="polite">
-            {shouldUseIntakeDesignSpec(intake)
-              ? "Canvas source: intake data"
-              : "Canvas source: fallback sample"}
-          </p>
-          <p className="text-xs leading-snug text-zinc-400">
-            Canvas updates when you regenerate the concept, so manual edits are not overwritten
-            automatically.
-          </p>
-        </div>
+            <details className="rounded-md border border-zinc-200 bg-white">
+              <summary className="cursor-pointer px-3 py-2.5 text-xs font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
+                Canvas JSON (raw)
+              </summary>
+              <div className="border-t border-zinc-100 p-2 sm:p-3">
+                <textarea
+                  id="fabric-json"
+                  name="fabricCanvasJson"
+                  className="min-h-[180px] w-full min-w-0 resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:text-[11px]"
+                  spellCheck={false}
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                  placeholder={ready ? "{}" : "Initializing canvas…"}
+                />
+              </div>
+            </details>
 
-        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-            Export / import
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
-            <button
-              type="button"
-              className={panelBtn}
-              disabled={!ready}
-              onClick={exportJson}
-            >
-              Export JSON
-            </button>
-            <button
-              type="button"
-              className={panelBtn}
-              disabled={!ready}
-              onClick={loadFromTextarea}
-            >
-              Load JSON
-            </button>
-            <button
-              type="button"
-              className={panelBtn}
-              disabled={!ready}
-              onClick={exportPng}
-            >
-              Export PNG
-            </button>
-            <button
-              type="button"
-              className={panelBtn}
-              disabled={!ready}
-              onClick={exportSvg}
-            >
-              Export SVG
-            </button>
+            {status ? (
+              <p className="text-xs text-zinc-500" role="status">
+                {status}
+              </p>
+            ) : null}
+
+            <details className="rounded-md border border-dashed border-zinc-200 bg-white/80 px-2 py-1">
+              <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-600 [&::-webkit-details-marker]:hidden">
+                About this demo
+              </summary>
+              <ul className="list-disc space-y-1 pb-2 pl-5 pr-2 text-[11px] leading-snug text-zinc-500 marker:text-zinc-400">
+                <li>Concepts stay editable layers, not flat images.</li>
+                <li>Move, scale, and double-click text on the canvas.</li>
+                <li>Next: real site ingest and AI-generated DesignSpec.</li>
+              </ul>
+            </details>
           </div>
-          <button
-            type="button"
-            className={panelBtn}
-            disabled={!ready}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Choose JSON file…
-          </button>
-          <label htmlFor="fabric-json-file" className="sr-only">
-            Upload canvas JSON file
-          </label>
-          <input
-            id="fabric-json-file"
-            ref={fileInputRef}
-            name="fabricCanvasJsonFile"
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={onPickJsonFile}
-          />
-        </div>
-
-        <div className="flex flex-1 flex-col gap-2 border-t border-zinc-100 pt-4 min-h-[160px]">
-          <label
-            htmlFor="fabric-json"
-            className="text-xs font-medium uppercase tracking-wide text-zinc-400"
-          >
-            Canvas JSON
-          </label>
-          <textarea
-            id="fabric-json"
-            name="fabricCanvasJson"
-            className="min-h-[160px] w-full min-w-0 flex-1 resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:min-h-[140px] sm:text-xs"
-            spellCheck={false}
-            value={jsonText}
-            onChange={(e) => setJsonText(e.target.value)}
-            placeholder={ready ? "{}" : "Initializing canvas…"}
-          />
-        </div>
-
-        {status ? (
-          <p className="text-xs text-zinc-500" role="status">
-            {status}
-          </p>
-        ) : null}
+        </details>
       </aside>
 
       <section className="flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
-        <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col gap-3 overflow-x-hidden">
-          <p className="min-w-0 shrink-0 text-xs leading-relaxed text-zinc-500 sm:text-sm">
-            Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
-            full size. Drag, scale, and double-click text to edit.
-          </p>
-          <div className="min-w-0 shrink-0 space-y-3 sm:space-y-2">
+        <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col gap-4 overflow-x-hidden">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-sm">
+              Editable concept preview
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              {CANVAS_W}×{CANVAS_H}px artboard — preview scales to your screen; exports stay full size.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              className={generateSampleBtn}
+              disabled={!ready}
+              onClick={generateSampleConcept}
+            >
+              Generate Sample Concept
+            </button>
+            <p className="text-xs leading-relaxed text-zinc-500" aria-live="polite">
+              {shouldUseIntakeDesignSpec(intake)
+                ? "Canvas source: intake data"
+                : "Canvas source: fallback sample"}
+            </p>
+            <p className="text-xs leading-relaxed text-zinc-400">
+              Regenerate the concept to update the editable canvas. Manual canvas edits are preserved
+              until regeneration.
+            </p>
+          </div>
+
+          <div className="min-w-0 shrink-0 space-y-2">
             <p className="text-sm font-medium leading-snug text-zinc-800">
               Current surface:{" "}
               <span className="font-semibold text-zinc-900">
@@ -499,9 +510,8 @@ export function FabricDesignEditor() {
                 Design surfaces
               </p>
               {selectedSurfaces.length === 0 ? (
-                <p className="text-xs text-zinc-500">
-                  Select product components in Design intake. One artboard is active; each surface
-                  can become its own board later.
+                <p className="text-xs leading-relaxed text-zinc-500">
+                  Select components in Design intake. One surface at a time for now.
                 </p>
               ) : (
                 <div

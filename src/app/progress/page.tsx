@@ -99,16 +99,30 @@ const stages: Stage[] = [
   },
   {
     id: 7,
+    title: "Demo layout and mobile clarity pass",
+    status: "Complete",
+    summary:
+      "Reorganized the home page for a clearer demo path and lighter default chrome: intake → extracted → brief on the left, concept preview on the right, exports tucked away. Layout and copy only — no change to Fabric export dimensions or generation rules.",
+    accomplishments: [
+      "Labeled sections for design intake, extracted review, and design brief so the mock workflow reads top-to-bottom.",
+      "Placed “Generate Sample Concept” and design-surface pickers next to the canvas preview; shortened helper text.",
+      "Grouped export/import actions and raw canvas JSON under collapsed details/summary blocks so casual demos see less developer UI by default.",
+      "Adjusted mobile spacing, touch targets, and preview scaling behavior already in place; horizontal scrolling for the artboard preview is still avoided via scaled CSS dimensions.",
+      "Fabric editability, JSON/PNG/SVG export, Load JSON, and 1000×600 export geometry unchanged.",
+    ],
+  },
+  {
+    id: 8,
     title: "AI-assisted design intake workflow",
     status: "Planned",
     summary:
       "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
     accomplishments: [
-      "Client-side intake and canvas wiring exist (Stages 5–6); LLM or agent-driven intake not implemented.",
+      "Client-side intake and canvas wiring exist through Stage 7; LLM or agent-driven intake not implemented.",
     ],
   },
   {
-    id: 8,
+    id: 9,
     title: "Website/content extraction",
     status: "Planned",
     summary:
@@ -116,7 +130,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 9,
+    id: 10,
     title: "Design brief generation",
     status: "Planned",
     summary:
@@ -124,7 +138,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 10,
+    id: 11,
     title: "AI-generated editable DesignSpec",
     status: "Planned",
     summary:
