@@ -42,8 +42,11 @@ Added first homepage-only website content extraction for Claude context (`src/li
 **Guided customer-style demo view (Stage 13)**  
 New `/demo` route: minimal guided intake (one question per step) for a cleaner demo narrative while `/` stays the full Fabric editor with exports and existing prototype tools. Same intake model, Claude/mocked analyze API, brief computation, intake-driven DesignSpec, and Fabric renderer at 1000×600 with scaled preview and surface tabs; links between home and demo for “Open guided demo” / “Open editor view.” Guided flow is now **seven** steps: business name is edited after Analyze (review step), not as an early required field—still prototype-grade, not a production intake.
 
+**Style guide layer for generated concepts (Stage 14)**  
+Prototype design-style layer: extracted brand colors are normalized before use on the editable Fabric canvas; bright palettes are treated as accents; concepts prioritize contrast, readability, and cleaner large-format-print composition. Implemented in `designStyleGuide.ts` / `buildConceptColorPlan` / `createDesignSpecFromIntake` for `/` and `/demo` — not ICC/spot-color production logic.
+
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stage 13 adds the guided `/demo` intake view; broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain mostly future work — log new dates here as that begins.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–14 cover the guided `/demo` intake and the prototype style-guide color normalization for generated concepts; broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain mostly future work — log new dates here as that begins.

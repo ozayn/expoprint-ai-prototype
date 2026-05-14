@@ -185,6 +185,18 @@ const stages: Stage[] = [
       "Mobile-friendly single column, large tap targets, and width-scaled canvas preview (`cssOnly` scaling); no export drawer or dev tools on `/demo` — users follow “Open editor view” for exports.",
     ],
   },
+  {
+    id: 14,
+    title: "Style guide layer for cleaner generated concepts",
+    status: "Complete",
+    summary:
+      "Added a prototype design-style layer so extracted brand colors are normalized before being used on the editable Fabric canvas. Bright palettes are treated as accents, and generated concepts prioritize contrast, readability, and cleaner large-format-print composition.",
+    accomplishments: [
+      "`normalizeBrandPalette` maps extracted hexes to semantic roles (`backgroundColor`, `textColor`, `accentColor`, `secondaryAccentColor`, `mutedTextColor`); `buildConceptColorPlan` adds muted accent polygon fill, style-scaled opacity, and a smaller accent polygon when many saturated primaries are detected.",
+      "`contrastRatio`, `ensureReadableText`, and `avoidProblematicPairings` reduce red/blue, yellow-on-white, and teal-on-blue style failures; bright palettes stay on neutral fields with small accents — not production color management.",
+      "`createDesignSpecFromIntake` scales polygon points by `accentPolygonScale`, bumps headline/supporting/website/contact font sizes slightly, and applies the plan for both `/` and `/demo` with no API or new AI calls.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {

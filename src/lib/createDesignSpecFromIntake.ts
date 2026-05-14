@@ -1,54 +1,13 @@
-import type { BrandColors, DesignSpec, TextLayer } from "./designSpec";
+import type { DesignSpec, TextLayer } from "./designSpec";
 import type { DesignIntakeState, ExtractedKey, StylePreference } from "./designIntakeState";
 import {
   BOOTH_COMPONENTS,
   getSelectedProductComponents,
   OUTDOOR_COMPONENTS,
 } from "./designIntakeState";
+import { buildConceptColorPlan } from "./designStyleGuide";
 
 const CANVAS = { width: 1000, height: 600 } as const;
-
-const FALLBACK_COLORS: BrandColors = {
-  navy: "#0B2E4A",
-  teal: "#2BB3A3",
-  white: "#FFFFFF",
-};
-
-function parseHexColors(text: string): string[] {
-  const re = /#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\b/g;
-  const out: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    let h = m[0];
-    if (h.length === 4) {
-      const [, r, g, b] = h;
-      h = `#${r}${r}${g}${g}${b}${b}`;
-    }
-    out.push(h);
-  }
-  return out;
-}
-
-function brandColorsFromExtracted(intake: DesignIntakeState): BrandColors {
-  const row = intake.extracted.brandColors;
-  if (!row.useForDesign || !row.value.trim()) {
-    return { ...FALLBACK_COLORS };
-  }
-  const hexes = parseHexColors(row.value);
-  if (hexes.length === 0) {
-    return { ...FALLBACK_COLORS };
-  }
-  const navy = hexes[0] ?? FALLBACK_COLORS.navy;
-  const teal = hexes[1] ?? FALLBACK_COLORS.teal;
-  const white =
-    hexes.length >= 3 ? hexes[2]! : FALLBACK_COLORS.white;
-  return {
-    navy,
-    teal,
-    white,
-    paletteNote: row.value.trim(),
-  };
-}
 
 function selectedExtractedValue(
   intake: DesignIntakeState,
@@ -301,7 +260,8 @@ export function createDesignSpecFromIntake(
   intake: DesignIntakeState,
   activeSurface?: string | null,
 ): DesignSpec {
-  const colors = brandColorsFromExtracted(intake);
+  /** Prototype style-guide normalization (see `designStyleGuide.ts`) — not print-ready CMYK. */
+  const plan = buildConceptColorPlan(intake);
   const headline = headlineFromIntake(intake);
   const supporting = supportingFromIntake(intake);
   const website = websiteLineFromIntake(intake);
@@ -325,20 +285,30 @@ export function createDesignSpecFromIntake(
     fontFamily: "system-ui, -apple-system, sans-serif",
   } as const;
 
+  const accentOpacity = Math.min(
+    1,
+    layout.accentOpacity * plan.accentOpacityFactor,
+  );
+  const polyScale = plan.accentPolygonScale ?? 1;
+  const accentPoints = layout.accentPoints.map((p) => ({
+    x: p.x * polyScale,
+    y: p.y * polyScale,
+  }));
+
   const layers: DesignSpec["layers"] = [
     {
       type: "background",
       id: "bg",
-      fill: colors.navy,
+      fill: plan.backgroundColor,
     },
     {
       type: "polygon",
       id: "accent-diagonal",
-      points: layout.accentPoints,
+      points: accentPoints,
       left: 0,
       top: 0,
-      fill: colors.teal,
-      opacity: layout.accentOpacity,
+      fill: plan.accentShape,
+      opacity: accentOpacity,
       strokeWidth: 0,
       angle: layout.accentAngle,
     },
@@ -349,8 +319,8 @@ export function createDesignSpecFromIntake(
       top: 72,
       width: 132,
       height: 132,
-      fill: colors.white,
-      stroke: colors.teal,
+      fill: plan.logoFill,
+      stroke: plan.logoStroke,
       strokeWidth: 3,
       strokeDashArray: [10, 8],
     },
@@ -360,7 +330,7 @@ export function createDesignSpecFromIntake(
       content: logoLabel,
       left: 96,
       top: 128,
-      fill: colors.navy,
+      fill: plan.logoLabelText,
       fontSize: 28,
       ...textBase,
       fontWeight: "600",
@@ -372,8 +342,8 @@ export function createDesignSpecFromIntake(
       content: headline,
       left: layout.headline.left,
       top: layout.headline.top,
-      fill: colors.white,
-      fontSize: 44,
+      fill: plan.headlineText,
+      fontSize: 48,
       ...textBase,
       fontWeight: "700",
       width: layout.headline.width,
@@ -385,8 +355,8 @@ export function createDesignSpecFromIntake(
       content: supporting,
       left: layout.supporting.left,
       top: layout.supporting.top,
-      fill: colors.teal,
-      fontSize: 22,
+      fill: plan.supportingText,
+      fontSize: 24,
       ...textBase,
       width: layout.supporting.width,
       textAlign: layout.supporting.textAlign,
@@ -397,8 +367,8 @@ export function createDesignSpecFromIntake(
       content: website,
       left: layout.website.left,
       top: websiteTop,
-      fill: colors.white,
-      fontSize: 28,
+      fill: plan.websiteText,
+      fontSize: 30,
       ...textBase,
       fontWeight: "500",
       width: layout.website.width,
@@ -413,8 +383,8 @@ export function createDesignSpecFromIntake(
       content: contactFooter,
       left: layout.website.left,
       top: contactFooterTop,
-      fill: colors.teal,
-      fontSize: 14,
+      fill: plan.contactText,
+      fontSize: 15,
       ...textBase,
       fontWeight: "400",
       width: layout.website.width,
@@ -427,7 +397,7 @@ export function createDesignSpecFromIntake(
     canvas: { ...CANVAS },
     productType,
     templateId,
-    brandColors: colors,
+    brandColors: plan.brandColors,
     layers,
   };
 }
