@@ -4,7 +4,6 @@ import { useCallback, useMemo } from "react";
 import {
   BOOTH_COMPONENTS,
   type BoothComponent,
-  buildMockExtracted,
   type DesignIntakeState,
   EXTRACTED_LABELS,
   type ExtractedKey,
@@ -80,12 +79,18 @@ export type DesignIntakePanelProps = {
   intake: DesignIntakeState;
   onIntakeChange: (patch: Partial<DesignIntakeState>) => void;
   onRefreshDesignBrief: () => void;
+  analyzeInProgress: boolean;
+  onAnalyzeWebsite: () => void | Promise<void>;
+  analyzeStatusLine: string;
 };
 
 export function DesignIntakePanel({
   intake,
   onIntakeChange,
   onRefreshDesignBrief,
+  analyzeInProgress,
+  onAnalyzeWebsite,
+  analyzeStatusLine,
 }: DesignIntakePanelProps) {
   const activeComponents = useMemo(() => {
     return intake.category === "Outdoor tent"
@@ -123,13 +128,6 @@ export function DesignIntakePanel({
     [intake.category, intake.componentsBooth, intake.componentsOutdoor, onIntakeChange],
   );
 
-  const analyzeWebsite = useCallback(() => {
-    onIntakeChange({
-      extracted: buildMockExtracted(),
-      showExtracted: true,
-    });
-  }, [onIntakeChange]);
-
   const setExtractedValue = useCallback(
     (key: ExtractedKey, value: string) => {
       onIntakeChange({
@@ -163,7 +161,7 @@ export function DesignIntakePanel({
             Design intake
           </h2>
           <p className={`mt-1 ${sectionHint}`}>
-            Website, business, and product choices (mock analysis only).
+            Website, business, and product choices. Analyze tries Claude when configured; otherwise mock data (no scraping).
           </p>
         </div>
 
@@ -361,13 +359,20 @@ export function DesignIntakePanel({
 
         <button
           type="button"
-          className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation"
-          onClick={analyzeWebsite}
+          disabled={analyzeInProgress}
+          aria-busy={analyzeInProgress}
+          className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation disabled:cursor-wait disabled:opacity-70"
+          onClick={() => void onAnalyzeWebsite()}
         >
-          Analyze Website
+          {analyzeInProgress ? "Analyzing…" : "Analyze Website"}
         </button>
+        {analyzeStatusLine.trim() !== "" && (
+          <p className={sectionHint} aria-live="polite">
+            {analyzeStatusLine}
+          </p>
+        )}
         <p className={sectionHint}>
-          Loads mock extracted fields (no real scraping). Run after URL and name look right.
+          No real scraping yet. Run after URL and name look right.
         </p>
       </section>
 

@@ -30,8 +30,11 @@ Intake state drives `createDesignSpecFromIntake` into Fabric: business name, dom
 **Demo layout and mobile clarity pass (Stage 7)**  
 Home layout only: clearer A→B→C vs. D column grouping (intake / extracted / brief vs. concept preview), generate + surfaces next to canvas, export/import + raw JSON behind collapsed details, shorter muted helper copy, mobile-friendly spacing. No new generation logic; Fabric behavior and 1000×600 exports unchanged.
 
-**Claude / Anthropic env prep (no API integration yet)**  
-`.gitignore` tightened for env files with `!.env.example`; added `.env.example` (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) and README “Environment variables” for `.env.local` vs Railway. No server calls to Anthropic yet; mock intake and Analyze Website unchanged.
+**Claude / Anthropic env prep**  
+`.gitignore` tightened for env files with `!.env.example`; added `.env.example` (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) and README “Environment variables” for `.env.local` vs Railway.
+
+**Optional Claude analyze route (prototype)**  
+Prepared first optional Claude-backed Analyze Website route with mocked fallback; no real website scraping yet. Server-only `POST /api/analyze-website` reads `ANTHROPIC_*` from env; UI falls back to the prior mock extraction when the key is missing or the response is invalid. Keys never sent to the browser. **Debug:** responses include `source`, `claudeAttempted`, `durationMs`, and `model` (no secrets); dev server logs `[analyze-website]` with `hasApiKey` / outcome only.
 
 ---
 

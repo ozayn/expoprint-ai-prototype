@@ -45,6 +45,9 @@ export const EXTRACTED_LABELS: Record<ExtractedKey, string> = {
 
 export type ExtractedRow = { value: string; useForDesign: boolean };
 
+/** How extracted rows were last filled by “Analyze Website”. */
+export type ExtractionSource = "none" | "claude" | "mock_fallback";
+
 export interface DesignIntakeState {
   websiteUrl: string;
   businessName: string;
@@ -56,6 +59,8 @@ export interface DesignIntakeState {
   extracted: Record<ExtractedKey, ExtractedRow>;
   /** True after “Analyze Website” loads mock extraction into the form. */
   showExtracted: boolean;
+  /** Last successful analyze path (Claude API vs local mock). */
+  extractionSource: ExtractionSource;
   designBrief: string;
 }
 
@@ -84,23 +89,64 @@ export function emptyExtracted(): Record<ExtractedKey, ExtractedRow> {
   };
 }
 
+/** Default “include on design” when rows are populated from analyze flows. */
+export const DEFAULT_EXTRACTED_USE_FOR_DESIGN: Readonly<
+  Record<ExtractedKey, boolean>
+> = {
+  logo: true,
+  brandColors: true,
+  phone: true,
+  email: true,
+  address: false,
+  social: true,
+  services: true,
+  products: true,
+};
+
+const MAX_EXTRACTED_FIELD_CHARS = 2000;
+
+function clampExtractedValue(raw: string): string {
+  const t = raw.trim();
+  if (t.length <= MAX_EXTRACTED_FIELD_CHARS) return t;
+  return t.slice(0, MAX_EXTRACTED_FIELD_CHARS);
+}
+
+/** Build extracted rows from plain string values (e.g. Claude JSON). */
+export function buildExtractedFromPlainValues(
+  input: Record<string, unknown>,
+): Record<ExtractedKey, ExtractedRow> {
+  const next = emptyExtracted();
+  (Object.keys(next) as ExtractedKey[]).forEach((key) => {
+    let raw = input[key];
+    if (
+      key === "brandColors" &&
+      (raw === undefined || raw === null || raw === "") &&
+      typeof input.colors === "string"
+    ) {
+      raw = input.colors;
+    }
+    const str =
+      typeof raw === "string"
+        ? clampExtractedValue(raw)
+        : typeof raw === "number" && Number.isFinite(raw)
+          ? clampExtractedValue(String(raw))
+          : "";
+    next[key] = {
+      value: str,
+      useForDesign:
+        str.length > 0 ? DEFAULT_EXTRACTED_USE_FOR_DESIGN[key] : false,
+    };
+  });
+  return next;
+}
+
 /** Mock extraction with defaults for fields that should appear on the design by default. */
 export function buildMockExtracted(): Record<ExtractedKey, ExtractedRow> {
-  const defaults: Record<ExtractedKey, boolean> = {
-    logo: true,
-    brandColors: true,
-    phone: true,
-    email: true,
-    address: false,
-    social: true,
-    services: true,
-    products: true,
-  };
   const next = emptyExtracted();
   (Object.keys(MOCK_EXTRACTED) as ExtractedKey[]).forEach((key) => {
     next[key] = {
       value: MOCK_EXTRACTED[key],
-      useForDesign: defaults[key],
+      useForDesign: DEFAULT_EXTRACTED_USE_FOR_DESIGN[key],
     };
   });
   return next;
@@ -128,8 +174,15 @@ export function getSelectedExtractedLabels(intake: DesignIntakeState): string[] 
 export function computeDesignBriefText(intake: DesignIntakeState): string {
   const selectedComponents = getSelectedProductComponents(intake);
 
+  const header =
+    intake.extractionSource === "claude"
+      ? "DESIGN BRIEF (prototype — Claude-inferred fields, not scraped)"
+      : intake.extractionSource === "mock_fallback"
+        ? "DESIGN BRIEF (prototype — mocked extraction fallback)"
+        : "DESIGN BRIEF (prototype — mock extraction)";
+
   const lines: string[] = [
-    "DESIGN BRIEF (prototype — mock extraction)",
+    header,
     "================================",
     "",
     `Business: ${intake.businessName.trim() || "(not provided)"}`,
@@ -192,6 +245,7 @@ export function defaultDesignIntake(): DesignIntakeState {
     },
     extracted: emptyExtracted(),
     showExtracted: false,
+    extractionSource: "none",
     designBrief: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };

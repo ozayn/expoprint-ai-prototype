@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { DesignIntakePanel } from "@/components/DesignIntakePanel";
+import { analyzeStatusLineFromApiPayload } from "@/lib/analyzeWebsiteResponse";
+import { isValidExtractedRowsPayload } from "@/lib/claudeExtractedContent";
 import {
   createDesignSpecFromIntake,
   shouldUseIntakeDesignSpec,
 } from "@/lib/createDesignSpecFromIntake";
-import { computeDesignBriefText, defaultDesignIntake, getSelectedProductComponents, type DesignIntakeState } from "@/lib/designIntakeState";
+import {
+  buildMockExtracted,
+  computeDesignBriefText,
+  defaultDesignIntake,
+  getSelectedProductComponents,
+  type DesignIntakeState,
+} from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
@@ -54,6 +62,8 @@ export function FabricDesignEditor() {
   const [status, setStatus] = useState<string | null>(null);
   const [intake, setIntake] = useState<DesignIntakeState>(() => defaultDesignIntake());
   const [activeDesignSurface, setActiveDesignSurface] = useState<string | null>(null);
+  const [analyzeInProgress, setAnalyzeInProgress] = useState(false);
+  const [analyzeStatusLine, setAnalyzeStatusLine] = useState("");
 
   const selectedSurfaces = useMemo(
     () => getSelectedProductComponents(intake),
@@ -89,6 +99,73 @@ export function FabricDesignEditor() {
       ...prev,
       designBrief: computeDesignBriefText(prev),
     }));
+  }, []);
+
+  const handleAnalyzeWebsite = useCallback(async () => {
+    setAnalyzeInProgress(true);
+    try {
+      const snap = intakeRef.current;
+      const res = await fetch("/api/analyze-website", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          websiteUrl: snap.websiteUrl,
+          businessName: snap.businessName,
+          productCategory: snap.category,
+          style: snap.style,
+          specialInstructions: snap.instructions,
+        }),
+      });
+      const data: unknown = await res.json().catch(() => null);
+      const rec =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : null;
+      const extractedUnknown =
+        rec && "extracted" in rec
+          ? (rec as { extracted: unknown }).extracted
+          : undefined;
+
+      const apiClaimsClaude = Boolean(
+        rec && rec.ok === true && rec.source === "claude",
+      );
+
+      if (apiClaimsClaude && isValidExtractedRowsPayload(extractedUnknown)) {
+        setAnalyzeStatusLine("Claude extraction used.");
+        setIntake((prev) => {
+          const next: DesignIntakeState = {
+            ...prev,
+            extracted: extractedUnknown,
+            showExtracted: true,
+            extractionSource: "claude",
+          };
+          return { ...next, designBrief: computeDesignBriefText(next) };
+        });
+        return;
+      }
+
+      if (apiClaimsClaude) {
+        setAnalyzeStatusLine(
+          "Using mocked extraction: invalid Claude response.",
+        );
+      } else {
+        setAnalyzeStatusLine(analyzeStatusLineFromApiPayload(data).line);
+      }
+    } catch {
+      setAnalyzeStatusLine("Using mocked extraction for prototype.");
+    } finally {
+      setAnalyzeInProgress(false);
+    }
+
+    setIntake((prev) => {
+      const next: DesignIntakeState = {
+        ...prev,
+        extracted: buildMockExtracted(),
+        showExtracted: true,
+        extractionSource: "mock_fallback",
+      };
+      return { ...next, designBrief: computeDesignBriefText(next) };
+    });
   }, []);
 
   const ready = canvasPhase === "ready";
@@ -359,6 +436,9 @@ export function FabricDesignEditor() {
           intake={intake}
           onIntakeChange={onIntakeChange}
           onRefreshDesignBrief={handleRefreshDesignBrief}
+          analyzeInProgress={analyzeInProgress}
+          onAnalyzeWebsite={handleAnalyzeWebsite}
+          analyzeStatusLine={analyzeStatusLine}
         />
 
         <details className="group rounded-lg border border-zinc-200 bg-zinc-50/80">

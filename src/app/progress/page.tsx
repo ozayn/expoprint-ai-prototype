@@ -109,6 +109,7 @@ const stages: Stage[] = [
       "Grouped export/import actions and raw canvas JSON under collapsed details/summary blocks so casual demos see less developer UI by default.",
       "Adjusted mobile spacing, touch targets, and preview scaling behavior already in place; horizontal scrolling for the artboard preview is still avoided via scaled CSS dimensions.",
       "Fabric editability, JSON/PNG/SVG export, Load JSON, and 1000×600 export geometry unchanged.",
+      "Optional server `POST /api/analyze-website` (Anthropic SDK): Analyze Website calls Claude when `ANTHROPIC_API_KEY` is set, otherwise uses the same mock extraction as before. No real scraping; failures fall back to mock; secrets stay server-side only.",
     ],
   },
   {

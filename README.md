@@ -14,12 +14,22 @@ The dev server runs at **http://localhost:3000**.
 
 ### Environment variables
 
-Future Claude / Anthropic calls will read configuration from the environment. The app stays fully usable without any API key; mock “Analyze Website” behavior is unchanged until real integration is added.
+Future Claude / Anthropic calls read configuration from the environment. The app stays fully usable without any API key; if the key is missing or Claude fails, **Analyze Website** still fills the form using the built-in mock extraction.
 
 1. Copy `.env.example` to `.env.local` for local development.
 2. Set `ANTHROPIC_API_KEY` in `.env.local` when you are ready to wire up the API (get a key from the Anthropic console).
 3. Never commit `.env.local` or any file that contains real secrets (they are listed in `.gitignore`).
 4. On Railway, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Variables** tab instead of putting keys in the repo.
+
+**Analyze Website:** With a valid key, “Analyze Website” calls the server route `POST /api/analyze-website` (Claude infers fields from the form only — no scraping). Without a key or on errors, the app uses the same mocked extraction as before.
+
+**Verify Analyze / Claude (manual):**
+
+1. Open DevTools → **Network**, filter by `analyze-website`.
+2. Click **Analyze Website** on the home page.
+3. Inspect the JSON response: `ok`, `source`, `claudeAttempted`, `durationMs`, and `reason` (on failures). With a key and a good model response you should see `ok: true`, `source: "claude"`, `claudeAttempted: true`.
+4. Read the **status line** under the button (e.g. “Claude extraction used.” vs “Using mocked extraction: …”).
+5. With `npm run dev`, check the **server terminal** for `[analyze-website]` lines (development only): `hasApiKey`, `model`, outcome — never the secret key.
 
 ### Project progress and work log
 
