@@ -16,6 +16,59 @@ import {
   type StylePreference,
 } from "@/lib/designIntakeState";
 
+const STYLE_SUGGESTIONS: Record<
+  StylePreference,
+  { fits: string; direction: string; content: string }
+> = {
+  Modern: {
+    fits: "technology, service brands, startups",
+    direction: "bold color block, clean spacing, large headline",
+    content: "keep copy short and use one clear service line",
+  },
+  Conservative: {
+    fits: "healthcare, finance, legal, B2B services",
+    direction: "restrained contrast, simple structure, minimal decorative shapes",
+    content: "prioritize trust, contact info, and clear services",
+  },
+  Traditional: {
+    fits: "local businesses, markets, community events",
+    direction: "centered logo/name, straightforward hierarchy, easy readability",
+    content: "include business name, phone, website, and core offering",
+  },
+  Playful: {
+    fits: "events, food, lifestyle, kids, creative brands",
+    direction: "larger accent shapes and more energetic composition",
+    content: "use a friendly headline and short memorable phrases",
+  },
+};
+
+/** Illustrative swatches only — not wired to extracted brand colors. */
+const STYLE_THEME_CHIPS: Record<
+  StylePreference,
+  readonly [string, string, string]
+> = {
+  Modern: [
+    "h-8 w-11 shrink-0 rounded-md bg-[#0c2340] shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md bg-teal-600 shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md border border-zinc-200/90 bg-white shadow-sm",
+  ],
+  Conservative: [
+    "h-8 w-11 shrink-0 rounded-md bg-[#1e3a5f] shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md bg-zinc-400 shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md border border-teal-200/70 bg-teal-100/90 shadow-sm",
+  ],
+  Traditional: [
+    "h-8 w-11 shrink-0 rounded-md bg-[#0a1628] shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md border border-zinc-200 bg-white shadow-sm",
+    "h-8 w-11 shrink-0 rounded-md border-2 border-zinc-300 bg-white shadow-sm ring-1 ring-zinc-200/60",
+  ],
+  Playful: [
+    "h-8 w-11 shrink-0 rounded-md bg-teal-500 shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 rounded-md bg-slate-900 shadow-sm ring-1 ring-black/5",
+    "h-8 w-11 shrink-0 -rotate-6 rounded-md border border-amber-200/80 bg-amber-50 shadow-sm",
+  ],
+};
+
 const fieldClass =
   "mt-1 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:px-2 sm:py-1.5 sm:text-sm";
 const labelClass = "text-xs font-medium text-zinc-600";
@@ -183,6 +236,44 @@ export function DesignIntakePanel({
             <option value="Playful">Playful</option>
           </select>
         </div>
+
+        <div
+          className="rounded-md border border-zinc-200 bg-white px-2.5 py-2.5 sm:px-3 sm:py-2"
+          aria-live="polite"
+        >
+          <p className={`${subLabel} mb-2`}>Style suggestion</p>
+          <ul className="space-y-1.5 text-xs leading-snug text-zinc-600">
+            <li>
+              <span className="font-medium text-zinc-700">Fits:</span>{" "}
+              {STYLE_SUGGESTIONS[intake.style].fits}.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-700">Direction:</span>{" "}
+              {STYLE_SUGGESTIONS[intake.style].direction}.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-700">Content:</span>{" "}
+              {STYLE_SUGGESTIONS[intake.style].content}.
+            </li>
+          </ul>
+
+          <div className="mt-3 border-t border-zinc-100 pt-3">
+            <p className={`${subLabel} mb-2`}>Theme preview</p>
+            <div
+              className="flex flex-wrap items-center gap-2"
+              role="presentation"
+              aria-hidden
+            >
+              {STYLE_THEME_CHIPS[intake.style].map((chipClass, index) => (
+                <span key={`${intake.style}-${index}`} className={chipClass} />
+              ))}
+            </div>
+            <p className={`${sectionHint} mt-2`}>
+              Preview only — final colors can still come from the customer brand.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="intake-instructions" className={labelClass}>
             Special instructions
