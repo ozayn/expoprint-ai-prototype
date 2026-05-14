@@ -12,6 +12,15 @@ npm run dev:local
 
 The dev server runs at **http://localhost:3000**.
 
+### Environment variables
+
+Future Claude / Anthropic calls will read configuration from the environment. The app stays fully usable without any API key; mock “Analyze Website” behavior is unchanged until real integration is added.
+
+1. Copy `.env.example` to `.env.local` for local development.
+2. Set `ANTHROPIC_API_KEY` in `.env.local` when you are ready to wire up the API (get a key from the Anthropic console).
+3. Never commit `.env.local` or any file that contains real secrets (they are listed in `.gitignore`).
+4. On Railway, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Variables** tab instead of putting keys in the repo.
+
 ### Project progress and work log
 
 - **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (when the dev server is running).
