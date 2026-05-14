@@ -82,6 +82,8 @@ export type DesignIntakePanelProps = {
   analyzeInProgress: boolean;
   onAnalyzeWebsite: () => void | Promise<void>;
   analyzeStatusLine: string;
+  /** Shown under analyze status when non-empty (e.g. auto-filled business name). */
+  analyzeAuxiliaryNote?: string;
 };
 
 export function DesignIntakePanel({
@@ -91,6 +93,7 @@ export function DesignIntakePanel({
   analyzeInProgress,
   onAnalyzeWebsite,
   analyzeStatusLine,
+  analyzeAuxiliaryNote,
 }: DesignIntakePanelProps) {
   const activeComponents = useMemo(() => {
     return intake.category === "Outdoor tent"
@@ -161,7 +164,8 @@ export function DesignIntakePanel({
             Design intake
           </h2>
           <p className={`mt-1 ${sectionHint}`}>
-            Website, business, and product choices. Analyze tries Claude when configured; otherwise mock data (no scraping).
+            Website, business, and product choices. Analyze can fetch the homepage, send bounded
+            context to Claude, and fall back to mock data if unavailable.
           </p>
         </div>
 
@@ -371,8 +375,14 @@ export function DesignIntakePanel({
             {analyzeStatusLine}
           </p>
         )}
+        {analyzeAuxiliaryNote && analyzeAuxiliaryNote.trim() !== "" ? (
+          <p className="text-[11px] leading-snug text-zinc-500" aria-live="polite">
+            {analyzeAuxiliaryNote}
+          </p>
+        ) : null}
         <p className={sectionHint}>
-          No real scraping yet. Run after URL and name look right.
+          Homepage-only extraction for prototype. No full-site crawling yet. Run after URL and name
+          look right.
         </p>
       </section>
 

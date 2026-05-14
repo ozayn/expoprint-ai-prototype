@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { DesignIntakePanel } from "@/components/DesignIntakePanel";
-import { analyzeStatusLineFromApiPayload } from "@/lib/analyzeWebsiteResponse";
+import { analyzeStatusLineFromApiPayload, formatClaudeSuccessStatusLine } from "@/lib/analyzeWebsiteResponse";
+import { applyClaudeAnalyzeSuccessToIntake } from "@/lib/analyzeWebsiteSuggestions";
 import { isValidExtractedRowsPayload } from "@/lib/claudeExtractedContent";
 import {
   createDesignSpecFromIntake,
@@ -64,6 +65,7 @@ export function FabricDesignEditor() {
   const [activeDesignSurface, setActiveDesignSurface] = useState<string | null>(null);
   const [analyzeInProgress, setAnalyzeInProgress] = useState(false);
   const [analyzeStatusLine, setAnalyzeStatusLine] = useState("");
+  const [analyzeBusinessNameNote, setAnalyzeBusinessNameNote] = useState("");
 
   const selectedSurfaces = useMemo(
     () => getSelectedProductComponents(intake),
@@ -84,6 +86,9 @@ export function FabricDesignEditor() {
   }, [intake, displaySurface]);
 
   const onIntakeChange = useCallback((patch: Partial<DesignIntakeState>) => {
+    if ("businessName" in patch) {
+      setAnalyzeBusinessNameNote("");
+    }
     setIntake((prev) => {
       const next = { ...prev, ...patch };
       const patchKeys = Object.keys(patch) as (keyof DesignIntakeState)[];
@@ -103,6 +108,7 @@ export function FabricDesignEditor() {
 
   const handleAnalyzeWebsite = useCallback(async () => {
     setAnalyzeInProgress(true);
+    setAnalyzeBusinessNameNote("");
     try {
       const snap = intakeRef.current;
       const res = await fetch("/api/analyze-website", {
@@ -131,16 +137,19 @@ export function FabricDesignEditor() {
       );
 
       if (apiClaimsClaude && isValidExtractedRowsPayload(extractedUnknown)) {
-        setAnalyzeStatusLine("Claude extraction used.");
+        setAnalyzeStatusLine(formatClaudeSuccessStatusLine(rec ?? {}));
+        let nameNote = "";
         setIntake((prev) => {
-          const next: DesignIntakeState = {
-            ...prev,
-            extracted: extractedUnknown,
-            showExtracted: true,
-            extractionSource: "claude",
-          };
-          return { ...next, designBrief: computeDesignBriefText(next) };
+          // Same suggestedBusinessName / URL rules as /demo (GuidedIntakeDemo).
+          const { next, businessNameNote } = applyClaudeAnalyzeSuccessToIntake(
+            prev,
+            extractedUnknown,
+            rec ?? {},
+          );
+          nameNote = businessNameNote;
+          return next;
         });
+        setAnalyzeBusinessNameNote(nameNote);
         return;
       }
 
@@ -416,7 +425,11 @@ export function FabricDesignEditor() {
             ExpoPrint AI
           </h1>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500 sm:text-sm">
-            Prototype — intake to editable canvas (mock extraction, no AI).
+            Prototype — intake to editable canvas
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500 sm:text-sm">
+            Claude-assisted homepage analysis when configured; mocked fallback when
+            unavailable.
           </p>
           <p
             className={`mt-2 text-xs font-medium ${
@@ -439,6 +452,7 @@ export function FabricDesignEditor() {
           analyzeInProgress={analyzeInProgress}
           onAnalyzeWebsite={handleAnalyzeWebsite}
           analyzeStatusLine={analyzeStatusLine}
+          analyzeAuxiliaryNote={analyzeBusinessNameNote}
         />
 
         <details className="group rounded-lg border border-zinc-200 bg-zinc-50/80">

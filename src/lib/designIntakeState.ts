@@ -45,6 +45,9 @@ export const EXTRACTED_LABELS: Record<ExtractedKey, string> = {
 
 export type ExtractedRow = { value: string; useForDesign: boolean };
 
+/** Default business label in the editor demo; safe to replace after Analyze when unchanged. */
+export const DEFAULT_DEMO_BUSINESS_NAME = "Example Brand Co.";
+
 /** How extracted rows were last filled by “Analyze Website”. */
 export type ExtractionSource = "none" | "claude" | "mock_fallback";
 
@@ -227,7 +230,7 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
 export function defaultDesignIntake(): DesignIntakeState {
   const base: DesignIntakeState = {
     websiteUrl: "https://examplebrand.com",
-    businessName: "Example Brand Co.",
+    businessName: DEFAULT_DEMO_BUSINESS_NAME,
     category: "Outdoor tent",
     style: "Modern",
     instructions: "",

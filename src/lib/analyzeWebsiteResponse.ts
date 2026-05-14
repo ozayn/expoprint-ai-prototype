@@ -10,13 +10,30 @@ export type AnalyzeWebsiteApiSource =
   | "api_error"
   | "invalid_json";
 
+/** Safe subset of homepage fetch outcome for API / UI (no raw HTML or full text). */
+export type WebsiteFetchMeta = {
+  status: "success" | "skipped" | "failed";
+  reason?: string;
+  finalUrl?: string;
+  titleFound?: boolean;
+  textChars?: number;
+  logoCandidates?: number;
+  contactLinks?: number;
+};
+
 export type AnalyzeWebsiteApiSuccess = {
   ok: true;
   source: "claude";
   extracted: Record<ExtractedKey, ExtractedRow>;
+  /** Claude + server hints; empty strings when unknown. Not returned on failures. */
+  suggestedBusinessName: string;
+  suggestedWebsiteDomain: string;
+  /** Canonical https URL from redirect final URL or normalized user input; for display only. */
+  suggestedCanonicalWebsiteUrl: string;
   claudeAttempted: true;
   durationMs: number;
   model: string;
+  websiteFetch: WebsiteFetchMeta;
 };
 
 export type AnalyzeWebsiteApiFailure = {
@@ -27,6 +44,7 @@ export type AnalyzeWebsiteApiFailure = {
   durationMs: number;
   /** Resolved model id from env (no secrets). */
   model?: string;
+  websiteFetch?: WebsiteFetchMeta;
 };
 
 export type AnalyzeWebsiteApiResponse =
@@ -49,7 +67,10 @@ export function analyzeStatusLineFromApiPayload(data: unknown): {
   const source = typeof d.source === "string" ? d.source : "";
 
   if (ok && source === "claude") {
-    return { useClaudeExtracted: true, line: "Claude extraction used." };
+    return {
+      useClaudeExtracted: true,
+      line: formatClaudeSuccessStatusLine(d),
+    };
   }
 
   if (source === "missing_api_key") {
@@ -82,4 +103,28 @@ export function analyzeStatusLineFromApiPayload(data: unknown): {
     useClaudeExtracted: false,
     line: "Using mocked extraction for prototype.",
   };
+}
+
+/** Status line when Claude rows succeeded (includes homepage fetch hint). */
+export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): string {
+  const wf = data.websiteFetch;
+  if (!wf || typeof wf !== "object" || Array.isArray(wf)) {
+    return "Claude extraction used.";
+  }
+  const w = wf as Record<string, unknown>;
+  const status = typeof w.status === "string" ? w.status : "";
+  if (status === "success") {
+    return "Claude extraction used · Website content fetched.";
+  }
+  if (status === "failed") {
+    return "Claude extraction used · Website fetch failed.";
+  }
+  if (status === "skipped") {
+    const reason = typeof w.reason === "string" ? w.reason : "";
+    if (reason === "empty_url" || reason === "invalid_url") {
+      return "Claude extraction used · Website skipped (no valid URL).";
+    }
+    return "Claude extraction used.";
+  }
+  return "Claude extraction used.";
 }

@@ -116,7 +116,7 @@ const stages: Stage[] = [
     title: "Optional Claude-backed Analyze Website",
     status: "Complete",
     summary:
-      "Added a narrow, optional server path so Analyze Website can ask Claude for structured extracted rows from the current intake fields only. The Anthropic API key stays in environment variables; there is still no real website scraping and no end-to-end AI design generation — mock extraction remains the safe default when the key is absent or the model output cannot be used.",
+      "Added a narrow, optional server path so Analyze Website can ask Claude for structured extracted rows from the current intake fields only. The Anthropic API key stays in environment variables; there is still no end-to-end AI design generation — mock extraction remains the safe default when the key is absent or the model output cannot be used. A later slice (Stage 10) adds homepage-only HTML fetch to enrich Claude context; full-site crawling is still out of scope.",
     accomplishments: [
       "Added a server-side Next.js API route (`POST /api/analyze-website`) for Analyze Website using the official Anthropic SDK.",
       "Claude API key is read only from server environment variables and is never sent to the browser.",
@@ -125,7 +125,7 @@ const stages: Stage[] = [
       "API responses include cautious debug metadata (`source`, `claudeAttempted`, `model`, `durationMs`, `reason` on failures) without exposing secrets or raw customer payloads in logs.",
       "Mock extraction is preserved when the API key is missing, the Anthropic call fails, or the model response is not valid usable JSON for the app.",
       "Locally verified in development: responses can return ok: true with source claude when configured; failures still fall back to mock.",
-      "No real website scraping yet — Claude currently uses only the provided intake fields (URL, name, category, style, instructions) under explicit prototype constraints.",
+      "Stage 10 adds a single-homepage fetch (title/meta/OG/links/text) to improve Claude context when the URL loads; no crawler or browser automation — not production-grade extraction.",
     ],
   },
   {
@@ -135,16 +135,23 @@ const stages: Stage[] = [
     summary:
       "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
     accomplishments: [
-      "Client-side intake and canvas wiring exist through Stage 8; a thin Claude analyze path exists but broader LLM/agent intake is not implemented.",
+      "Client-side intake and canvas wiring exist through Stage 10; optional Claude analyze plus a cautious homepage-only fetch (no crawler) exist, but broader LLM/agent intake is not implemented.",
     ],
   },
   {
     id: 10,
     title: "Website/content extraction",
-    status: "Planned",
+    status: "Complete",
     summary:
-      "Extract logo, colors, contact info, services, products, social links, and useful marketing copy from the customer website.",
-    accomplishments: ["Not started yet."],
+      "First homepage-only fetch for Analyze Website: the server retrieves the entered public URL once (no crawling, no browser automation), parses HTML for lightweight signals, and passes a bounded text summary to Claude. Failures fall back to the prior intake-only context. This is prototype-grade, not audited for every site or anti-bot edge case.",
+    accomplishments: [
+      "Homepage GET with timeout and response size cap; http/https URLs only after normalization.",
+      "Parsed title, meta description, og:title / og:description, favicon / apple-touch / og:image and simple “logo” img heuristics as URL candidates (not verified assets).",
+      "Collected mailto:, tel:, and a small set of major social host links from anchor hrefs.",
+      "Produced a capped visible-text excerpt for Claude (not echoed back in the public API JSON).",
+      "API exposes `websiteFetch` metadata (`status`, optional `reason`, counts, `finalUrl`) so demos can see fetch vs skip vs failure without shipping raw HTML.",
+      "No full-site crawl, no sitemap follow, no headless browser — production-hardened scraping and validation remain future work.",
+    ],
   },
   {
     id: 11,
@@ -165,6 +172,18 @@ const stages: Stage[] = [
     summary:
       "Use AI to generate editable DesignSpec JSON that can populate Fabric.js templates.",
     accomplishments: ["Not started yet."],
+  },
+  {
+    id: 13,
+    title: "Guided customer-style demo view",
+    status: "Complete",
+    summary:
+      "Added a separate `/demo` route with a step-by-step guided intake for a cleaner customer-style presentation. The home `/` editor workspace is unchanged and remains where JSON/PNG/SVG export and developer-oriented tools live.",
+    accomplishments: [
+      "New client flow (`GuidedIntakeDemo`) walks through website, business, category, components, style, instructions, analyze, extracted review, and concept preview one step at a time with Back/Continue and a simple step counter.",
+      "Reuses the same pipeline as the editor: `DesignIntakeState`, `POST /api/analyze-website` (Claude when available, mock fallback with a clear status line), `computeDesignBriefText`, `createDesignSpecFromIntake`, and `renderDesignSpecToFabric` on a 1000×600 Fabric canvas with design-surface tabs when multiple components are selected.",
+      "Mobile-friendly single column, large tap targets, and width-scaled canvas preview (`cssOnly` scaling); no export drawer or dev tools on `/demo` — users follow “Open editor view” for exports.",
+    ],
   },
 ];
 

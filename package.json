@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
+    "cheerio": "^1.2.0",
     "fabric": "^7.3.1",
     "next": "^16.2.6",
     "react": "19.2.4",

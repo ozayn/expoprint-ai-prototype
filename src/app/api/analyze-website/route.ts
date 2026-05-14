@@ -1,10 +1,20 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import type { AnalyzeWebsiteApiFailure, AnalyzeWebsiteApiSuccess } from "@/lib/analyzeWebsiteResponse";
+import type {
+  AnalyzeWebsiteApiFailure,
+  AnalyzeWebsiteApiSuccess,
+  WebsiteFetchMeta,
+} from "@/lib/analyzeWebsiteResponse";
 import {
   buildExtractedFromPlainValues,
+  DEFAULT_DEMO_BUSINESS_NAME,
   type ExtractedKey,
 } from "@/lib/designIntakeState";
+import {
+  extractWebsiteContent,
+  formatWebsiteContextForClaude,
+  normalizePublicWebsiteUrlForIntake,
+} from "@/lib/server/extractWebsiteContent";
 
 export const runtime = "nodejs";
 
@@ -18,6 +28,15 @@ type AnalyzeBody = {
 
 function asTrimmedString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
+}
+
+/** Value shown to Claude only — real request body is unchanged on the wire from the client. */
+function businessNameForClaudePrompt(raw: string): string {
+  const t = raw.trim();
+  if (!t || t === DEFAULT_DEMO_BUSINESS_NAME) {
+    return "(not provided)";
+  }
+  return t;
 }
 
 function stripJsonCodeFences(text: string): string {
@@ -48,16 +67,88 @@ function parseTopLevelJsonObject(text: string): Record<string, unknown> | null {
   return parsed as Record<string, unknown>;
 }
 
-function parseExtractedObjectFromAssistantText(
-  text: string,
-): Record<string, unknown> | null {
+const ROOT_META_KEYS = new Set([
+  "extracted",
+  "suggestedBusinessName",
+  "suggestedWebsiteDomain",
+  "suggestedCanonicalWebsiteUrl",
+]);
+
+function clampSuggestionStr(v: unknown, maxLen: number): string {
+  if (typeof v !== "string") return "";
+  const t = v.replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return t.length > maxLen ? t.slice(0, maxLen) : t;
+}
+
+/** Hostname only, lowercased, no leading www; empty if not parseable as a host. */
+function hostnameHintFromString(raw: string): string {
+  const t = raw.trim().toLowerCase();
+  if (!t) return "";
+  const hostPart = t.replace(/^https?:\/\//, "").split("/")[0]?.split("@").pop();
+  if (!hostPart) return "";
+  const noPort = hostPart.split(":")[0] ?? "";
+  if (!noPort) return "";
+  try {
+    return new URL(`https://${noPort}`).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function hostnameFromHttpUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function buildPublicUrlHints(
+  websiteUrl: string,
+  fetchMeta: WebsiteFetchMeta,
+): { canonical: string; domain: string } {
+  const fromFetch =
+    fetchMeta.status === "success" && typeof fetchMeta.finalUrl === "string"
+      ? fetchMeta.finalUrl.trim()
+      : "";
+  const fromInput = normalizePublicWebsiteUrlForIntake(websiteUrl) ?? "";
+  const canonical = fromFetch || fromInput;
+  const domain = canonical ? hostnameFromHttpUrl(canonical) : "";
+  return { canonical, domain };
+}
+
+type ParsedClaudeAnalyze = {
+  extractedPlain: Record<string, unknown>;
+  suggestedBusinessName: string;
+  suggestedWebsiteDomainClaude: string;
+};
+
+function parseClaudeAnalyzeAssistantJson(text: string): ParsedClaudeAnalyze | null {
   const root = parseTopLevelJsonObject(text);
   if (!root) return null;
+
+  const suggestedBusinessName = clampSuggestionStr(root.suggestedBusinessName, 200);
+  const suggestedWebsiteDomainClaude = hostnameHintFromString(
+    clampSuggestionStr(root.suggestedWebsiteDomain, 253),
+  );
+
   const inner = root.extracted;
+  let extractedPlain: Record<string, unknown>;
   if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
+    extractedPlain = inner as Record<string, unknown>;
+  } else {
+    extractedPlain = { ...root };
+    for (const k of ROOT_META_KEYS) {
+      delete extractedPlain[k];
+    }
   }
-  return root;
+
+  return {
+    extractedPlain,
+    suggestedBusinessName,
+    suggestedWebsiteDomainClaude,
+  };
 }
 
 function assistantTextFromMessage(message: Anthropic.Messages.Message): string {
@@ -102,6 +193,7 @@ function fail(
     model: body.model,
     claudeAttempted: body.claudeAttempted,
     durationMs: body.durationMs,
+    websiteFetchStatus: body.websiteFetch?.status,
   });
   return NextResponse.json(body, { status: 200 });
 }
@@ -120,6 +212,7 @@ function okClaude(
     model: body.model,
     claudeAttempted: body.claudeAttempted,
     durationMs: body.durationMs,
+    websiteFetchStatus: body.websiteFetch.status,
   });
   return NextResponse.json(body, { status: 200 });
 }
@@ -137,12 +230,17 @@ export async function POST(req: Request) {
   });
 
   if (!apiKey) {
+    const websiteFetch: WebsiteFetchMeta = {
+      status: "skipped",
+      reason: "missing_api_key",
+    };
     return fail(t0, {
       ok: false,
       source: "missing_api_key",
       reason: "missing_api_key",
       claudeAttempted: false,
       model,
+      websiteFetch,
     });
   }
 
@@ -157,8 +255,17 @@ export async function POST(req: Request) {
       claudeAttempted: false,
       durationMs: Date.now() - t0,
       model,
+      websiteFetch: {
+        status: "skipped" as const,
+        reason: "invalid_json_body",
+      } satisfies WebsiteFetchMeta,
     };
-    devLog("response", errBody);
+    devLog("response", {
+      ok: errBody.ok,
+      source: errBody.source,
+      reason: errBody.reason,
+      websiteFetchStatus: errBody.websiteFetch.status,
+    });
     return NextResponse.json(errBody, { status: 400 });
   }
 
@@ -168,36 +275,55 @@ export async function POST(req: Request) {
   const style = asTrimmedString(body.style);
   const specialInstructions = asTrimmedString(body.specialInstructions);
 
+  const extraction = await extractWebsiteContent(websiteUrl);
+  const websiteFetch: WebsiteFetchMeta = extraction.meta;
+
+  const businessNameClaudeLine = businessNameForClaudePrompt(businessName);
+
   const userContext = [
-    `Business name: ${businessName || "(not provided)"}`,
+    `Business name: ${businessNameClaudeLine}`,
     `Website URL: ${websiteUrl || "(not provided)"}`,
     `Product category: ${productCategory || "(not provided)"}`,
     `Style preference: ${style || "(not provided)"}`,
     specialInstructions
       ? `Special instructions from user (only factual hints you may reuse verbatim if present):\n${specialInstructions}`
       : "Special instructions: (none)",
+    "",
+    formatWebsiteContextForClaude(extraction),
   ].join("\n");
 
-  const systemPrompt = `You are helping build a trade-show / tent graphics prototype. The real website is NOT scraped and you have NO HTML or page content — only the structured hints in the user message.
+  const systemPrompt = `You are helping build a trade-show / tent graphics prototype.
 
-Return STRICT JSON only (no markdown, no commentary). The JSON must be one object with exactly these string fields (use empty string "" when unknown or not clearly provided — do NOT invent plausible phone numbers, emails, street addresses, or social URLs):
+The user message may include a **homepage content block** from a single public URL fetch (title, meta tags, open-graph fields, candidate image URLs, mailto/tel/social links, and a truncated visible-text excerpt). When that block says the fetch succeeded, you may use it to fill the JSON fields where it clearly applies. When the fetch failed or was skipped, rely on the structured intake lines only.
 
-${EXTRACTED_JSON_KEYS.map((k) => `"${k}": string`).join(",\n")}
+Intake business name line:
+- If **Business name:** in the user message is exactly \`(not provided)\` (no other text on that line), the user left the name empty **or** it is only the app's demo placeholder — **treat as no user-provided business name**. Do **not** echo any demo placeholder into \`suggestedBusinessName\`. Infer \`suggestedBusinessName\` from the homepage title, og:title, URL domain (registrable label), logo-related alt text or captions if they appear in the excerpt, or other visible branding text only when clearly supported.
+- If **Business name:** is any other non-empty string, treat it as the user's stated business name for weak corroboration only; still prefer the public identity implied by the homepage when they clearly conflict, and never invent a name.
 
-Optional alias: you may also include "colors" as a string; if "brandColors" is empty and "colors" is set, the app maps it to brandColors.
+You must return STRICT JSON only (no markdown, no commentary). The JSON must be one object with:
 
-Rules:
-- logo: short description of a likely logo treatment or placeholder text; conservative wording.
-- brandColors: suggest palette as hex names or short labels if appropriate; otherwise "".
-- phone, email, address: ONLY if explicitly present in special instructions or clearly derivable from provided text. Otherwise "".
-- social: only real-looking handles/URLs if provided in inputs; else "" or generic empty.
-- services, products: short plausible lists inferred only from business name, category, style, and instructions — label as prototype suggestions, not facts.
-- Do not claim data was scraped or verified.`;
+1) "extracted": an object whose string fields are (use "" when unknown — do NOT invent plausible phone numbers, emails, or street addresses):
+
+${EXTRACTED_JSON_KEYS.map((k) => `    "${k}": string`).join(",\n")}
+
+Inside "extracted", optional alias: you may also include "colors" as a string; if "brandColors" is empty and "colors" is set, the app maps it to brandColors.
+
+2) Top-level string fields (same object, alongside "extracted"):
+- "suggestedBusinessName": public company or site name inferred from the homepage block and URL when the business name line was \`(not provided)\`, or reconciled with the user's stated name when provided. Use "" if uncertain or unsupported — do NOT invent a plausible business name.
+- "suggestedWebsiteDomain": hostname only when clear (e.g. "example.com"), else "". No scheme, no path.
+
+Rules for "extracted":
+- logo: short description; you may reference og:image / icon candidates if they look like a brand mark, or describe a sensible placeholder.
+- brandColors: hex or labels if suggested by page or intake; otherwise "".
+- phone, email, address: ONLY from visible text, mailto/tel links, or user special instructions — not guessed.
+- social: prefer real URLs/handles found in the homepage block or user input.
+- services, products: short lines; may combine homepage text with category/style when reasonable — still prototype suggestions, not verified facts.
+- Do not claim the full site was crawled; at most one homepage was fetched.`;
 
   const client = new Anthropic({ apiKey });
 
   try {
-    devLog("claude_attempt", { model });
+    devLog("claude_attempt", { model, websiteFetchStatus: websiteFetch.status });
 
     const message = await client.messages.create({
       model,
@@ -219,28 +345,41 @@ Rules:
         reason: "empty_model_response",
         claudeAttempted: true,
         model,
+        websiteFetch,
       });
     }
 
-    const extractedRaw = parseExtractedObjectFromAssistantText(combinedText);
-    if (!extractedRaw) {
+    const parsed = parseClaudeAnalyzeAssistantJson(combinedText);
+    if (!parsed) {
       return fail(t0, {
         ok: false,
         source: "invalid_json",
         reason: "invalid_model_json",
         claudeAttempted: true,
         model,
+        websiteFetch,
       });
     }
 
-    const rows = buildExtractedFromPlainValues(extractedRaw);
+    const rows = buildExtractedFromPlainValues(parsed.extractedPlain);
+
+    const { canonical: canonicalHint, domain: domainFromUrl } = buildPublicUrlHints(
+      websiteUrl,
+      websiteFetch,
+    );
+    const mergedDomain =
+      domainFromUrl || parsed.suggestedWebsiteDomainClaude || "";
 
     return okClaude(t0, {
       ok: true,
       source: "claude",
       extracted: rows,
+      suggestedBusinessName: parsed.suggestedBusinessName,
+      suggestedWebsiteDomain: mergedDomain,
+      suggestedCanonicalWebsiteUrl: canonicalHint,
       claudeAttempted: true,
       model,
+      websiteFetch,
     });
   } catch {
     return fail(t0, {
@@ -249,6 +388,7 @@ Rules:
       reason: "api_error",
       claudeAttempted: true,
       model,
+      websiteFetch,
     });
   }
 }
