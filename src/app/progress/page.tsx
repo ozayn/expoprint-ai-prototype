@@ -180,7 +180,7 @@ const stages: Stage[] = [
     summary:
       "Added a separate `/demo` route with a step-by-step guided intake for a cleaner customer-style presentation. The home `/` editor workspace is unchanged and remains where JSON/PNG/SVG export and developer-oriented tools live.",
     accomplishments: [
-      "New client flow (`GuidedIntakeDemo`) walks through website, business, category, components, style, instructions, analyze, extracted review, and concept preview one step at a time with Back/Continue and a simple step counter.",
+      "New client flow (`GuidedIntakeDemo`) uses seven steps: website, category, components, style, special instructions plus Analyze Website, then a review step with editable business name (after analysis) and extracted rows, then the Fabric concept preview. Back/Continue and a simple step counter; `/` editor unchanged.",
       "Reuses the same pipeline as the editor: `DesignIntakeState`, `POST /api/analyze-website` (Claude when available, mock fallback with a clear status line), `computeDesignBriefText`, `createDesignSpecFromIntake`, and `renderDesignSpecToFabric` on a 1000×600 Fabric canvas with design-surface tabs when multiple components are selected.",
       "Mobile-friendly single column, large tap targets, and width-scaled canvas preview (`cssOnly` scaling); no export drawer or dev tools on `/demo` — users follow “Open editor view” for exports.",
     ],

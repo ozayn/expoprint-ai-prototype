@@ -37,7 +37,7 @@ import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
 const { width: CANVAS_W, height: CANVAS_H } = sampleDesignSpec.canvas;
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 const STYLE_HINTS: Record<
   StylePreference,
@@ -201,7 +201,7 @@ export function GuidedIntakeDemo() {
   }, [syncCanvasPreviewCss]);
 
   useEffect(() => {
-    if (step !== 8) return;
+    if (step !== 7) return;
 
     const el = canvasElRef.current;
     if (!el) return;
@@ -251,7 +251,7 @@ export function GuidedIntakeDemo() {
   const ready = canvasPhase === "ready";
 
   useLayoutEffect(() => {
-    if (step !== 8 || !ready) return;
+    if (step !== 7 || !ready) return;
     const slot = previewSlotRef.current;
     const canvas = fabricRef.current;
     if (!slot || !canvas) return;
@@ -308,7 +308,7 @@ export function GuidedIntakeDemo() {
           return next;
         });
         setAnalyzeBusinessNameNote(nameNote);
-        setStep(7);
+        setStep(6);
         return;
       }
 
@@ -335,7 +335,7 @@ export function GuidedIntakeDemo() {
       };
       return { ...next, designBrief: computeDesignBriefText(next) };
     });
-    setStep(7);
+    setStep(6);
   }, []);
 
   const briefPreview = useMemo(() => {
@@ -428,25 +428,6 @@ export function GuidedIntakeDemo() {
         {step === 2 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
-              What is your business name?
-            </h1>
-            <label htmlFor="demo-name" className="sr-only">
-              Business name
-            </label>
-            <input
-              id="demo-name"
-              type="text"
-              className={fieldClass}
-              value={intake.businessName}
-              onChange={(e) => patchIntake({ businessName: e.target.value })}
-              autoComplete="organization"
-            />
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <h1 className="text-lg font-semibold text-zinc-900">
               What are you designing?
             </h1>
             <div className="flex flex-col gap-2">
@@ -470,7 +451,7 @@ export function GuidedIntakeDemo() {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
               Which pieces do you need?
@@ -510,7 +491,7 @@ export function GuidedIntakeDemo() {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 4 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
               Which style feels closest to your brand?
@@ -548,7 +529,7 @@ export function GuidedIntakeDemo() {
           </div>
         )}
 
-        {step === 6 && (
+        {step === 5 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
               Anything specific the designer should know?
@@ -562,7 +543,7 @@ export function GuidedIntakeDemo() {
           </div>
         )}
 
-        {step === 7 && (
+        {step === 6 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
               Review extracted content
@@ -577,6 +558,31 @@ export function GuidedIntakeDemo() {
                 {analyzeBusinessNameNote}
               </p>
             ) : null}
+            <div className="space-y-2 border-b border-zinc-100 pb-4">
+              <label
+                htmlFor="demo-review-business"
+                className="text-xs font-medium text-zinc-600"
+              >
+                Business name
+              </label>
+              <input
+                id="demo-review-business"
+                type="text"
+                className={fieldClass}
+                value={intake.businessName}
+                onChange={(e) => patchIntake({ businessName: e.target.value })}
+                autoComplete="organization"
+                placeholder="Company or brand name"
+              />
+              {intake.businessName.trim() === "" ? (
+                <p className="text-xs leading-snug text-zinc-500">
+                  Add or confirm the business name before generating a concept.
+                </p>
+              ) : null}
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Extracted content
+            </p>
             <div className="space-y-3">
               {(Object.keys(EXTRACTED_LABELS) as ExtractedKey[]).map((key) => {
                 const row = intake.extracted[key];
@@ -638,7 +644,7 @@ export function GuidedIntakeDemo() {
           </div>
         )}
 
-        {step === 8 && (
+        {step === 7 && (
           <div className="space-y-5">
             <h1 className="text-lg font-semibold text-zinc-900">Your concept</h1>
             <div>
@@ -703,10 +709,10 @@ export function GuidedIntakeDemo() {
         <button
           type="button"
           className={btnSecondary}
-          disabled={step === 1 || (step === 6 && analyzeInProgress)}
+          disabled={step === 1 || (step === 5 && analyzeInProgress)}
           onClick={() => {
-            if (step === 8) {
-              setStep(7);
+            if (step === 7) {
+              setStep(6);
               return;
             }
             setStep((s) => Math.max(1, s - 1));
@@ -716,7 +722,7 @@ export function GuidedIntakeDemo() {
         </button>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-          {step < 6 && (
+          {step < 5 && (
             <button
               type="button"
               className={btnPrimary}
@@ -725,7 +731,7 @@ export function GuidedIntakeDemo() {
               Continue
             </button>
           )}
-          {step === 6 && (
+          {step === 5 && (
             <button
               type="button"
               className={btnPrimary}
@@ -735,7 +741,7 @@ export function GuidedIntakeDemo() {
               {analyzeInProgress ? "Analyzing…" : "Analyze website"}
             </button>
           )}
-          {step === 7 && (
+          {step === 6 && (
             <button
               type="button"
               className={btnPrimary}
@@ -743,13 +749,13 @@ export function GuidedIntakeDemo() {
                 patchIntake({
                   designBrief: computeDesignBriefText(intakeRef.current),
                 });
-                setStep(8);
+                setStep(7);
               }}
             >
               Generate concept
             </button>
           )}
-          {step === 8 && (
+          {step === 7 && (
             <>
               <button
                 type="button"
