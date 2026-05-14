@@ -335,8 +335,8 @@ export function FabricDesignEditor() {
     "disabled:hover:border-zinc-300 disabled:hover:bg-zinc-200 disabled:hover:text-zinc-600";
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row">
-      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm lg:w-96">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm lg:min-h-0 lg:w-96 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:overscroll-y-contain">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
             ExpoPrint AI
@@ -480,7 +480,7 @@ export function FabricDesignEditor() {
         ) : null}
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
           <p className="min-w-0 shrink-0 text-sm text-zinc-500">
             Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
