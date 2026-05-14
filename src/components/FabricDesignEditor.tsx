@@ -99,8 +99,8 @@ export function FabricDesignEditor() {
     if (!canvas || !slot) return;
     const slotW = slot.clientWidth;
     if (slotW <= 0) return;
-    /** Room for inner card padding (p-2×2) + ring + rounding safety */
-    const horizontalGutter = 40;
+    /** Room for inner card padding + ring; tighter on narrow viewports to avoid horizontal scroll. */
+    const horizontalGutter = slotW < 400 ? 20 : slotW < 640 ? 28 : 40;
     const scale = Math.min(
       1,
       Math.max(0.15, (slotW - horizontalGutter) / CANVAS_W),
@@ -321,24 +321,24 @@ export function FabricDesignEditor() {
   };
 
   const panelBtn =
-    "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50";
+    "flex min-h-11 w-full items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation sm:min-h-0 sm:py-2";
 
   /** Primary CTA — separate from `panelBtn` so Tailwind does not apply conflicting text/background utilities. */
   const generateSampleBtn =
-    "rounded-md border px-3 py-2 text-sm font-medium shadow-sm transition cursor-pointer " +
+    "flex min-h-11 w-full items-center justify-center rounded-md border px-3 py-2.5 text-sm font-medium shadow-sm transition cursor-pointer touch-manipulation sm:min-h-0 sm:py-2 " +
     "border-zinc-900 bg-zinc-900 text-white " +
     "hover:border-zinc-950 hover:bg-zinc-950 hover:text-white " +
     "disabled:cursor-not-allowed disabled:border-zinc-300 disabled:bg-zinc-200 disabled:text-zinc-600 disabled:shadow-none " +
     "disabled:hover:border-zinc-300 disabled:hover:bg-zinc-200 disabled:hover:text-zinc-600";
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm lg:min-h-0 lg:w-96 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:overscroll-y-contain">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 lg:flex-row lg:items-start lg:gap-6">
+      <aside className="flex w-full max-w-full shrink-0 flex-col gap-5 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:gap-4 sm:p-5 lg:min-h-0 lg:w-96 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:overscroll-y-contain">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-lg">
             ExpoPrint AI
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+          <p className="mt-1 text-sm leading-relaxed text-zinc-600 sm:text-zinc-500">
             Prototype editor — 10×10 canopy tent concept. Navy, teal, and white.
           </p>
           <p
@@ -376,7 +376,7 @@ export function FabricDesignEditor() {
           </ul>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             className={generateSampleBtn}
@@ -396,11 +396,11 @@ export function FabricDesignEditor() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
+        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
             Export / import
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
             <button
               type="button"
               className={panelBtn}
@@ -466,7 +466,7 @@ export function FabricDesignEditor() {
           <textarea
             id="fabric-json"
             name="fabricCanvasJson"
-            className="min-h-[140px] flex-1 resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
+            className="min-h-[160px] w-full min-w-0 flex-1 resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:min-h-[140px] sm:text-xs"
             spellCheck={false}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
@@ -481,14 +481,14 @@ export function FabricDesignEditor() {
         ) : null}
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-          <p className="min-w-0 shrink-0 text-sm text-zinc-500">
+      <section className="flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
+        <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col gap-3 overflow-x-hidden">
+          <p className="min-w-0 shrink-0 text-xs leading-relaxed text-zinc-500 sm:text-sm">
             Artboard {CANVAS_W}×{CANVAS_H}px — preview scales to fit; exports stay
             full size. Drag, scale, and double-click text to edit.
           </p>
-          <div className="min-w-0 shrink-0 space-y-2">
-            <p className="text-sm font-medium text-zinc-800">
+          <div className="min-w-0 shrink-0 space-y-3 sm:space-y-2">
+            <p className="text-sm font-medium leading-snug text-zinc-800">
               Current surface:{" "}
               <span className="font-semibold text-zinc-900">
                 {displaySurface ?? "—"}
@@ -505,7 +505,7 @@ export function FabricDesignEditor() {
                 </p>
               ) : (
                 <div
-                  className="flex flex-wrap gap-1"
+                  className="flex flex-wrap gap-2 sm:gap-1"
                   role="tablist"
                   aria-label="Design surfaces"
                 >
@@ -519,8 +519,8 @@ export function FabricDesignEditor() {
                         aria-selected={isActive}
                         className={
                           isActive
-                            ? "rounded-md border border-zinc-900 bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white"
-                            : "rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+                            ? "min-h-10 touch-manipulation rounded-md border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs font-medium text-white sm:min-h-0 sm:px-2.5 sm:py-1"
+                            : "min-h-10 touch-manipulation rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 sm:min-h-0 sm:px-2.5 sm:py-1"
                         }
                         onClick={() => setActiveDesignSurface(name)}
                       >
@@ -532,12 +532,12 @@ export function FabricDesignEditor() {
               )}
             </div>
           </div>
-          <div className="flex min-h-0 min-w-0 w-full flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-4 shadow-inner sm:p-6">
+          <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 items-start justify-center overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-100/80 p-3 shadow-inner sm:p-4 lg:p-6">
             <div
               ref={previewSlotRef}
-              className="mx-auto box-border flex w-full min-w-0 max-w-full shrink-0 justify-center px-0.5"
+              className="mx-auto box-border flex w-full min-w-0 max-w-full shrink-0 justify-center px-0"
             >
-              <div className="max-w-full shrink-0 rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
+              <div className="max-w-full min-w-0 shrink-0 rounded-lg bg-white p-2 shadow-md ring-1 ring-black/5">
                 <canvas ref={canvasElRef} width={CANVAS_W} height={CANVAS_H} />
               </div>
             </div>

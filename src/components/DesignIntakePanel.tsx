@@ -17,9 +17,9 @@ import {
 } from "@/lib/designIntakeState";
 
 const fieldClass =
-  "mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300";
+  "mt-1 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:px-2 sm:py-1.5 sm:text-sm";
 const labelClass = "text-xs font-medium text-zinc-600";
-const sectionTitle = "text-sm font-semibold text-zinc-900";
+const sectionTitle = "text-base font-semibold text-zinc-900 sm:text-sm";
 const subLabel = "text-[11px] font-medium uppercase tracking-wide text-zinc-400";
 
 export type DesignIntakePanelProps = {
@@ -103,11 +103,11 @@ export function DesignIntakePanel({
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50/40">
       <details open className="group">
-        <summary className="cursor-pointer select-none list-none px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer select-none list-none px-3 py-3 sm:py-2.5 [&::-webkit-details-marker]:hidden">
           <div className="flex items-start justify-between gap-2">
             <div>
               <h2 className={sectionTitle}>Design intake</h2>
-              <p className="mt-0.5 text-xs leading-snug text-zinc-500">
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 sm:leading-snug">
                 Phase 1 — gather inputs before canvas generation (mocked analysis).
               </p>
             </div>
@@ -251,12 +251,12 @@ export function DesignIntakePanel({
                   intake.category === "Outdoor tent" ? "outdoor" : "booth";
                 const inputId = `intake-product-component-${compSlug}-${index}`;
                 return (
-                  <li key={name} className="flex items-center gap-2">
+                  <li key={name} className="flex min-h-11 items-center gap-3 sm:min-h-0 sm:gap-2">
                     <input
                       id={inputId}
                       name={`productComponent_${compSlug}_${index}`}
                       type="checkbox"
-                      className="size-3.5 shrink-0 cursor-pointer rounded border-zinc-300 text-zinc-900"
+                      className="size-4 shrink-0 cursor-pointer rounded border-zinc-300 text-zinc-900 sm:size-3.5"
                       checked={checked}
                       onChange={(e) =>
                         toggleComponent(name, e.target.checked)
@@ -264,7 +264,7 @@ export function DesignIntakePanel({
                     />
                     <label
                       htmlFor={inputId}
-                      className="cursor-pointer text-sm text-zinc-700"
+                      className="cursor-pointer flex-1 py-1 text-sm leading-snug text-zinc-700"
                     >
                       {name}
                     </label>
@@ -276,7 +276,7 @@ export function DesignIntakePanel({
 
           <button
             type="button"
-            className="w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50"
+            className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation"
             onClick={analyzeWebsite}
           >
             Analyze Website
@@ -298,13 +298,13 @@ export function DesignIntakePanel({
                   return (
                     <div
                       key={key}
-                      className="flex gap-2 rounded border border-zinc-100 bg-zinc-50/80 p-2"
+                      className="flex gap-3 rounded border border-zinc-100 bg-zinc-50/80 p-3 sm:gap-2 sm:p-2"
                     >
                       <input
                         id={includeId}
                         name={`extractedInclude_${key}`}
                         type="checkbox"
-                        className="mt-1 size-3.5 shrink-0 cursor-pointer rounded border-zinc-300 text-zinc-900"
+                        className="mt-1 size-4 shrink-0 cursor-pointer rounded border-zinc-300 text-zinc-900 sm:size-3.5"
                         checked={row.useForDesign}
                         aria-label={`Include ${EXTRACTED_LABELS[key]} on design`}
                         onChange={(e) =>
@@ -322,7 +322,7 @@ export function DesignIntakePanel({
                           id={valueId}
                           name={`extractedValue_${key}`}
                           rows={2}
-                          className="mt-0.5 w-full cursor-text resize-y rounded border border-zinc-200 bg-white px-1.5 py-1 text-xs leading-snug text-zinc-800 outline-none focus:border-zinc-400"
+                          className="mt-0.5 w-full min-w-0 cursor-text resize-y rounded border border-zinc-200 bg-white px-2 py-2 text-base leading-snug text-zinc-800 outline-none focus:border-zinc-400 sm:px-1.5 sm:py-1 sm:text-xs"
                           value={row.value}
                           onChange={(e) => setExtractedValue(key, e.target.value)}
                         />
@@ -336,7 +336,7 @@ export function DesignIntakePanel({
 
           <button
             type="button"
-            className="relative z-20 w-full cursor-pointer rounded-md border-2 border-zinc-900 bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-950 hover:shadow-lg active:translate-y-px"
+            className="relative z-20 min-h-11 w-full cursor-pointer rounded-md border-2 border-zinc-900 bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-950 hover:shadow-lg active:translate-y-px touch-manipulation sm:min-h-0 sm:py-2.5"
             onClick={onRefreshDesignBrief}
           >
             Refresh Design Brief
@@ -350,7 +350,7 @@ export function DesignIntakePanel({
               id="intake-design-brief"
               name="designBrief"
               rows={12}
-              className="mt-1 w-full cursor-text resize-y rounded-md border border-zinc-200 bg-white p-2 font-mono text-[11px] leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
+              className="mt-1 w-full min-w-0 cursor-text resize-y rounded-md border border-zinc-200 bg-white p-3 font-mono text-xs leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 sm:p-2 sm:text-[11px]"
               value={intake.designBrief}
               onChange={(e) => onIntakeChange({ designBrief: e.target.value })}
             />
