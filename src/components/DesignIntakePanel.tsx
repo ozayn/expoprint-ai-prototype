@@ -25,13 +25,13 @@ const subLabel = "text-[11px] font-medium uppercase tracking-wide text-zinc-400"
 export type DesignIntakePanelProps = {
   intake: DesignIntakeState;
   onIntakeChange: (patch: Partial<DesignIntakeState>) => void;
-  onGenerateDesignBrief: () => void;
+  onRefreshDesignBrief: () => void;
 };
 
 export function DesignIntakePanel({
   intake,
   onIntakeChange,
-  onGenerateDesignBrief,
+  onRefreshDesignBrief,
 }: DesignIntakePanelProps) {
   const activeComponents = useMemo(() => {
     return intake.category === "Outdoor tent"
@@ -337,26 +337,24 @@ export function DesignIntakePanel({
           <button
             type="button"
             className="relative z-20 w-full cursor-pointer rounded-md border-2 border-zinc-900 bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-950 hover:shadow-lg active:translate-y-px"
-            onClick={onGenerateDesignBrief}
+            onClick={onRefreshDesignBrief}
           >
-            Generate Design Brief
+            Refresh Design Brief
           </button>
 
-          {intake.designBrief ? (
-            <div>
-              <label htmlFor="intake-design-brief" className={subLabel}>
-                Design brief
-              </label>
-              <textarea
-                id="intake-design-brief"
-                name="designBrief"
-                rows={12}
-                className="mt-1 w-full cursor-text resize-y rounded-md border border-zinc-200 bg-white p-2 font-mono text-[11px] leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
-                value={intake.designBrief}
-                onChange={(e) => onIntakeChange({ designBrief: e.target.value })}
-              />
-            </div>
-          ) : null}
+          <div>
+            <label htmlFor="intake-design-brief" className={subLabel}>
+              Design brief
+            </label>
+            <textarea
+              id="intake-design-brief"
+              name="designBrief"
+              rows={12}
+              className="mt-1 w-full cursor-text resize-y rounded-md border border-zinc-200 bg-white p-2 font-mono text-[11px] leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300"
+              value={intake.designBrief}
+              onChange={(e) => onIntakeChange({ designBrief: e.target.value })}
+            />
+          </div>
         </div>
       </details>
     </div>

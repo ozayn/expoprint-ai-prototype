@@ -7,7 +7,7 @@ import {
   createDesignSpecFromIntake,
   shouldUseIntakeDesignSpec,
 } from "@/lib/createDesignSpecFromIntake";
-import { buildMockExtracted, computeDesignBriefText, defaultDesignIntake, getSelectedProductComponents, type DesignIntakeState } from "@/lib/designIntakeState";
+import { computeDesignBriefText, defaultDesignIntake, getSelectedProductComponents, type DesignIntakeState } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
@@ -74,24 +74,21 @@ export function FabricDesignEditor() {
   }, [intake, displaySurface]);
 
   const onIntakeChange = useCallback((patch: Partial<DesignIntakeState>) => {
-    setIntake((prev) => ({ ...prev, ...patch }));
+    setIntake((prev) => {
+      const next = { ...prev, ...patch };
+      const patchKeys = Object.keys(patch) as (keyof DesignIntakeState)[];
+      const onlyBriefEdited =
+        patchKeys.length === 1 && patchKeys[0] === "designBrief";
+      if (onlyBriefEdited) return next;
+      return { ...next, designBrief: computeDesignBriefText(next) };
+    });
   }, []);
 
-  const handleGenerateDesignBrief = useCallback(() => {
-    setIntake((prev) => {
-      const merged =
-        !prev.showExtracted
-          ? {
-              ...prev,
-              extracted: buildMockExtracted(),
-              showExtracted: true,
-            }
-          : prev;
-      return {
-        ...merged,
-        designBrief: computeDesignBriefText(merged),
-      };
-    });
+  const handleRefreshDesignBrief = useCallback(() => {
+    setIntake((prev) => ({
+      ...prev,
+      designBrief: computeDesignBriefText(prev),
+    }));
   }, []);
 
   const ready = canvasPhase === "ready";
@@ -361,7 +358,7 @@ export function FabricDesignEditor() {
         <DesignIntakePanel
           intake={intake}
           onIntakeChange={onIntakeChange}
-          onGenerateDesignBrief={handleGenerateDesignBrief}
+          onRefreshDesignBrief={handleRefreshDesignBrief}
         />
 
         <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-2.5">
@@ -392,6 +389,10 @@ export function FabricDesignEditor() {
             {shouldUseIntakeDesignSpec(intake)
               ? "Canvas source: intake data"
               : "Canvas source: fallback sample"}
+          </p>
+          <p className="text-xs leading-snug text-zinc-400">
+            Canvas updates when you regenerate the concept, so manual edits are not overwritten
+            automatically.
           </p>
         </div>
 

@@ -54,7 +54,7 @@ export interface DesignIntakeState {
   componentsOutdoor: Record<OutdoorComponent, boolean>;
   componentsBooth: Record<BoothComponent, boolean>;
   extracted: Record<ExtractedKey, ExtractedRow>;
-  /** True after “Analyze Website” or auto-filled by “Generate Design Brief”. */
+  /** True after “Analyze Website” loads mock extraction into the form. */
   showExtracted: boolean;
   designBrief: string;
 }
@@ -104,31 +104,6 @@ export function buildMockExtracted(): Record<ExtractedKey, ExtractedRow> {
     };
   });
   return next;
-}
-
-export function defaultDesignIntake(): DesignIntakeState {
-  return {
-    websiteUrl: "https://examplebrand.com",
-    businessName: "Example Brand Co.",
-    category: "Outdoor tent",
-    style: "Modern",
-    instructions: "",
-    componentsOutdoor: {
-      "Canopy tent": true,
-      "Back wall": false,
-      "Side wall": false,
-      Flag: false,
-    },
-    componentsBooth: {
-      Backdrop: true,
-      Counter: false,
-      Header: false,
-      "Product/service panels": false,
-    },
-    extracted: emptyExtracted(),
-    showExtracted: false,
-    designBrief: "",
-  };
 }
 
 /** Selected product component labels for UI / brief. */
@@ -194,4 +169,30 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
   lines.push("— End of brief —");
 
   return lines.join("\n");
+}
+
+export function defaultDesignIntake(): DesignIntakeState {
+  const base: DesignIntakeState = {
+    websiteUrl: "https://examplebrand.com",
+    businessName: "Example Brand Co.",
+    category: "Outdoor tent",
+    style: "Modern",
+    instructions: "",
+    componentsOutdoor: {
+      "Canopy tent": true,
+      "Back wall": false,
+      "Side wall": false,
+      Flag: false,
+    },
+    componentsBooth: {
+      Backdrop: true,
+      Counter: false,
+      Header: false,
+      "Product/service panels": false,
+    },
+    extracted: emptyExtracted(),
+    showExtracted: false,
+    designBrief: "",
+  };
+  return { ...base, designBrief: computeDesignBriefText(base) };
 }
