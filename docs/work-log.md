@@ -33,11 +33,11 @@ Home layout only: clearer A→B→C vs. D column grouping (intake / extracted / 
 **Claude / Anthropic env prep**  
 `.gitignore` tightened for env files with `!.env.example`; added `.env.example` (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) and README “Environment variables” for `.env.local` vs Railway.
 
-**Optional Claude analyze route (prototype)**  
-Prepared first optional Claude-backed Analyze Website route with mocked fallback; no real website scraping yet. Server-only `POST /api/analyze-website` reads `ANTHROPIC_*` from env; UI falls back to the prior mock extraction when the key is missing or the response is invalid. Keys never sent to the browser. **Debug:** responses include `source`, `claudeAttempted`, `durationMs`, and `model` (no secrets); dev server logs `[analyze-website]` with `hasApiKey` / outcome only.
+**Optional Claude-backed Analyze Website (Stage 8)**  
+Server-only `POST /api/analyze-website` (Anthropic SDK); key and model from env only; Claude returns structured extracted rows from intake hints only (no scraping). UI and Network show whether Claude or mock fallback ran; JSON includes `source`, `claudeAttempted`, `model`, `durationMs`, and `reason` on failure — no secrets in responses or dev logs beyond `hasApiKey` / outcome. Mock extraction unchanged when the key is missing, the API errors, or the model JSON is unusable. Confirmed locally with `ok: true` and `source: claude` when configured. Not full AI design generation; `/progress` Stage 8 summarizes scope cautiously.
 
 ---
 
 ## Later (planned)
 
-Stages 8–11 on `/progress`: AI-assisted intake, real website extraction, team-facing brief generation, AI-generated DesignSpec — not started; log new dates here as work begins.
+Stages 9–12 on `/progress`: broader AI-assisted intake, real website extraction, team-facing brief generation, AI-generated DesignSpec — not started; log new dates here as work begins.

@@ -33,7 +33,7 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 
 ### Project progress and work log
 
-- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (when the dev server is running).
+- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (includes **Stage 8 — Optional Claude-backed Analyze Website** when the dev server is running).
 - **Clockify-style notes:** see [`docs/work-log.md`](docs/work-log.md).
 
 Alternatively, run the development server directly:

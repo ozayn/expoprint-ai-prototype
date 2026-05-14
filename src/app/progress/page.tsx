@@ -109,21 +109,37 @@ const stages: Stage[] = [
       "Grouped export/import actions and raw canvas JSON under collapsed details/summary blocks so casual demos see less developer UI by default.",
       "Adjusted mobile spacing, touch targets, and preview scaling behavior already in place; horizontal scrolling for the artboard preview is still avoided via scaled CSS dimensions.",
       "Fabric editability, JSON/PNG/SVG export, Load JSON, and 1000×600 export geometry unchanged.",
-      "Optional server `POST /api/analyze-website` (Anthropic SDK): Analyze Website calls Claude when `ANTHROPIC_API_KEY` is set, otherwise uses the same mock extraction as before. No real scraping; failures fall back to mock; secrets stay server-side only.",
     ],
   },
   {
     id: 8,
+    title: "Optional Claude-backed Analyze Website",
+    status: "Complete",
+    summary:
+      "Added a narrow, optional server path so Analyze Website can ask Claude for structured extracted rows from the current intake fields only. The Anthropic API key stays in environment variables; there is still no real website scraping and no end-to-end AI design generation — mock extraction remains the safe default when the key is absent or the model output cannot be used.",
+    accomplishments: [
+      "Added a server-side Next.js API route (`POST /api/analyze-website`) for Analyze Website using the official Anthropic SDK.",
+      "Claude API key is read only from server environment variables and is never sent to the browser.",
+      "When the route succeeds with validated output, Analyze Website can populate the extracted-content panel from Claude-generated structured fields (still inferred from intake hints, not from scraped pages).",
+      "The intake UI reports whether Claude extraction was applied or a mocked fallback was used after each analyze run.",
+      "API responses include cautious debug metadata (`source`, `claudeAttempted`, `model`, `durationMs`, `reason` on failures) without exposing secrets or raw customer payloads in logs.",
+      "Mock extraction is preserved when the API key is missing, the Anthropic call fails, or the model response is not valid usable JSON for the app.",
+      "Locally verified in development: responses can return ok: true with source claude when configured; failures still fall back to mock.",
+      "No real website scraping yet — Claude currently uses only the provided intake fields (URL, name, category, style, instructions) under explicit prototype constraints.",
+    ],
+  },
+  {
+    id: 9,
     title: "AI-assisted design intake workflow",
     status: "Planned",
     summary:
       "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
     accomplishments: [
-      "Client-side intake and canvas wiring exist through Stage 7; LLM or agent-driven intake not implemented.",
+      "Client-side intake and canvas wiring exist through Stage 8; a thin Claude analyze path exists but broader LLM/agent intake is not implemented.",
     ],
   },
   {
-    id: 9,
+    id: 10,
     title: "Website/content extraction",
     status: "Planned",
     summary:
@@ -131,7 +147,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 10,
+    id: 11,
     title: "Design brief generation",
     status: "Planned",
     summary:
@@ -139,7 +155,7 @@ const stages: Stage[] = [
     accomplishments: ["Not started yet."],
   },
   {
-    id: 11,
+    id: 12,
     title: "AI-generated editable DesignSpec",
     status: "Planned",
     summary:
