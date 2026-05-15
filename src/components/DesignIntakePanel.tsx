@@ -82,7 +82,7 @@ export type DesignIntakePanelProps = {
   analyzeInProgress: boolean;
   onAnalyzeWebsite: () => void | Promise<void>;
   analyzeStatusLine: string;
-  /** Shown under analyze status when non-empty (e.g. auto-filled business name). */
+  /** Shown inside Review identity when non-empty (e.g. auto-filled business name from analysis). */
   analyzeAuxiliaryNote?: string;
 };
 
@@ -164,8 +164,7 @@ export function DesignIntakePanel({
             Design intake
           </h2>
           <p className={`mt-1 ${sectionHint}`}>
-            Website, business, and product choices. Analyze can fetch the homepage, send bounded
-            context to Claude, and fall back to mock data if unavailable.
+            Enter the homepage first. Analysis can suggest identity, brand, and design content.
           </p>
         </div>
 
@@ -184,20 +183,57 @@ export function DesignIntakePanel({
             autoComplete="url"
           />
         </div>
-        <div>
-          <label htmlFor="intake-name" className={labelClass}>
-            Business name
-          </label>
-          <input
-            id="intake-name"
-            name="businessName"
-            type="text"
-            className={fieldClass}
-            value={intake.businessName}
-            onChange={(e) => onIntakeChange({ businessName: e.target.value })}
-            autoComplete="organization"
-          />
+
+        <button
+          type="button"
+          disabled={analyzeInProgress}
+          aria-busy={analyzeInProgress}
+          className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation disabled:cursor-wait disabled:opacity-70"
+          onClick={() => void onAnalyzeWebsite()}
+        >
+          {analyzeInProgress ? "Analyzing…" : "Analyze Website"}
+        </button>
+        {analyzeStatusLine.trim() !== "" && (
+          <p className={sectionHint} aria-live="polite">
+            {analyzeStatusLine}
+          </p>
+        )}
+        <p className={sectionHint}>
+          Homepage-only extraction for prototype. No full-site crawling yet. Run analyze after the
+          homepage URL looks right.
+        </p>
+
+        <div
+          className="rounded-md border border-zinc-200 bg-white px-2.5 py-3 sm:px-3"
+          aria-labelledby="section-review-identity"
+        >
+          <h3 id="section-review-identity" className={sectionHeading}>
+            Review identity
+          </h3>
+          <p className={`mt-1 ${sectionHint}`}>
+            Confirm the name designers should use.
+          </p>
+          {analyzeAuxiliaryNote && analyzeAuxiliaryNote.trim() !== "" ? (
+            <p className="mt-2 text-[11px] leading-snug text-zinc-500" aria-live="polite">
+              {analyzeAuxiliaryNote}
+            </p>
+          ) : null}
+          <div className="mt-3">
+            <label htmlFor="intake-name" className={labelClass}>
+              Business name
+            </label>
+            <input
+              id="intake-name"
+              name="businessName"
+              type="text"
+              className={fieldClass}
+              value={intake.businessName}
+              onChange={(e) => onIntakeChange({ businessName: e.target.value })}
+              autoComplete="organization"
+            />
+          </div>
         </div>
+
         <div>
           <label htmlFor="intake-category" className={labelClass}>
             Product category
@@ -360,30 +396,6 @@ export function DesignIntakePanel({
             })}
           </ul>
         </div>
-
-        <button
-          type="button"
-          disabled={analyzeInProgress}
-          aria-busy={analyzeInProgress}
-          className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation disabled:cursor-wait disabled:opacity-70"
-          onClick={() => void onAnalyzeWebsite()}
-        >
-          {analyzeInProgress ? "Analyzing…" : "Analyze Website"}
-        </button>
-        {analyzeStatusLine.trim() !== "" && (
-          <p className={sectionHint} aria-live="polite">
-            {analyzeStatusLine}
-          </p>
-        )}
-        {analyzeAuxiliaryNote && analyzeAuxiliaryNote.trim() !== "" ? (
-          <p className="text-[11px] leading-snug text-zinc-500" aria-live="polite">
-            {analyzeAuxiliaryNote}
-          </p>
-        ) : null}
-        <p className={sectionHint}>
-          Homepage-only extraction for prototype. No full-site crawling yet. Run after URL and name
-          look right.
-        </p>
       </section>
 
       {/* B — Review extracted content */}

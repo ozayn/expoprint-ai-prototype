@@ -24,6 +24,134 @@ function truncate(s: string, max: number): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
+/** Greedy word-wrap line count (prototype); assumes ~Latin average glyph width. */
+function estimateWrappedLineCount(
+  text: string,
+  boxWidthPx: number,
+  avgCharWidthPx: number,
+): number {
+  const t = text.trim();
+  if (!t) return 1;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 1;
+  let lines = 1;
+  let lineW = 0;
+  const space = avgCharWidthPx;
+  for (const word of words) {
+    const wordW = word.length * avgCharWidthPx;
+    if (lineW <= 0) {
+      lineW = wordW;
+      continue;
+    }
+    if (lineW + space + wordW <= boxWidthPx) {
+      lineW += space + wordW;
+    } else {
+      lines++;
+      lineW = wordW;
+    }
+  }
+  return lines;
+}
+
+const DEFAULT_SUPPORTING_LINE =
+  "Trade show booths • Canopy tents • Event displays";
+const MAX_SUPPORTING_SEGMENT_CHARS = 46;
+const MAX_SUPPORTING_INITIAL_SEGMENTS = 7;
+const MIN_SUPPORTING_FONT = 20;
+const MAX_SUPPORTING_FONT = 24;
+const SUPPORTING_LINE_HEIGHT_FACTOR = 1.28;
+const SUPPORTING_CHAR_WIDTH_FACTOR = 0.52;
+
+/**
+ * Split long service/product blobs (commas, semicolons, bullets) into short segments
+ * for a calmer ExpoPrint-style supporting line.
+ */
+function compactSupportingSegments(raw: string): string[] {
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+
+  let parts = normalized
+    .split(/\s*[,;]\s*/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) {
+    parts = normalized
+      .split(/\s*[·•]\s*/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+  }
+
+  if (parts.length === 0) {
+    return [truncate(normalized, MAX_SUPPORTING_SEGMENT_CHARS * 2)];
+  }
+
+  return parts
+    .slice(0, MAX_SUPPORTING_INITIAL_SEGMENTS)
+    .map((p) => truncate(p.replace(/\s+/g, " "), MAX_SUPPORTING_SEGMENT_CHARS));
+}
+
+/**
+ * Pick font size and optional trimming so wrapped supporting copy stays above the website line.
+ * Prototype heuristic only — not a substitute for real layout or print proofing.
+ */
+function finalizeSupportingForConcept(
+  raw: string,
+  widthPx: number,
+  maxHeightPx: number,
+): { content: string; fontSize: number } {
+  const safeWidth = Math.max(120, widthPx);
+  const safeHeight = Math.max(
+    MIN_SUPPORTING_FONT * SUPPORTING_LINE_HEIGHT_FACTOR,
+    maxHeightPx,
+  );
+
+  const joinSegments = (segments: string[]) => segments.join(" · ");
+
+  let segments = compactSupportingSegments(raw);
+  if (segments.length === 0) {
+    segments = compactSupportingSegments(DEFAULT_SUPPORTING_LINE);
+  }
+
+  const countLines = (text: string, fs: number) =>
+    estimateWrappedLineCount(text, safeWidth, fs * SUPPORTING_CHAR_WIDTH_FACTOR);
+
+  const fits = (text: string, fs: number) => {
+    const lines = countLines(text, fs);
+    return lines * fs * SUPPORTING_LINE_HEIGHT_FACTOR <= safeHeight;
+  };
+
+  let text = joinSegments(segments);
+  while (segments.length > 1 && !fits(text, MAX_SUPPORTING_FONT)) {
+    segments = segments.slice(0, -1);
+    text = joinSegments(segments);
+  }
+
+  let fontSize = MAX_SUPPORTING_FONT;
+  while (fontSize > MIN_SUPPORTING_FONT && !fits(text, fontSize)) {
+    fontSize -= 1;
+  }
+
+  while (!fits(text, fontSize) && text.length > 28) {
+    text = truncate(text, Math.max(28, text.length - 10));
+  }
+
+  const maxLinesBudget = Math.max(
+    1,
+    Math.floor(safeHeight / (fontSize * SUPPORTING_LINE_HEIGHT_FACTOR)),
+  );
+  while (countLines(text, fontSize) > maxLinesBudget && text.length > 24) {
+    const idx = text.lastIndexOf(" · ");
+    if (idx >= 28) {
+      text = `${text.slice(0, idx).trimEnd()}…`;
+    } else {
+      text = truncate(text, Math.max(28, text.length - 12));
+    }
+  }
+
+  return { content: text, fontSize };
+}
+
 function initialsFromBusinessName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
@@ -56,17 +184,17 @@ function headlineFromIntake(intake: DesignIntakeState): string {
   return n ? truncate(n, 72) : "Custom Displays for Modern Brands";
 }
 
-function supportingFromIntake(intake: DesignIntakeState): string {
+function supportingRawFromIntake(intake: DesignIntakeState): string {
   const services = selectedExtractedValue(intake, "services");
-  if (services) return truncate(services, 160);
+  if (services) return services;
   const products = selectedExtractedValue(intake, "products");
-  if (products) return truncate(products, 160);
+  if (products) return products;
   const comps =
     intake.category === "Outdoor tent"
       ? OUTDOOR_COMPONENTS.filter((c) => intake.componentsOutdoor[c])
       : BOOTH_COMPONENTS.filter((c) => intake.componentsBooth[c]);
   if (comps.length) return comps.join(" · ");
-  return "Trade show booths • Canopy tents • Event displays";
+  return DEFAULT_SUPPORTING_LINE;
 }
 
 function websiteLineFromIntake(intake: DesignIntakeState): string {
@@ -263,16 +391,13 @@ export function createDesignSpecFromIntake(
   /** Prototype style-guide normalization (see `designStyleGuide.ts`) — not print-ready CMYK. */
   const plan = buildConceptColorPlan(intake);
   const headline = headlineFromIntake(intake);
-  const supporting = supportingFromIntake(intake);
+  const supportingRaw = supportingRawFromIntake(intake);
   const website = websiteLineFromIntake(intake);
   const logoLabel = logoLabelFromIntake(intake);
   const layout = layoutForStyle(intake.style);
 
   const contactFooter = buildContactFooterLine(intake);
   const hasContactFooter = contactFooter.length > 0;
-  /** Nudge main URL up slightly so a small contact line fits above the bottom edge. */
-  const websiteTop = hasContactFooter ? layout.website.top - 26 : layout.website.top;
-  const contactFooterTop = websiteTop + 36;
 
   const surfaceLabel = resolveActiveSurfaceLabel(intake, activeSurface);
   const surfaceSlug = surfaceLabel ? surfaceSlugForTemplate(surfaceLabel) : "none";
@@ -294,6 +419,44 @@ export function createDesignSpecFromIntake(
     x: p.x * polyScale,
     y: p.y * polyScale,
   }));
+
+  /** Extra column offset when accent polygon is shrunk (loud palettes) — breathing room vs. logo. */
+  const textShiftX = polyScale < 0.68 ? 24 : 0;
+  const headlineBlock = {
+    left: layout.headline.left + textShiftX,
+    top: layout.headline.top,
+    width: layout.headline.width,
+    textAlign: layout.headline.textAlign,
+  };
+  const supportingBlock = {
+    left: layout.supporting.left + textShiftX,
+    top: layout.supporting.top,
+    width: layout.supporting.width,
+    textAlign: layout.supporting.textAlign,
+  };
+  const websiteBlock = {
+    left: layout.website.left + textShiftX,
+    top: layout.website.top,
+    width: layout.website.width,
+    textAlign: layout.website.textAlign,
+  };
+  /** Nudge main URL up slightly so a small contact line fits above the bottom edge. */
+  const websiteTop = hasContactFooter ? websiteBlock.top - 26 : websiteBlock.top;
+  const contactFooterTop = websiteTop + 36;
+
+  const supportingMaxHeight = Math.max(
+    40,
+    websiteTop - supportingBlock.top - 14,
+  );
+  const supportingWidth = supportingBlock.width ?? 640;
+  const supportingFit = finalizeSupportingForConcept(
+    supportingRaw,
+    supportingWidth,
+    supportingMaxHeight,
+  );
+
+  const logoStrokeWidth = polyScale < 0.68 ? 4 : 3;
+  const logoDash: [number, number] = polyScale < 0.68 ? [14, 11] : [12, 10];
 
   const layers: DesignSpec["layers"] = [
     {
@@ -321,8 +484,8 @@ export function createDesignSpecFromIntake(
       height: 132,
       fill: plan.logoFill,
       stroke: plan.logoStroke,
-      strokeWidth: 3,
-      strokeDashArray: [10, 8],
+      strokeWidth: logoStrokeWidth,
+      strokeDashArray: [...logoDash],
     },
     {
       type: "text",
@@ -340,39 +503,40 @@ export function createDesignSpecFromIntake(
       type: "text",
       id: "headline",
       content: headline,
-      left: layout.headline.left,
-      top: layout.headline.top,
+      left: headlineBlock.left,
+      top: headlineBlock.top,
       fill: plan.headlineText,
       fontSize: 48,
       ...textBase,
       fontWeight: "700",
-      width: layout.headline.width,
-      textAlign: layout.headline.textAlign,
+      width: headlineBlock.width,
+      textAlign: headlineBlock.textAlign,
     },
     {
       type: "text",
       id: "supporting",
-      content: supporting,
-      left: layout.supporting.left,
-      top: layout.supporting.top,
+      content: supportingFit.content,
+      left: supportingBlock.left,
+      top: supportingBlock.top,
       fill: plan.supportingText,
-      fontSize: 24,
+      fontSize: supportingFit.fontSize,
       ...textBase,
-      width: layout.supporting.width,
-      textAlign: layout.supporting.textAlign,
+      width: supportingWidth,
+      textAlign: supportingBlock.textAlign,
+      textLayout: "textbox",
     },
     {
       type: "text",
       id: "website",
       content: website,
-      left: layout.website.left,
+      left: websiteBlock.left,
       top: websiteTop,
       fill: plan.websiteText,
       fontSize: 30,
       ...textBase,
       fontWeight: "500",
-      width: layout.website.width,
-      textAlign: layout.website.textAlign,
+      width: websiteBlock.width,
+      textAlign: websiteBlock.textAlign,
     },
   ];
 
@@ -381,14 +545,14 @@ export function createDesignSpecFromIntake(
       type: "text",
       id: "contact-footer",
       content: contactFooter,
-      left: layout.website.left,
+      left: websiteBlock.left,
       top: contactFooterTop,
       fill: plan.contactText,
       fontSize: 15,
       ...textBase,
       fontWeight: "400",
-      width: layout.website.width,
-      textAlign: layout.website.textAlign,
+      width: websiteBlock.width,
+      textAlign: websiteBlock.textAlign,
       opacity: 0.92,
     });
   }

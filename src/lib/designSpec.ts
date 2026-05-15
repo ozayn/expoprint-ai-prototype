@@ -72,6 +72,11 @@ export interface TextLayer {
   textAlign?: "left" | "center" | "right" | "justify";
   originX?: SpecOriginX;
   originY?: SpecOriginY;
+  /**
+   * `"textbox"` → Fabric `Textbox` with `width` (word wrap). `"itext"` / omitted → `IText` (single-line flow).
+   * Prototype: intake supporting copy uses textbox so long lists stay inside the column.
+   */
+  textLayout?: "itext" | "textbox";
 }
 
 export interface ImagePlaceholderLayer {
@@ -172,6 +177,7 @@ export const sampleDesignSpec: DesignSpec = {
       fontSize: 22,
       fontFamily: "system-ui, -apple-system, sans-serif",
       width: 700,
+      textLayout: "textbox",
     },
     {
       type: "text",

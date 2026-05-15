@@ -409,6 +409,10 @@ export function GuidedIntakeDemo() {
             <h1 className="text-lg font-semibold text-zinc-900">
               What is your business website?
             </h1>
+            <p className="text-sm leading-relaxed text-zinc-600">
+              Enter the homepage first. Analysis can suggest identity, brand, and design content;
+              you will confirm the business name after analysis.
+            </p>
             <label htmlFor="demo-url" className="sr-only">
               Website URL
             </label>
@@ -546,8 +550,11 @@ export function GuidedIntakeDemo() {
         {step === 6 && (
           <div className="space-y-4">
             <h1 className="text-lg font-semibold text-zinc-900">
-              Review extracted content
+              Review identity
             </h1>
+            <p className="text-sm leading-relaxed text-zinc-600">
+              Confirm the name designers should use, then review extracted content for your concept.
+            </p>
             {analyzeStatusLine ? (
               <p className="text-sm text-zinc-600" aria-live="polite">
                 {analyzeStatusLine}
@@ -576,7 +583,7 @@ export function GuidedIntakeDemo() {
               />
               {intake.businessName.trim() === "" ? (
                 <p className="text-xs leading-snug text-zinc-500">
-                  Add or confirm the business name before generating a concept.
+                  Confirm the business name before generating a concept.
                 </p>
               ) : null}
             </div>

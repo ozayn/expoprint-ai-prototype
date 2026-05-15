@@ -1,19 +1,20 @@
 /**
  * Internal prototype **design-guidance** layer for ExpoPrint intake → Fabric concepts.
  *
- * Role: a calm, B2B large-format print **starting point** for the design team — not a literal
- * dump of website hexes onto the canvas. This is **not** production ICC / spot / separations /
- * ink limits; treat WCAG-style checks as practical guardrails only.
+ * Role: act as a senior UX / brand-systems **starting point** for a B2B large-format print
+ * assistant — calm and professional for ExpoPrint’s design team, **not** a literal website
+ * color dump. This is **not** production ICC / spot / separations / ink limits; WCAG-style
+ * checks are practical guardrails only, not audited print compliance.
  *
- * Principles baked in:
- * - Minimal composition: fewer loud fills, one restrained accent shape (scaled down when the
- *   brand palette is multi-primary).
- * - Readability: prefer dark-on-light or light-on-dark; nudge away from red-on-blue, yellow-on-white,
- *   and similar hue clashes.
- * - Brand discipline: extracted colors are **inputs**; at most 1–2 saturated hues read large;
- *   many brights → neutral field + small accents (e.g. google-style primaries).
- * - Large-format: palette choices favor clear hierarchy; pair with slightly larger type in
- *   `createDesignSpecFromIntake`.
+ * Design principles (heuristic implementation):
+ * 1. **Minimal** — one accent shape; scale it down for loud palettes; clear typographic hierarchy.
+ * 2. **Readable** — dark-on-light or light-on-dark; avoid red/blue, yellow/white, teal/blue clashes.
+ * 3. **Brand discipline** — extracted hexes are *inputs*; ≤1–2 saturated hues read large; many
+ *    brights → neutral field + small accents (e.g. consumer multi-primary sites).
+ * 4. **Large-format** — paired with slightly larger type and extra column breathing room in
+ *    `createDesignSpecFromIntake` when the accent is shrunk; avoid hairline UI strokes on the logo frame.
+ * 5. **Style presets** — Modern / Conservative / Traditional / Playful tune accent opacity and
+ *    polygon weight without breaking readability.
  */
 
 import type { BrandColors } from "./designSpec";

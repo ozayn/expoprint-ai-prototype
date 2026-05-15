@@ -82,7 +82,7 @@ function renderPolygon(fabric: FabricModule, layer: PolygonLayer) {
 }
 
 function renderText(fabric: FabricModule, layer: TextLayer) {
-  const { IText } = fabric;
+  const { IText, Textbox } = fabric;
   /** Fabric 7 may call string helpers on options; never pass `undefined` for text props. */
   const content = layer.content == null ? "" : String(layer.content);
   const fontFamily =
@@ -107,13 +107,24 @@ function renderText(fabric: FabricModule, layer: TextLayer) {
     fontFamily,
   };
 
-  const text = new IText(content, {
+  const width =
+    typeof layer.width === "number" && Number.isFinite(layer.width) && layer.width > 0
+      ? layer.width
+      : undefined;
+
+  const useTextbox = layer.textLayout === "textbox" && width !== undefined;
+
+  const textOptions = {
     ...base,
     ...(layer.fontWeight !== undefined ? { fontWeight: layer.fontWeight } : {}),
-    ...(layer.width !== undefined ? { width: layer.width } : {}),
+    ...(width !== undefined ? { width } : {}),
     ...(layer.opacity !== undefined ? { opacity: layer.opacity } : {}),
     ...(layer.textAlign !== undefined ? { textAlign: layer.textAlign } : {}),
-  });
+  };
+
+  const text = useTextbox
+    ? new Textbox(content, textOptions)
+    : new IText(content, textOptions);
   applyLayerId(text, layer.id);
   return text;
 }
