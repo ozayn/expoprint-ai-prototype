@@ -317,8 +317,13 @@ Rules for "extracted":
 - brandColors: hex or labels if suggested by page or intake; otherwise "".
 - phone, email, address: ONLY from visible text, mailto/tel links, or user special instructions — not guessed.
 - social: prefer real URLs/handles found in the homepage block or user input.
-- services, products: short lines; may combine homepage text with category/style when reasonable — still prototype suggestions, not verified facts.
-- Do not claim the full site was crawled; at most one homepage plus a few same-domain links were fetched.`;
+- services, products: a single readable line, **comma-separated** (or semicolons), e.g. \`"Custom canopy tents, branded backdrops, event flags"\`. **Do NOT include** broken fragments, isolated punctuation, repeated commas, empty parentheses (\`()\`), partial words, navigation labels (\`Home\`, \`Menu\`), or raw text dumps from the page. Each item must be a real phrase of at least 3 letters or a clearly meaningful size token (e.g. \`10x10\`). Limit to **at most ~6 items** per field. If the source pages do not clearly describe services / products in print-ready phrasing, return \`""\` instead of guessing.
+- Do not claim the full site was crawled; at most one homepage plus a few same-domain links were fetched.
+
+Output discipline (services / products specifically):
+- Prefer pulling phrases from headings, hero text, "What we do" / "Our services" / "Products" sections.
+- Reject bullet residue, JSON keys, code, numbers without context, and cookie / cart / login text.
+- If only marketing fluff is available, return \`""\` rather than fabricate a list.`;
 
   const client = new Anthropic({ apiKey });
 

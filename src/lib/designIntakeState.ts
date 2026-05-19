@@ -1,3 +1,5 @@
+import { cleanExtractedRowValue } from "@/lib/extractedValueCleanup";
+
 export type ProductCategory = "Outdoor tent" | "Trade show booth";
 export type StylePreference =
   | "Modern"
@@ -114,7 +116,12 @@ function clampExtractedValue(raw: string): string {
   return t.slice(0, MAX_EXTRACTED_FIELD_CHARS);
 }
 
-/** Build extracted rows from plain string values (e.g. Claude JSON). */
+/**
+ * Build extracted rows from plain string values (e.g. Claude JSON). Each value
+ * is clamped to a max length and then run through a per-field cleanup pass
+ * (see `extractedValueCleanup.ts`) so multi-page scrape leftovers (empty parens,
+ * stray fragments, repeated punctuation) do not surface in the UI / brief.
+ */
 export function buildExtractedFromPlainValues(
   input: Record<string, unknown>,
 ): Record<ExtractedKey, ExtractedRow> {
@@ -134,10 +141,11 @@ export function buildExtractedFromPlainValues(
         : typeof raw === "number" && Number.isFinite(raw)
           ? clampExtractedValue(String(raw))
           : "";
+    const cleaned = cleanExtractedRowValue(key, str);
     next[key] = {
-      value: str,
+      value: cleaned,
       useForDesign:
-        str.length > 0 ? DEFAULT_EXTRACTED_USE_FOR_DESIGN[key] : false,
+        cleaned.length > 0 ? DEFAULT_EXTRACTED_USE_FOR_DESIGN[key] : false,
     };
   });
   return next;
