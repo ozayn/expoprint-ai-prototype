@@ -1,3 +1,4 @@
+import type { LogoCandidate } from "./analyzeWebsiteResponse";
 import type { DesignIntakeState } from "./designIntakeState";
 import {
   computeDesignBriefText,
@@ -65,6 +66,58 @@ export const BUSINESS_NAME_AUTO_UPDATE_NOTE =
   "Business name updated from website analysis.";
 
 /**
+ * Pulls a small, sanitized list of logo candidates from the analyze API response
+ * (`websiteFetch.logoCandidatesList`). Defensive: any malformed entry is dropped
+ * rather than crashing the merge.
+ */
+export function readLogoCandidatesFromAnalyzePayload(
+  rec: Record<string, unknown>,
+): LogoCandidate[] {
+  const wf = rec.websiteFetch;
+  if (!wf || typeof wf !== "object" || Array.isArray(wf)) return [];
+  const list = (wf as Record<string, unknown>).logoCandidatesList;
+  if (!Array.isArray(list)) return [];
+
+  const out: LogoCandidate[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const o = item as Record<string, unknown>;
+    const url = typeof o.url === "string" ? o.url.trim() : "";
+    if (!url) continue;
+    if (!/^https?:\/\//i.test(url)) continue;
+    const sourceRaw = typeof o.source === "string" ? o.source : "unknown";
+    const allowed = new Set([
+      "icon",
+      "apple-touch-icon",
+      "og:image",
+      "img-logo",
+      "header-image",
+      "unknown",
+    ]);
+    const source = (allowed.has(sourceRaw) ? sourceRaw : "unknown") as LogoCandidate["source"];
+    const alt =
+      typeof o.alt === "string" && o.alt.trim() ? o.alt.trim().slice(0, 120) : undefined;
+    const width =
+      typeof o.width === "number" && Number.isFinite(o.width) && o.width > 0
+        ? Math.round(o.width)
+        : undefined;
+    const height =
+      typeof o.height === "number" && Number.isFinite(o.height) && o.height > 0
+        ? Math.round(o.height)
+        : undefined;
+    out.push({
+      url,
+      source,
+      ...(alt ? { alt } : {}),
+      ...(width ? { width } : {}),
+      ...(height ? { height } : {}),
+    });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+/**
  * Merges validated Claude `extracted` plus optional `suggestedBusinessName` / canonical URL hints.
  * `businessName` is updated only when {@link businessNameIsAutoFillable} (blank or {@link DEFAULT_DEMO_BUSINESS_NAME}).
  */
@@ -87,6 +140,15 @@ export function applyClaudeAnalyzeSuccessToIntake(
     ? suggestedCanonicalWebsiteUrl.trim()
     : prev.websiteUrl;
 
+  const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
+  /** Drop a previously selected URL if it is no longer in the new candidate list. */
+  const stillValidSelection = logoCandidates.some(
+    (c) => c.url === prev.selectedLogoCandidateUrl,
+  );
+  const selectedLogoCandidateUrl = stillValidSelection
+    ? prev.selectedLogoCandidateUrl
+    : "";
+
   const next: DesignIntakeState = {
     ...prev,
     businessName: nextName,
@@ -94,6 +156,8 @@ export function applyClaudeAnalyzeSuccessToIntake(
     extracted,
     showExtracted: true,
     extractionSource: "claude",
+    logoCandidates,
+    selectedLogoCandidateUrl,
   };
   return {
     next: { ...next, designBrief: computeDesignBriefText(next) },

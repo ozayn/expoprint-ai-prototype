@@ -212,6 +212,22 @@ const stages: Stage[] = [
       "UI status line can show “N pages inspected” when multiple pages were successfully fetched; `/` and `/demo` behavior otherwise unchanged.",
     ],
   },
+  {
+    id: 16,
+    title: "Logo candidate extraction and review",
+    status: "Complete",
+    summary:
+      "Analyze Website now collects logo image candidates from icons, apple-touch-icons, og:image, header/nav imagery, and `<img>` tags whose alt/src/class/id reads as a logo. Up to six candidates are returned to the UI with structured metadata (URL, source label, optional alt and width/height). Both `/` and `/demo` show a compact review grid inside Review identity; designers can pick one with a single click. Candidates are not yet validated as production-ready assets — production-quality logo upload is still expected.",
+    accomplishments: [
+      "Server-side parsing extends to header/nav `<img>` tags, splits favicon vs. apple-touch-icon, and records `alt`, `width`, `height` when available — still same-origin and no full-site crawl.",
+      "API response exposes `websiteFetch.logoCandidatesList` with up to ~6 deduped candidates and source labels (icon / apple-touch-icon / og:image / img-logo / header-image / unknown). Raw HTML is never returned.",
+      "Client intake state carries `logoCandidates` + `selectedLogoCandidateUrl`; merge logic clears stale selections when a fresh analyze returns a different list and resets cleanly on mock fallback.",
+      "Compact grid in `Review identity` (editor + `/demo` Step 6) with thumbnail, source pill, and a clear `Use this logo` toggle; failed thumbnail loads fall back to `N/A` while still showing source/host info.",
+      "Canvas behavior is conservative on purpose: when a candidate is selected the existing dashed logo placeholder switches to a solid stroke and bumps label opacity (no remote image embedded — avoids tainted-canvas / CORS issues with PNG/SVG export).",
+      "Design brief lists the selected candidate URL with a reminder that a production-quality logo upload is still recommended before print.",
+      "CSP `img-src` allows `https:` so external favicons / og:images render in previews; `http:` remains blocked.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {

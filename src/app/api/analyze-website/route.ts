@@ -313,7 +313,7 @@ Inside "extracted", optional alias: you may also include "colors" as a string; i
 - "suggestedWebsiteDomain": hostname only when clear (e.g. "example.com"), else "". No scheme, no path.
 
 Rules for "extracted":
-- logo: short description; you may reference og:image / icon candidates if they look like a brand mark, or describe a sensible placeholder.
+- logo: short description only; never invent or guess a logo URL. The server may have collected candidate image URLs (icon / apple-touch-icon / og:image / logo-class img / header img) and exposes them to the UI for human review — you do not need to repeat URLs.
 - brandColors: hex or labels if suggested by page or intake; otherwise "".
 - phone, email, address: ONLY from visible text, mailto/tel links, or user special instructions — not guessed.
 - social: prefer real URLs/handles found in the homepage block or user input.

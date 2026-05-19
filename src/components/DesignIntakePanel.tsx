@@ -14,6 +14,7 @@ import {
   type ProductCategory,
   type StylePreference,
 } from "@/lib/designIntakeState";
+import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
 
 const STYLE_SUGGESTIONS: Record<
   StylePreference,
@@ -232,6 +233,17 @@ export function DesignIntakePanel({
               autoComplete="organization"
             />
           </div>
+          {intake.showExtracted ? (
+            <div className="mt-4 border-t border-zinc-100 pt-3">
+              <LogoCandidatesReview
+                candidates={intake.logoCandidates}
+                selectedUrl={intake.selectedLogoCandidateUrl}
+                onSelect={(url) =>
+                  onIntakeChange({ selectedLogoCandidateUrl: url })
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
         <div>

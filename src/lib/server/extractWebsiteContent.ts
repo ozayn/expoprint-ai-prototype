@@ -1,5 +1,9 @@
 import { load } from "cheerio";
-import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
+import type {
+  LogoCandidate,
+  LogoCandidateSource,
+  WebsiteFetchMeta,
+} from "@/lib/analyzeWebsiteResponse";
 
 /** Per GET (homepage or one extra page); avoids one short global timeout for multi-fetch. */
 const PER_PAGE_FETCH_MS = 12_000;
@@ -13,6 +17,8 @@ const HOMEPAGE_VISIBLE_BUDGET = 8_000;
 const EXTRA_PAGE_VISIBLE_BUDGET = 4_000;
 const MAX_EXTRA_PAGES = 3;
 const MAX_LOGO_CANDIDATES_MERGED = 16;
+/** Cap returned to the client UI for the small review grid. */
+const MAX_LOGO_CANDIDATES_FOR_UI = 6;
 const MAX_MAILTO_MERGED = 16;
 const MAX_TEL_MERGED = 16;
 const MAX_SOCIAL_MERGED = 20;
@@ -43,7 +49,10 @@ export type ScrapedPageSummary = {
   metaDescription: string;
   ogTitle: string;
   ogDescription: string;
+  /** Flat list of absolute image URLs (for Claude prompt context, dedup). */
   logoCandidateUrls: string[];
+  /** Structured candidates with source label and optional width/height/alt. */
+  logoCandidatesDetailed: LogoCandidate[];
   mailtoHrefs: string[];
   telHrefs: string[];
   socialHrefs: string[];
@@ -66,6 +75,7 @@ export type WebsiteContentExtraction = {
   ogTitle: string;
   ogDescription: string;
   logoCandidateUrls: string[];
+  logoCandidatesDetailed: LogoCandidate[];
   mailtoHrefs: string[];
   telHrefs: string[];
   socialHrefs: string[];
@@ -280,32 +290,93 @@ function parseHtmlToPageSummary(
   const ogDesc =
     $('meta[property="og:description"]').attr("content")?.trim() ?? "";
 
-  const logoCandidates: string[] = [];
-  const pushLogo = (href: string | undefined) => {
-    if (!href) return;
-    const abs = toAbsolute(href, baseFinalUrl);
-    if (abs) logoCandidates.push(abs);
+  const logoCandidatesDetailed: LogoCandidate[] = [];
+  const logoUrlsSeen = new Set<string>();
+
+  const pushLogoCandidate = (
+    rawHref: string | undefined,
+    source: LogoCandidateSource,
+    extras: { alt?: string; width?: number; height?: number } = {},
+  ) => {
+    if (!rawHref) return;
+    const abs = toAbsolute(rawHref, baseFinalUrl);
+    if (!abs) return;
+    if (logoUrlsSeen.has(abs)) return;
+    logoUrlsSeen.add(abs);
+    const cleanedAlt = extras.alt
+      ? extras.alt.replace(/\s+/g, " ").trim().slice(0, 120)
+      : undefined;
+    logoCandidatesDetailed.push({
+      url: abs,
+      source,
+      ...(cleanedAlt ? { alt: cleanedAlt } : {}),
+      ...(typeof extras.width === "number" && extras.width > 0
+        ? { width: Math.round(extras.width) }
+        : {}),
+      ...(typeof extras.height === "number" && extras.height > 0
+        ? { height: Math.round(extras.height) }
+        : {}),
+    });
   };
 
   $('link[href]').each((_, el) => {
     const rel = ($(el).attr("rel") ?? "").toLowerCase();
-    if (rel.includes("icon") || rel === "apple-touch-icon") {
-      pushLogo($(el).attr("href"));
+    const href = $(el).attr("href") ?? "";
+    if (rel === "apple-touch-icon" || rel === "apple-touch-icon-precomposed") {
+      pushLogoCandidate(href, "apple-touch-icon");
+    } else if (rel.includes("icon")) {
+      pushLogoCandidate(href, "icon");
     }
   });
-  pushLogo($('meta[property="og:image"]').attr("content"));
+  pushLogoCandidate(
+    $('meta[property="og:image"]').attr("content"),
+    "og:image",
+    { alt: $('meta[property="og:image:alt"]').attr("content") ?? undefined },
+  );
 
+  const parseDimAttr = (raw: string | undefined): number | undefined => {
+    if (!raw) return undefined;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
+  /**
+   * Header / nav image scan first — only `<img>` inside `header` / `nav` tags or
+   * elements whose class/id contains `header`, `nav`, `top` and similar markers.
+   * Catches sites whose logo lacks the literal word "logo" in alt/class/id.
+   */
+  $("header img, nav img").each((_, el) => {
+    const $el = $(el);
+    const src = $el.attr("src") ?? "";
+    if (!src) return;
+    pushLogoCandidate(src, "header-image", {
+      alt: $el.attr("alt"),
+      width: parseDimAttr($el.attr("width")),
+      height: parseDimAttr($el.attr("height")),
+    });
+  });
+
+  /**
+   * Generic logo-ish images by attribute matching anywhere in the document.
+   */
   $("img").each((_, el) => {
     const $el = $(el);
     const src = $el.attr("src") ?? "";
+    if (!src) return;
     const alt = $el.attr("alt") ?? "";
     const id = $el.attr("id") ?? "";
     const cls = $el.attr("class") ?? "";
     const blob = `${src} ${alt} ${id} ${cls}`.toLowerCase();
     if (blob.includes("logo")) {
-      pushLogo(src);
+      pushLogoCandidate(src, "img-logo", {
+        alt,
+        width: parseDimAttr($el.attr("width")),
+        height: parseDimAttr($el.attr("height")),
+      });
     }
   });
+
+  const logoCandidates = logoCandidatesDetailed.map((c) => c.url);
 
   const mailtoHrefs: string[] = [];
   const telHrefs: string[] = [];
@@ -353,6 +424,10 @@ function parseHtmlToPageSummary(
     ogTitle,
     ogDescription: ogDesc,
     logoCandidateUrls: uniqCap(logoCandidates, MAX_LOGO_CANDIDATES_MERGED),
+    logoCandidatesDetailed: logoCandidatesDetailed.slice(
+      0,
+      MAX_LOGO_CANDIDATES_MERGED,
+    ),
     mailtoHrefs: uniqCap(mailtoHrefs, MAX_MAILTO_MERGED),
     telHrefs: uniqCap(telHrefs, MAX_TEL_MERGED),
     socialHrefs: uniqCap(socialHrefs, MAX_SOCIAL_MERGED),
@@ -416,22 +491,31 @@ async function fetchHtmlPage(
 
 function mergePageLists(pages: ScrapedPageSummary[]): {
   logoCandidateUrls: string[];
+  logoCandidatesDetailed: LogoCandidate[];
   mailtoHrefs: string[];
   telHrefs: string[];
   socialHrefs: string[];
 } {
   const logos: string[] = [];
+  const logoDetailed: LogoCandidate[] = [];
+  const logoSeen = new Set<string>();
   const mails: string[] = [];
   const tels: string[] = [];
   const socials: string[] = [];
   for (const p of pages) {
     logos.push(...p.logoCandidateUrls);
+    for (const c of p.logoCandidatesDetailed) {
+      if (logoSeen.has(c.url)) continue;
+      logoSeen.add(c.url);
+      logoDetailed.push(c);
+    }
     mails.push(...p.mailtoHrefs);
     tels.push(...p.telHrefs);
     socials.push(...p.socialHrefs);
   }
   return {
     logoCandidateUrls: uniqCap(logos, MAX_LOGO_CANDIDATES_MERGED),
+    logoCandidatesDetailed: logoDetailed.slice(0, MAX_LOGO_CANDIDATES_MERGED),
     mailtoHrefs: uniqCap(mails, MAX_MAILTO_MERGED),
     telHrefs: uniqCap(tels, MAX_TEL_MERGED),
     socialHrefs: uniqCap(socials, MAX_SOCIAL_MERGED),
@@ -483,6 +567,7 @@ function emptySlice(url: string): ScrapedPageSummary {
     ogTitle: "",
     ogDescription: "",
     logoCandidateUrls: [],
+    logoCandidatesDetailed: [],
     mailtoHrefs: [],
     telHrefs: [],
     socialHrefs: [],
@@ -505,6 +590,7 @@ function buildFlatExtraction(
     ogTitle: homepage.ogTitle,
     ogDescription: homepage.ogDescription,
     logoCandidateUrls: merged.logoCandidateUrls,
+    logoCandidatesDetailed: merged.logoCandidatesDetailed,
     mailtoHrefs: merged.mailtoHrefs,
     telHrefs: merged.telHrefs,
     socialHrefs: merged.socialHrefs,
@@ -601,6 +687,10 @@ export async function extractWebsiteContent(
     pagesFetched = 1 + extraHttpSuccess;
     const merged = mergePageLists([homepage, ...additionalPages]);
 
+    const logoCandidatesList = merged.logoCandidatesDetailed.slice(
+      0,
+      MAX_LOGO_CANDIDATES_FOR_UI,
+    );
     const flat = buildFlatExtraction(
       {
         status: "success",
@@ -608,6 +698,7 @@ export async function extractWebsiteContent(
         titleFound: homepage.title.length > 0,
         textChars: 0,
         logoCandidates: merged.logoCandidateUrls.length,
+        logoCandidatesList,
         contactLinks:
           merged.mailtoHrefs.length + merged.telHrefs.length + merged.socialHrefs.length,
         pagesAttempted,

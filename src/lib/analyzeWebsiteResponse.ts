@@ -11,6 +11,30 @@ export type AnalyzeWebsiteApiSource =
   | "invalid_json";
 
 /**
+ * Where a logo candidate URL was discovered. `unknown` is reserved for
+ * forward-compatibility with future sources.
+ */
+export type LogoCandidateSource =
+  | "icon"
+  | "apple-touch-icon"
+  | "og:image"
+  | "img-logo"
+  | "header-image"
+  | "unknown";
+
+/**
+ * Safe metadata about a single discovered logo candidate. URLs are absolute and
+ * same-protocol-as-fetch; not validated as actual images on the server.
+ */
+export type LogoCandidate = {
+  url: string;
+  source: LogoCandidateSource;
+  alt?: string;
+  width?: number;
+  height?: number;
+};
+
+/**
  * Safe subset of website fetch outcome for API / UI (no raw HTML or full page text).
  * Multi-page fields are optional for backward compatibility with older clients.
  */
@@ -21,7 +45,10 @@ export type WebsiteFetchMeta = {
   titleFound?: boolean;
   /** Approximate visible characters passed to Claude across homepage + extras (capped). */
   textChars?: number;
+  /** Total logo URL candidates collected across inspected pages (deduped). */
   logoCandidates?: number;
+  /** Up to ~6 detailed logo candidates exposed to the client UI (no raw HTML). */
+  logoCandidatesList?: LogoCandidate[];
   contactLinks?: number;
   /** Homepage plus each extra URL tried (same-origin candidates only). */
   pagesAttempted?: number;
@@ -130,10 +157,14 @@ export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): st
       typeof w.pagesFetched === "number" && Number.isFinite(w.pagesFetched)
         ? w.pagesFetched
         : 1;
+    const logoCount = Array.isArray(w.logoCandidatesList)
+      ? w.logoCandidatesList.length
+      : 0;
+    const logoHint = logoCount > 0 ? ` · ${logoCount} logo candidate${logoCount === 1 ? "" : "s"}` : "";
     if (pagesFetched >= 2) {
-      return `Claude extraction used · ${pagesFetched} pages inspected.`;
+      return `Claude extraction used · ${pagesFetched} pages inspected${logoHint}.`;
     }
-    return "Claude extraction used · Website content fetched.";
+    return `Claude extraction used · Website content fetched${logoHint}.`;
   }
   if (status === "failed") {
     return "Claude extraction used · Website fetch failed.";

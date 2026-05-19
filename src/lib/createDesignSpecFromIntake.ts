@@ -202,12 +202,72 @@ function websiteLineFromIntake(intake: DesignIntakeState): string {
   return d || "expoprint.io";
 }
 
-/** First social token (e.g. one platform segment) for a compact canvas line. */
+/**
+ * Strips `https?://`, `www.`, query/hash, trailing slash, and trailing
+ * punctuation from a URL-ish token. Returns `""` if nothing recognizable
+ * remains (i.e. no host-like `name.tld`). Never returns a partial URL.
+ */
+function shortenSocialToken(rawToken: string): string {
+  let t = rawToken.trim();
+  if (!t) return "";
+  /** Mid-list garbage like `, h` or stray ellipses. */
+  if (t.length < 3) return "";
+  t = t.replace(/^[\s.,;:·•|@]+|[\s.,;:·•|]+$/g, "");
+  if (!t) return "";
+
+  /** Bare handles (e.g. `@google`) — keep but without the leading @. */
+  const handleMatch = /^@?([A-Za-z0-9_.]{2,30})$/.exec(t);
+  if (handleMatch && !t.includes("/") && !t.includes(".")) {
+    return `@${handleMatch[1]}`;
+  }
+
+  /**
+   * URL-ish: prepend a scheme so `URL` parses host/path/query reliably; we
+   * never re-emit the scheme.
+   */
+  const withScheme = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return "";
+  }
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host)) return "";
+
+  const cleanedPath = url.pathname
+    .replace(/\/+$/, "")
+    .replace(/[\s.,;:·•|]+$/, "");
+
+  const display = cleanedPath ? `${host}${cleanedPath}` : host;
+  /** Trailing punctuation belt-and-suspenders. */
+  return display.replace(/[\s.,;:·•|]+$/, "");
+}
+
+/**
+ * Pick the cleanest single social token from a Claude-style list (comma /
+ * semicolon / mid-dot / pipe separated). Prefers tokens that produce a short
+ * displayable form (`youtube.com/googleads`, `@brand`, `instagram.com/foo`).
+ * Returns `""` when no token cleans up below the per-item display cap.
+ */
+const SOCIAL_DISPLAY_MAX = 40;
+
 function shortSocialForCanvas(raw: string): string {
   const t = raw.trim();
   if (!t) return "";
-  const first = t.split(/\s*[·•|]\s*/)[0]?.trim() ?? t;
-  return truncate(first.replace(/^@+/, ""), 38);
+
+  const tokens = t
+    .split(/\s*[,;·•|]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const tok of tokens) {
+    const cleaned = shortenSocialToken(tok);
+    if (cleaned && cleaned.length <= SOCIAL_DISPLAY_MAX) {
+      return cleaned;
+    }
+  }
+  return "";
 }
 
 /** Any selected extracted contact field that should appear on the canvas. */
@@ -222,58 +282,66 @@ function hasContactExtractedForCanvas(intake: DesignIntakeState): boolean {
 }
 
 const CONTACT_LINE_MAX = 96;
+const CONTACT_SEPARATOR = " · ";
+const EMAIL_DISPLAY_MAX = 32;
+const ADDRESS_DISPLAY_MAX = 40;
 
 /**
- * One concise footer line: prefer phone · domain when phone is selected;
- * add email / social / booth address only when there is room (single line cap).
+ * One concise footer line. Items are added in priority order
+ * (phone → domain → short email → one clean social → booth address) and
+ * **whole items are dropped** when adding them would exceed `CONTACT_LINE_MAX`.
+ * The line is never cut mid-token, so users do not see partial URLs like
+ * `youtube.com/googleads, h…` on the canvas. Returns `""` when no extra
+ * contact item is clean — the main website layer carries the domain alone.
  */
 function buildContactFooterLine(intake: DesignIntakeState): string {
   if (!hasContactExtractedForCanvas(intake)) return "";
 
-  const phone = selectedExtractedValue(intake, "phone");
-  const email = selectedExtractedValue(intake, "email");
-  const social = selectedExtractedValue(intake, "social");
+  const phone = selectedExtractedValue(intake, "phone").trim();
+  const email = selectedExtractedValue(intake, "email").trim();
+  const socialRaw = selectedExtractedValue(intake, "social").trim();
+  const social = socialRaw ? shortSocialForCanvas(socialRaw) : "";
   const address =
     intake.category === "Trade show booth"
-      ? selectedExtractedValue(intake, "address")
+      ? selectedExtractedValue(intake, "address").trim()
       : "";
 
   const domain = websiteLineFromIntake(intake);
-  const socialShort = social ? shortSocialForCanvas(social) : "";
 
-  const fits = (base: string, extra: string) =>
-    base.length + 3 + extra.length <= CONTACT_LINE_MAX;
-
-  if (phone) {
-    let line = `${truncate(phone, 24)} · ${truncate(domain, 30)}`;
-    if (email && fits(line, truncate(email, 32))) {
-      line = `${line} · ${truncate(email, 32)}`;
-    } else if (email && line.length <= 58 && fits(line, truncate(email, 22))) {
-      line = `${line} · ${truncate(email, 22)}`;
-    }
-    if (socialShort && fits(line, socialShort)) {
-      line = `${line} · ${socialShort}`;
-    }
-    if (address && fits(line, truncate(address, 36))) {
-      line = `${line} · ${truncate(address, 36)}`;
-    }
-    return truncate(line, CONTACT_LINE_MAX);
+  const ordered: string[] = [];
+  if (phone) ordered.push(phone);
+  /** Only anchor the domain in the footer when at least one other item rides with it. */
+  const hasSecondaryItem =
+    Boolean(phone) ||
+    (email.length > 0 && email.length <= EMAIL_DISPLAY_MAX) ||
+    Boolean(social) ||
+    (address.length > 0 && address.length <= ADDRESS_DISPLAY_MAX);
+  if (hasSecondaryItem && domain && phone) {
+    ordered.push(domain);
   }
+  if (email && email.length <= EMAIL_DISPLAY_MAX) ordered.push(email);
+  if (social) ordered.push(social);
+  if (address && address.length <= ADDRESS_DISPLAY_MAX) ordered.push(address);
 
-  const parts: string[] = [];
-  if (socialShort) parts.push(socialShort);
-  if (email) parts.push(truncate(email, 40));
-  if (address) parts.push(truncate(address, 48));
+  /** Case-insensitive dedup so domain/email twins do not stack. */
+  const seen = new Set<string>();
+  const unique = ordered.filter((item) => {
+    const key = item.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-  if (parts.length === 0) return "";
-
-  let line = parts[0]!;
-  for (let i = 1; i < parts.length; i++) {
-    const next = `${line} · ${parts[i]}`;
-    if (next.length <= CONTACT_LINE_MAX) line = next;
-    else break;
+  let line = "";
+  for (const item of unique) {
+    if (item.length > CONTACT_LINE_MAX) continue;
+    const next = line ? `${line}${CONTACT_SEPARATOR}${item}` : item;
+    if (next.length <= CONTACT_LINE_MAX) {
+      line = next;
+    }
+    /** else: skip this item but keep trying smaller ones. */
   }
-  return truncate(line, CONTACT_LINE_MAX);
+  return line;
 }
 
 function logoLabelFromIntake(intake: DesignIntakeState): string {
@@ -455,8 +523,81 @@ export function createDesignSpecFromIntake(
     supportingMaxHeight,
   );
 
-  const logoStrokeWidth = polyScale < 0.68 ? 4 : 3;
+  const baseLogoStrokeWidth = polyScale < 0.68 ? 4 : 3;
   const logoDash: [number, number] = polyScale < 0.68 ? [14, 11] : [12, 10];
+  /**
+   * Signals that the user picked a logo candidate from the website extraction.
+   * Canvas behavior is intentionally simple to avoid CORS / tainted-canvas
+   * issues on PNG export: keep the editable placeholder, switch the dashed
+   * stroke to a solid stroke (one step bolder), and swap the LOGO/initials
+   * label for a two-line "Logo selected / candidate recorded" stack so users
+   * do not believe the remote image is embedded. The actual URL is recorded
+   * in the design brief for the designer.
+   */
+  const hasSelectedLogoCandidate =
+    typeof intake.selectedLogoCandidateUrl === "string" &&
+    intake.selectedLogoCandidateUrl.trim().length > 0;
+  const logoStrokeWidth = hasSelectedLogoCandidate
+    ? baseLogoStrokeWidth + 1
+    : baseLogoStrokeWidth;
+  const logoStrokeDash: number[] | undefined = hasSelectedLogoCandidate
+    ? undefined
+    : [...logoDash];
+
+  /**
+   * Logo placeholder text layers.
+   * - No candidate: single "LOGO" / initials line, dashed stroke (set above).
+   * - Candidate selected: two centered textbox lines stacked inside the 132px
+   *   box — `Logo selected` (16px) over a smaller `candidate recorded` (10px)
+   *   subtitle. Solid stroke is applied at the imagePlaceholder layer.
+   */
+  const logoLabelLayers: DesignSpec["layers"] = hasSelectedLogoCandidate
+    ? [
+        {
+          type: "text",
+          id: "logo-label",
+          content: "Logo selected",
+          left: 72,
+          top: 122,
+          width: 132,
+          fill: plan.logoLabelText,
+          fontSize: 16,
+          ...textBase,
+          fontWeight: "600",
+          opacity: 0.85,
+          textAlign: "center",
+          textLayout: "textbox",
+        },
+        {
+          type: "text",
+          id: "logo-label-sub",
+          content: "candidate recorded",
+          left: 72,
+          top: 146,
+          width: 132,
+          fill: plan.logoLabelText,
+          fontSize: 10,
+          ...textBase,
+          fontWeight: "500",
+          opacity: 0.6,
+          textAlign: "center",
+          textLayout: "textbox",
+        },
+      ]
+    : [
+        {
+          type: "text",
+          id: "logo-label",
+          content: logoLabel,
+          left: 96,
+          top: 128,
+          fill: plan.logoLabelText,
+          fontSize: 28,
+          ...textBase,
+          fontWeight: "600",
+          opacity: 0.45,
+        },
+      ];
 
   const layers: DesignSpec["layers"] = [
     {
@@ -485,20 +626,9 @@ export function createDesignSpecFromIntake(
       fill: plan.logoFill,
       stroke: plan.logoStroke,
       strokeWidth: logoStrokeWidth,
-      strokeDashArray: [...logoDash],
+      ...(logoStrokeDash ? { strokeDashArray: logoStrokeDash } : {}),
     },
-    {
-      type: "text",
-      id: "logo-label",
-      content: logoLabel,
-      left: 96,
-      top: 128,
-      fill: plan.logoLabelText,
-      fontSize: 28,
-      ...textBase,
-      fontWeight: "600",
-      opacity: 0.45,
-    },
+    ...logoLabelLayers,
     {
       type: "text",
       id: "headline",

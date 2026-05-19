@@ -10,7 +10,11 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "img-src 'self' data: blob:",
+  /**
+   * Logo candidate previews load remote favicons / og:images from arbitrary
+   * customer sites. Limit to `https:` so http:// origins remain blocked.
+   */
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline'",

@@ -1,3 +1,4 @@
+import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
 import { cleanExtractedRowValue } from "@/lib/extractedValueCleanup";
 
 export type ProductCategory = "Outdoor tent" | "Trade show booth";
@@ -66,6 +67,14 @@ export interface DesignIntakeState {
   showExtracted: boolean;
   /** Last successful analyze path (Claude API vs local mock). */
   extractionSource: ExtractionSource;
+  /**
+   * Logo image candidates returned by the most recent successful website
+   * extraction. Empty when none, or before Analyze runs. Server-side only —
+   * the client just passes them through to the review UI.
+   */
+  logoCandidates: LogoCandidate[];
+  /** URL of the candidate the user marked as "Use this logo", or "" when none. */
+  selectedLogoCandidateUrl: string;
   designBrief: string;
 }
 
@@ -214,6 +223,29 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
     lines.push("");
   }
 
+  if (intake.selectedLogoCandidateUrl.trim()) {
+    lines.push("Selected logo candidate (for designer review):");
+    lines.push(`  • ${intake.selectedLogoCandidateUrl.trim()}`);
+    lines.push(
+      "  (Production-quality logo upload still recommended before print.)",
+    );
+    lines.push("");
+  } else if (
+    intake.extractionSource !== "none" &&
+    intake.extracted.logo.value.trim().length > 0
+  ) {
+    /**
+     * No image candidate selected (e.g. site exposed only a tiny favicon, or
+     * none at all), but Claude still produced a textual logo description.
+     * Make the gap explicit for the designer rather than letting the brief
+     * imply a usable asset is on file.
+     */
+    lines.push(
+      "Logo described from website analysis; production logo file still needed.",
+    );
+    lines.push("");
+  }
+
   lines.push("Selected extracted content (for design use):");
   const selectedExtractedLines: string[] = [];
   (Object.keys(EXTRACTED_LABELS) as ExtractedKey[]).forEach((key) => {
@@ -257,6 +289,8 @@ export function defaultDesignIntake(): DesignIntakeState {
     extracted: emptyExtracted(),
     showExtracted: false,
     extractionSource: "none",
+    logoCandidates: [],
+    selectedLogoCandidateUrl: "",
     designBrief: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };

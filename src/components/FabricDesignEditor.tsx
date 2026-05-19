@@ -172,6 +172,8 @@ export function FabricDesignEditor() {
         extracted: buildMockExtracted(),
         showExtracted: true,
         extractionSource: "mock_fallback",
+        logoCandidates: [],
+        selectedLogoCandidateUrl: "",
       };
       return { ...next, designBrief: computeDesignBriefText(next) };
     });

@@ -35,6 +35,7 @@ import {
 } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
+import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
 
 const { width: CANVAS_W, height: CANVAS_H } = sampleDesignSpec.canvas;
 const TOTAL_STEPS = 7;
@@ -87,6 +88,8 @@ function blankIntake(): DesignIntakeState {
     extracted: emptyExtracted(),
     showExtracted: false,
     extractionSource: "none",
+    logoCandidates: [],
+    selectedLogoCandidateUrl: "",
     designBrief: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };
@@ -332,6 +335,8 @@ export function GuidedIntakeDemo() {
         extracted: buildMockExtracted(),
         showExtracted: true,
         extractionSource: "mock_fallback",
+        logoCandidates: [],
+        selectedLogoCandidateUrl: "",
       };
       return { ...next, designBrief: computeDesignBriefText(next) };
     });
@@ -586,6 +591,16 @@ export function GuidedIntakeDemo() {
                   Confirm the business name before generating a concept.
                 </p>
               ) : null}
+            </div>
+            <div className="border-b border-zinc-100 pb-4">
+              <LogoCandidatesReview
+                candidates={intake.logoCandidates}
+                selectedUrl={intake.selectedLogoCandidateUrl}
+                onSelect={(url) =>
+                  patchIntake({ selectedLogoCandidateUrl: url })
+                }
+                variant="wide"
+              />
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
               Extracted content
