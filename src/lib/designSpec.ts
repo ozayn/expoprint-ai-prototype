@@ -94,11 +94,36 @@ export interface ImagePlaceholderLayer {
   originY?: SpecOriginY;
 }
 
+/**
+ * Bitmap or SVG image fitted into a bounding box with `object-contain`-style
+ * scaling. The renderer loads `src` asynchronously with `crossOrigin: "anonymous"`
+ * so PNG export stays untainted; on load failure it leaves any siblings listed
+ * in `replacePlaceholderIds` in place. Coordinates are top-left.
+ */
+export interface ImageLayer {
+  type: "image";
+  id?: string;
+  /** Same-origin / CORS-clean URL (e.g. our `/api/proxy-image` proxy). */
+  src: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Inset within the bounding box before scaling, per side. Default 8. */
+  padding?: number;
+  /** Layer ids removed from the canvas only when the image actually loads. */
+  replacePlaceholderIds?: string[];
+  opacity?: number;
+  originX?: SpecOriginX;
+  originY?: SpecOriginY;
+}
+
 export type DesignLayer =
   | BackgroundLayer
   | ShapeLayer
   | TextLayer
-  | ImagePlaceholderLayer;
+  | ImagePlaceholderLayer
+  | ImageLayer;
 
 const sampleBrandColors: BrandColors = {
   navy: "#0B2E4A",

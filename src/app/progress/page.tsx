@@ -228,6 +228,21 @@ const stages: Stage[] = [
       "CSP `img-src` allows `https:` so external favicons / og:images render in previews; `http:` remains blocked.",
     ],
   },
+  {
+    id: 17,
+    title: "Selected logo rendering via safe proxy",
+    status: "Complete",
+    summary:
+      "When a designer picks a logo candidate, the editable Fabric preview now actually renders that image. The browser never fetches the remote URL directly — Fabric loads through a same-origin `/api/proxy-image` proxy with `crossOrigin: 'anonymous'`, so PNG export stays untainted. The placeholder + label layers remain as a safe fallback; nothing on the canvas is broken if the proxy refuses, the upstream is missing, or the load times out. Production-quality logo validation and upload are still expected before print.",
+    accomplishments: [
+      "New server route `src/app/api/proxy-image/route.ts`: only `http:`/`https:` URLs, DNS lookup blocking RFC1918 / loopback / link-local / multicast hosts, ~6s timeout, 2 MiB body cap, and a small MIME whitelist (`png` / `jpeg` / `webp` / `gif` / `svg+xml` / `x-icon` / `avif`). Distinct status codes (400 / 403 / 413 / 415 / 502 / 504) and `no-store` on rejections.",
+      "Open CORS + `Cross-Origin-Resource-Policy: cross-origin` + `Referrer-Policy: no-referrer` on success so Fabric's `crossOrigin: 'anonymous'` load keeps the canvas un-tainted; `Cache-Control: public, max-age=3600` for prototype caching.",
+      "DesignSpec gains an `image` layer (`type: 'image'`) with bounding-box geometry, padding, and an optional `replacePlaceholderIds` list. `createDesignSpecFromIntake` emits one when `selectedLogoCandidateUrl` is set and points it at `/api/proxy-image?url=...`.",
+      "Renderer loads images asynchronously via `FabricImage.fromURL`; on success it scales to fit the placeholder, centers, removes the placeholder + label layers, and re-renders. On failure or stale render generation it leaves the safe placeholder visible and never mutates the canvas.",
+      "PNG export verified via the proxy + crossOrigin path. SVG export keeps Fabric's default behavior — embedded data URLs when same-origin lets the canvas inline bytes, otherwise an `<image href>` reference; helper copy notes this prototype caveat instead of breaking export.",
+      "UI copy in `LogoCandidatesReview` and the prototype note updated to describe the new behavior; `/` editor and `/demo` Step 6 share the same flow.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {

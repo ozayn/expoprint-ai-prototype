@@ -16,7 +16,7 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
 };
 
 const PROTOTYPE_NOTE =
-  "Prototype note: remote logos are not embedded into the Fabric export yet; selected logo URLs are recorded for designer review.";
+  "Prototype note: selected logos render in the editable preview through a same-origin image proxy when possible; if the load fails the editable placeholder stays in place. Production-quality logo upload is still recommended before print.";
 
 export type LogoCandidatesReviewProps = {
   candidates: LogoCandidate[];
@@ -89,7 +89,8 @@ export function LogoCandidatesReview({
           {selectedUrl ? (
             <div className="rounded-md border border-emerald-100 bg-emerald-50/70 px-2.5 py-2 text-[11px] leading-snug">
               <p className="font-medium text-emerald-800">
-                Selected logo is recorded for designer review.
+                Selected logo appears in the editable preview when it can be
+                loaded safely.
               </p>
               <p className="mt-0.5 text-emerald-900/80">
                 Production-quality logo upload is still recommended.

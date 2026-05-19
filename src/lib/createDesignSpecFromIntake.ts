@@ -350,6 +350,45 @@ function logoLabelFromIntake(intake: DesignIntakeState): string {
     : "LOGO";
 }
 
+/**
+ * Build the same-origin proxy URL for the selected candidate. We never put the
+ * remote URL on the canvas directly — Fabric loads through `/api/proxy-image`
+ * with `crossOrigin: "anonymous"` so PNG export stays untainted, and the proxy
+ * enforces protocol / private-IP / MIME / size limits.
+ */
+function proxiedLogoUrl(remoteUrl: string): string {
+  return `/api/proxy-image?url=${encodeURIComponent(remoteUrl)}`;
+}
+
+/**
+ * One-or-zero `image` layer for the selected logo candidate. The renderer adds
+ * this asynchronously and only removes the placeholder + label layers
+ * (`logo-box` / `logo-label` / `logo-label-sub`) when the image actually loads
+ * — so failures or CORS hiccups still leave the safe placeholder visible.
+ */
+function buildSelectedLogoImageLayer(
+  intake: DesignIntakeState,
+): DesignSpec["layers"] {
+  const remote =
+    typeof intake.selectedLogoCandidateUrl === "string"
+      ? intake.selectedLogoCandidateUrl.trim()
+      : "";
+  if (!remote || !/^https?:\/\//i.test(remote)) return [];
+  return [
+    {
+      type: "image",
+      id: "logo-image",
+      src: proxiedLogoUrl(remote),
+      left: 72,
+      top: 72,
+      width: 132,
+      height: 132,
+      padding: 10,
+      replacePlaceholderIds: ["logo-box", "logo-label", "logo-label-sub"],
+    },
+  ];
+}
+
 type TextBlock = Pick<TextLayer, "left" | "top" | "width" | "textAlign">;
 
 type StyleLayout = {
@@ -629,6 +668,7 @@ export function createDesignSpecFromIntake(
       ...(logoStrokeDash ? { strokeDashArray: logoStrokeDash } : {}),
     },
     ...logoLabelLayers,
+    ...buildSelectedLogoImageLayer(intake),
     {
       type: "text",
       id: "headline",
