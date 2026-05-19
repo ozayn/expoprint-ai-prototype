@@ -10,15 +10,27 @@ export type AnalyzeWebsiteApiSource =
   | "api_error"
   | "invalid_json";
 
-/** Safe subset of homepage fetch outcome for API / UI (no raw HTML or full text). */
+/**
+ * Safe subset of website fetch outcome for API / UI (no raw HTML or full page text).
+ * Multi-page fields are optional for backward compatibility with older clients.
+ */
 export type WebsiteFetchMeta = {
   status: "success" | "skipped" | "failed";
   reason?: string;
   finalUrl?: string;
   titleFound?: boolean;
+  /** Approximate visible characters passed to Claude across homepage + extras (capped). */
   textChars?: number;
   logoCandidates?: number;
   contactLinks?: number;
+  /** Homepage plus each extra URL tried (same-origin candidates only). */
+  pagesAttempted?: number;
+  /** Successful HTTP parses: 1 for homepage-only, up to 4 with three extras. */
+  pagesFetched?: number;
+  /** Extra-page GET failures (homepage failure uses status failed, not counted here). */
+  pagesFailed?: number;
+  /** Heuristic buckets seen on fetched paths, e.g. about / services / contact. */
+  pageTypesFound?: string[];
 };
 
 export type AnalyzeWebsiteApiSuccess = {
@@ -114,6 +126,13 @@ export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): st
   const w = wf as Record<string, unknown>;
   const status = typeof w.status === "string" ? w.status : "";
   if (status === "success") {
+    const pagesFetched =
+      typeof w.pagesFetched === "number" && Number.isFinite(w.pagesFetched)
+        ? w.pagesFetched
+        : 1;
+    if (pagesFetched >= 2) {
+      return `Claude extraction used · ${pagesFetched} pages inspected.`;
+    }
     return "Claude extraction used · Website content fetched.";
   }
   if (status === "failed") {

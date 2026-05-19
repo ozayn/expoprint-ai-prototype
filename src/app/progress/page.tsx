@@ -197,6 +197,21 @@ const stages: Stage[] = [
       "`createDesignSpecFromIntake` scales polygon points by `accentPolygonScale`, bumps headline/supporting/website/contact font sizes slightly, and applies the plan for both `/` and `/demo` with no API or new AI calls.",
     ],
   },
+  {
+    id: 15,
+    title: "Small multi-page website extraction",
+    status: "Complete",
+    summary:
+      "Analyze Website now enriches Claude with a bounded slice of the site beyond the homepage only: the server loads the homepage, discovers same-domain links, ranks about/services/contact-style paths, and fetches at most three extra HTML pages (no recursion, no browser automation, no full crawl). Raw page text is never returned to the client; API responses add safe `websiteFetch` counters and page-type hints only.",
+    accomplishments: [
+      "Homepage plus up to three same-domain candidate pages (keyword-ranked anchors from the homepage HTML only).",
+      "Heuristic buckets for discovery: about, services/products/solutions-style, contact/locations, portfolio/work, plus high-priority tokens (about, services, products, solutions, contact, work, portfolio, menu, locations).",
+      "Per-page GET with timeout and HTML byte cap; extras that fail or are near-duplicate of already-kept text are skipped without breaking the overall analyze flow.",
+      "Claude context: homepage block plus additional page sections, then deduped mailto/tel/social and logo candidates across inspected pages; visible excerpts capped (~8k homepage, ~4k per extra, ~18k total visible budget).",
+      "`websiteFetch` metadata includes `pagesAttempted`, `pagesFetched`, `pagesFailed`, optional `pageTypesFound`, and approximate `textChars` sent to the model — still no raw HTML in JSON.",
+      "UI status line can show “N pages inspected” when multiple pages were successfully fetched; `/` and `/demo` behavior otherwise unchanged.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
