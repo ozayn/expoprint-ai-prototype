@@ -19,11 +19,9 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 1. Copy `.env.example` to `.env.local` for local development.
 2. Set `ANTHROPIC_API_KEY` in `.env.local` when you are ready to wire up the API (get a key from the Anthropic console).
 3. Never commit `.env.local` or any file that contains real secrets (they are listed in `.gitignore`).
-4. On Railway, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Variables** tab instead of putting keys in the repo.
+4. On **Vercel**, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Environment Variables** settings instead of putting keys in the repo.
 
-**Railway deploy:** Production uses **Railpack** + `scripts/railway-build.sh` and starts with `node .next/standalone/server.js` (see `railway.toml`). Next.js 16 needs **Node 20+** (`.nvmrc` / `engines`). Optional `docker/Dockerfile` for manual builds.
-
-If a **main** deploy fails with **out of disk space** before your code runs, that is usually a Railway builder issue: redeploy, **clear build cache**, or set `NO_CACHE=1` once. If it keeps failing on one service while **staging** succeeds on the same commit, clone the service settings to a fresh Railway service or use the Vercel `vercel-deploy` URL until Railway support clears the environment. See [`docs/railway-deploy.md`](docs/railway-deploy.md).
+**Deploy:** **Vercel only**, from the **`main`** branch (demo/production). Connect the Vercel project to `main`, set env vars — see [`docs/vercel-deploy.md`](docs/vercel-deploy.md). Keep `main` demo-ready before pushing; each push to `main` triggers a Vercel deploy. Railway is not used for this project anymore.
 
 **Analyze Website:** With a valid key, “Analyze Website” calls `POST /api/analyze-website`: the server may **fetch the homepage once** (the URL in the form — no crawling), then Claude infers structured extracted fields. Without a key or on errors, the app uses the same mocked extraction as before.
 

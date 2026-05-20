@@ -266,17 +266,17 @@ const stages: Stage[] = [
   },
   {
     id: 18,
-    title: "Dual deployment — Railway (main) and Vercel (vercel-deploy)",
+    title: "Prototype deployment — Vercel on main",
     status: "Complete",
     dateLine: "Completed: 2026-05-20",
     summary:
-      "Prototype hosting is split on purpose: Railway stays wired to `main` for the existing production-style demo, while a dedicated `vercel-deploy` branch carries Vercel-only config (`vercel.json`, API `maxDuration`, CSP tweak for `VERCEL=1`, home-page deploy badge). Website scraping and Claude-backed Analyze Website work on the Vercel deployment; Railway remains the default integration path but has had recent build/platform reliability issues, so Vercel is documented as a dependable fallback and demo URL.",
+      "Added Vercel deployment config on `main` (`vercel.json`, API `maxDuration`, CSP tweak when `VERCEL=1`, home-page deploy badge). The app was briefly split across Railway (`main`) and a `vercel-deploy` branch; Railway services and the extra branches are now removed, and Vercel on `main` is the current demo path.",
     accomplishments: [
-      "Git branch `vercel-deploy` branched from `main` — no forced changes to Railway’s `main` connection.",
-      "`vercel.json` plus route `maxDuration` for `/api/analyze-website` (60s) and `/api/proxy-image` (15s); `docs/vercel-deploy.md` documents import steps and env vars (`ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL`).",
-      "Home page shows a Vercel-only badge (`DeployPlatformBadge`) with git branch + short SHA when `VERCEL=1`, so the deployed branch is obvious at a glance.",
-      "Verified on Vercel: multi-page extraction, Claude analyze, logo candidate review, proxied logo on canvas, `/` and `/demo` flows — same app code as `main`, different serverless limits.",
-      "Railway: still deploy from `main`; when builds fail or stall, use the Vercel preview/production URL on `vercel-deploy` for stakeholder demos.",
+      "`vercel.json` plus route `maxDuration` for `/api/analyze-website` (60s) and `/api/proxy-image` (15s); `docs/vercel-deploy.md` documents env vars (`ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL`).",
+      "Home page shows a Vercel-only badge (`DeployPlatformBadge`) with git branch + short SHA when `VERCEL=1`.",
+      "Verified on Vercel: multi-page extraction, Claude analyze, logo candidate review, proxied logo on canvas, `/` and `/demo` flows.",
+      "Earlier: tested Railway on `main` and a separate `vercel-deploy` branch; later simplified to Vercel-only deploys from `main` after Railway build/platform issues.",
+      "Deleted `staging` and `vercel-deploy` branches; Railway project/services removed — see Deployment status above for the current rule.",
     ],
   },
 ];
@@ -323,23 +323,31 @@ export default function ProgressPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
               Deployment status (prototype)
             </p>
+            <p className="mt-2 text-sm text-zinc-600">
+              This prototype deploys on <strong className="font-medium text-zinc-900">Vercel</strong> only,
+              from the <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> branch.
+              Railway is not used for this project anymore.
+            </p>
             <ul className="mt-2 list-disc space-y-1.5 pl-4 marker:text-zinc-400">
               <li>
-                <strong className="font-medium text-zinc-900">Railway</strong> — connected to the{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code>{" "}
-                branch (primary path used so far). Recent Railway build/platform reliability has been uneven.
+                <strong className="font-medium text-zinc-900">Vercel</strong> — current demo URL. Production
+                branch is{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> (Analyze,
+                multi-page scrape, logo proxy, and canvas on the live deploy).
               </li>
               <li>
-                <strong className="font-medium text-zinc-900">Vercel</strong> — separate{" "}
+                <strong className="font-medium text-zinc-900">Git</strong> — only{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code>; former{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">staging</code> and{" "}
                 <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">vercel-deploy</code>{" "}
-                branch so Railway is not disrupted. Multi-page website scraping, Claude Analyze, logo proxy,
-                and canvas preview are confirmed working on Vercel from this branch.
+                branches were removed.
               </li>
               <li>
-                Treat Vercel as a <strong className="font-medium">working fallback / demo deployment</strong>{" "}
-                when Railway is slow or failing; merge deployment docs to{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> only after
-                explicit approval.
+                <strong className="font-medium text-zinc-900">Before you push</strong> — keep{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> demo-ready;
+                pushes to{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> deploy on
+                Vercel.
               </li>
             </ul>
           </div>

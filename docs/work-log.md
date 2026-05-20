@@ -23,7 +23,7 @@ Example:
 ## 2026-05-20
 
 **Dual deployment — Railway + Vercel (Stage 18)**  
-Documented Railway `main` vs `vercel-deploy` on Vercel; home badge when `VERCEL=1`.
+Vercel config and deploy badge; later moved to Vercel-on-`main` only (Railway removed).
 ```
 
 ---
@@ -78,8 +78,8 @@ Added `src/lib/extractedValueCleanup.ts` and wired it into `buildExtractedFromPl
 **Selected logo rendering via safe proxy (Stage 17, staging)**  
 Added `GET /api/proxy-image?url=...` — a server-side image proxy for selected logo candidates (`http:`/`https:` only, public-IP DNS checks, timeout, size cap, image MIME whitelist). Selected candidates can appear in the Fabric logo area when the proxy fetch succeeds; remote logos are not loaded directly from third-party domains (same-origin proxy + `crossOrigin: "anonymous"`). `DesignSpec` `image` layer + async `FabricImage.fromURL`; logo is fitted inside the existing placeholder with aspect ratio preserved and remains editable. On proxy/image failure, the safe placeholder and label text stay — not every remote logo will always load. PNG export is intended to stay CORS-clean through the proxy when load succeeds (prototype, not print-ready proofing). SVG may reference the proxied URL per Fabric `toSVG()` — not final production asset handling. Production-quality logo upload/validation still needed later; `/progress` Stage 17 and `LogoCandidatesReview` copy reflect cautious expectations. `/` and `/demo` share the same DesignSpec path.
 
-**Dual deployment — Railway + Vercel (Stage 18, `vercel-deploy` branch)**  
-Documented split hosting so Railway is not disrupted while Vercel is tested. **Railway** remains connected to **`main`** (original GitHub deploy path; recent build/platform reliability has been uneven). **`vercel-deploy`** branch adds Vercel-only files: `vercel.json`, API `maxDuration`, conditional CSP `connect-src` when `VERCEL=1`, `docs/vercel-deploy.md`, and `DeployPlatformBadge` on `/` (shows “Deployed on Vercel” + `VERCEL_GIT_COMMIT_REF` when running on Vercel). Confirmed on Vercel: multi-page website scraping, Claude Analyze Website, logo candidates, `/api/proxy-image`, Fabric concept generation on `/` and `/demo`. **Vercel is the documented working fallback/demo URL** when Railway builds fail; do not repoint Railway to `vercel-deploy` without approval. `/progress` Stage 18 + deployment status callout summarize this for the team.
+**Dual deployment — Railway + Vercel (Stage 18, historical)**  
+Originally split hosting: Railway on **`main`**, Vercel config on a separate **`vercel-deploy`** branch (`vercel.json`, API `maxDuration`, CSP when `VERCEL=1`, `DeployPlatformBadge`, `docs/vercel-deploy.md`). Later simplified: Railway removed, extra branches deleted, **Vercel deploys from `main`** — see “Deployment — Vercel on `main` (current)” below.
 
 **Logo candidate extraction and review (Stage 16, staging)**  
 Server `parseHtmlToPageSummary` now collects a structured list of logo candidates per page: `link rel=icon`, `link rel=apple-touch-icon(-precomposed)`, `meta og:image`, `<header>`/`<nav>` `<img>` tags, and `<img>` with `logo` in alt/src/class/id. Each candidate is normalized to an absolute URL with a `source` label and optional `alt` / `width` / `height`; deduped across the inspected pages and capped at 6 for the UI (`websiteFetch.logoCandidatesList`). `DesignIntakeState` carries `logoCandidates` + `selectedLogoCandidateUrl`; `applyClaudeAnalyzeSuccessToIntake` parses + sanitizes the list, drops a stale selection when a fresh analyze returns a different list, and the editor + `/demo` Step 6 render the same compact `LogoCandidatesReview` grid inside `Review identity` (failed image loads fall back to a small `N/A` placeholder; selected candidate exposes a `Clear` action). Canvas signals selection conservatively — the existing dashed logo placeholder switches to a solid stroke and the label opacity nudges from 0.45 → 0.72; no remote image is loaded into Fabric so PNG/SVG export remains untainted. Brief includes the selected candidate URL with a reminder that a production-quality logo upload is still needed. CSP `img-src` widened to allow `https:` (data/blob/`'self'` + https) so external favicons / og:images render in previews. Verified locally on `expoprint.io` (3 candidates: icon, og:image, header-image with alt + 170×53 SVG) and `stripe.com` (14 surfaced; 6 returned including favicon, apple-touch-icon, og:image, img-logo with alt). No new AI calls; multi-page fetch limits unchanged; raw HTML still never exposed to the UI.
@@ -131,10 +131,19 @@ Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
 ## 2026-05-20
 
 **Dual deployment — Railway + Vercel (Stage 18)**  
-`vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway stays on `main`.
+`vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway on `main` (since superseded — see below).
+
+---
+
+## Deployment — Vercel on `main` (current)
+
+- **Vercel only** — production/demo deploys from Git branch **`main`**.
+- **Railway** — not used for this project anymore (services removed).
+- Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
+- **Rule:** keep `main` demo-ready before push.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–17 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, and proxied logo rendering; **Stage 18** documents Railway (`main`) vs Vercel (`vercel-deploy`). Broader AI-assisted intake, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, and merging Vercel deployment config into `main` remain future — log new dates here as that begins.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel deployment on `main`. Broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain future — log new dates here as that begins.
