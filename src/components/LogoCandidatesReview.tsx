@@ -15,19 +15,19 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
   unknown: "image",
 };
 
-const PROTOTYPE_NOTE =
-  "Candidates are ranked for brand/wordmark fit first; transparent formats are a secondary hint. Designers should still confirm or upload a production-quality logo. Selected logos render through a same-origin image proxy when possible; if the load fails the editable placeholder stays in place.";
+const HELPER_COPY =
+  "Ranked for design use. Designers should confirm or upload a production-quality logo.";
 
 export type LogoCandidatesReviewProps = {
   candidates: LogoCandidate[];
   selectedUrl: string;
   onSelect: (url: string) => void;
-  /** Visual density helper — guided demo uses a slightly larger thumbnail. */
+  /** Visual density helper — guided demo uses a slightly larger preview area. */
   variant?: "compact" | "wide";
 };
 
 /**
- * Compact review grid for logo candidates (server-ranked). First row is the best
+ * Compact review grid for logo candidates (server-ranked). First card is the best
  * match; designers pick one manually — no auto-select.
  */
 export function LogoCandidatesReview({
@@ -36,13 +36,13 @@ export function LogoCandidatesReview({
   onSelect,
   variant = "compact",
 }: LogoCandidatesReviewProps) {
-  const thumb = variant === "wide" ? "h-16 w-16" : "h-14 w-14";
+  const previewHeight = variant === "wide" ? "h-28" : "h-24";
   const countLabel = `${candidates.length} logo candidate${
     candidates.length === 1 ? "" : "s"
   } found`;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
           Logo candidates
@@ -57,7 +57,7 @@ export function LogoCandidatesReview({
       </div>
 
       {candidates.length === 0 ? (
-        <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/60 px-3 py-3 text-xs leading-snug text-zinc-600">
+        <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-3 py-3 text-xs leading-snug text-zinc-600">
           <p className="font-medium text-zinc-700">
             No usable logo image candidate found from the website.
           </p>
@@ -67,41 +67,38 @@ export function LogoCandidatesReview({
         </div>
       ) : (
         <>
-          <p className="text-xs leading-snug text-zinc-500">
-            Ranked for brand logo fit (wordmark/header evidence first). Pick one
-            to preview on the canvas — production upload still recommended.
-          </p>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <p className="text-xs leading-snug text-zinc-500">{HELPER_COPY}</p>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {candidates.map((c, index) => (
               <LogoCandidateCard
                 key={c.url}
                 candidate={c}
                 selected={c.url === selectedUrl}
                 onSelect={onSelect}
-                thumbClass={thumb}
+                previewHeightClass={previewHeight}
                 isBestMatch={index === 0}
               />
             ))}
           </ul>
           {selectedUrl ? (
-            <div className="rounded-md border border-emerald-100 bg-emerald-50/70 px-2.5 py-2 text-[11px] leading-snug">
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2.5 text-xs leading-snug">
               <p className="font-medium text-emerald-800">
                 Selected logo appears in the editable preview when it can be
                 loaded safely.
               </p>
-              <p className="mt-0.5 text-emerald-900/80">
+              <p className="mt-1 text-emerald-900/80">
                 Production-quality logo upload is still recommended.
               </p>
-              <div className="mt-1 flex items-center justify-between gap-2">
+              <div className="mt-2 flex items-center justify-between gap-2">
                 <p
-                  className="truncate text-[11px] text-emerald-900/80"
+                  className="min-w-0 truncate text-[11px] text-emerald-900/70"
                   title={selectedUrl}
                 >
-                  {selectedUrl}
+                  {truncateMiddle(selectedUrl, 48)}
                 </p>
                 <button
                   type="button"
-                  className="shrink-0 rounded border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-800 shadow-sm hover:bg-emerald-50"
+                  className="shrink-0 rounded-md border border-emerald-200 bg-white px-2 py-1 text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
                   onClick={() => onSelect("")}
                 >
                   Clear
@@ -111,10 +108,6 @@ export function LogoCandidatesReview({
           ) : null}
         </>
       )}
-
-      <p className="rounded-md border border-zinc-100 bg-zinc-50/60 px-2.5 py-2 text-[11px] leading-snug text-zinc-500">
-        {PROTOTYPE_NOTE}
-      </p>
     </div>
   );
 }
@@ -123,7 +116,7 @@ type LogoCandidateCardProps = {
   candidate: LogoCandidate;
   selected: boolean;
   onSelect: (url: string) => void;
-  thumbClass: string;
+  previewHeightClass: string;
   isBestMatch: boolean;
 };
 
@@ -131,7 +124,7 @@ function LogoCandidateCard({
   candidate,
   selected,
   onSelect,
-  thumbClass,
+  previewHeightClass,
   isBestMatch,
 }: LogoCandidateCardProps) {
   const [loadFailed, setLoadFailed] = useState(false);
@@ -141,26 +134,29 @@ function LogoCandidateCard({
     candidate.width && candidate.height
       ? `${candidate.width}×${candidate.height}`
       : "";
-  const metaLine = [host || "image", dims].filter(Boolean).join(" · ");
+  const penalized = isProductAppIconPenalty(candidate.reason);
   const showTransparentBadge =
-    candidate.transparency === "likely_transparent";
-  const rankingHint = formatRankingHint(candidate.reason);
+    candidate.transparency === "likely_transparent" && !penalized;
 
   return (
-    <li>
+    <li className="min-w-0">
       <button
         type="button"
         onClick={() => onSelect(selected ? "" : candidate.url)}
         aria-pressed={selected}
         title={candidate.alt || candidate.url}
-        className={`group flex w-full items-center gap-2 rounded-md border bg-white px-2 py-2 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 ${
+        className={`flex h-full min-h-[168px] w-full min-w-0 flex-col rounded-lg border bg-white p-2.5 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 ${
           selected
             ? "border-zinc-900 ring-1 ring-zinc-900/10"
-            : "border-zinc-200 hover:border-zinc-300"
+            : isBestMatch
+              ? "border-zinc-400 hover:border-zinc-500"
+              : penalized
+                ? "border-zinc-100 bg-zinc-50/40 hover:border-zinc-200"
+                : "border-zinc-200 hover:border-zinc-300"
         }`}
       >
         <div
-          className={`flex shrink-0 items-center justify-center overflow-hidden rounded border border-zinc-100 bg-zinc-50 ${thumbClass}`}
+          className={`flex w-full shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 ${previewHeightClass}`}
           aria-hidden
         >
           {loadFailed ? (
@@ -174,57 +170,66 @@ function LogoCandidateCard({
               alt=""
               loading="lazy"
               referrerPolicy="no-referrer"
-              className="h-full w-full object-contain"
+              className="max-h-full max-w-full object-contain p-1"
               onError={() => setLoadFailed(true)}
             />
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1">
-            <p className="truncate text-[11px] font-medium text-zinc-700">
-              {sourceLabel}
-            </p>
-            {isBestMatch ? (
-              <span className="rounded bg-zinc-900 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-white">
-                Best match
-              </span>
-            ) : null}
-            {showTransparentBadge ? (
-              <span className="rounded border border-zinc-200 bg-zinc-50 px-1 py-px text-[9px] font-medium text-zinc-500">
-                Transparent likely
-              </span>
-            ) : null}
-          </div>
-          <p className="truncate text-[10px] text-zinc-400">{metaLine}</p>
-          {rankingHint ? (
-            <p className="truncate text-[10px] text-zinc-400" title={candidate.reason}>
-              {rankingHint}
-            </p>
+
+        <p
+          className="mt-2 w-full truncate px-0.5 text-[11px] font-medium text-zinc-700"
+          title={sourceLabel}
+        >
+          {sourceLabel}
+        </p>
+        {host || dims ? (
+          <p
+            className="mt-0.5 w-full truncate px-0.5 text-[10px] text-zinc-400"
+            title={[host, dims].filter(Boolean).join(" · ")}
+          >
+            {[host, dims].filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
+
+        <div className="mt-1.5 flex min-h-[20px] w-full flex-wrap items-center justify-center gap-1 px-0.5">
+          {isBestMatch ? (
+            <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-white">
+              Best match
+            </span>
           ) : null}
-          {selected ? (
-            <p className="truncate text-[10px] font-medium text-zinc-900">
-              In use
-            </p>
-          ) : (
-            <p className="truncate text-[10px] text-zinc-400 group-hover:text-zinc-500">
-              Use this logo
-            </p>
-          )}
+          {showTransparentBadge ? (
+            <span className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-500">
+              Transparent likely
+            </span>
+          ) : null}
+          {penalized ? (
+            <span className="text-[10px] text-zinc-400">Less likely logo</span>
+          ) : null}
         </div>
+
+        <p
+          className={`mt-auto w-full pt-2 text-[11px] ${
+            selected
+              ? "font-semibold text-zinc-900"
+              : "font-medium text-zinc-600"
+          }`}
+        >
+          {selected ? "In use" : "Use this logo"}
+        </p>
       </button>
     </li>
   );
 }
 
-/** One short line from server ranking reasons for the card. */
-function formatRankingHint(reason: string | undefined): string {
-  if (!reason?.trim()) return "";
-  const parts = reason.split(";").map((s) => s.trim()).filter(Boolean);
-  const preferred = parts.find((p) =>
-    /brand name|header|wordmark|logo-tagged|penalized/i.test(p),
-  );
-  const pick = preferred ?? parts[0];
-  return pick.length > 72 ? `${pick.slice(0, 69)}…` : pick;
+function isProductAppIconPenalty(reason: string | undefined): boolean {
+  return /penalized:\s*product\/app icon/i.test(reason ?? "");
+}
+
+function truncateMiddle(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const head = Math.ceil((maxLen - 1) / 2);
+  const tail = Math.floor((maxLen - 1) / 2);
+  return `${text.slice(0, head)}…${text.slice(-tail)}`;
 }
 
 function hostnameOf(url: string): string {
