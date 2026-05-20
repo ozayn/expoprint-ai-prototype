@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { DeployPlatformBadge } from "@/components/DeployPlatformBadge";
 import { FabricDesignEditor } from "@/components/FabricDesignEditor";
 
 export default function Home() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-zinc-50 text-zinc-900">
       <main className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-5 overflow-x-clip px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:px-8">
+        <DeployPlatformBadge />
         <header className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:justify-end sm:gap-3">
           <Link
             href="/demo"
