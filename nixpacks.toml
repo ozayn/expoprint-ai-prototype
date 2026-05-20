@@ -1,0 +1,4 @@
+# Railway uses Nixpacks. Next.js 16 requires Node 20+ (see package.json engines).
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+NODE_OPTIONS = "--max-old-space-size=4096"

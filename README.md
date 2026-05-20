@@ -21,6 +21,8 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 3. Never commit `.env.local` or any file that contains real secrets (they are listed in `.gitignore`).
 4. On Railway, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Variables** tab instead of putting keys in the repo.
 
+**Railway build (Node version):** Next.js 16 needs **Node 20+**. This repo pins Node **22** via `.nvmrc`, `package.json` `engines`, and `nixpacks.toml`. If a deploy still uses Node 18, set Railway variable `NIXPACKS_NODE_VERSION=22` (or `RAILWAY_NODE_VERSION=22`), clear the build cache, and redeploy.
+
 **Analyze Website:** With a valid key, “Analyze Website” calls `POST /api/analyze-website`: the server may **fetch the homepage once** (the URL in the form — no crawling), then Claude infers structured extracted fields. Without a key or on errors, the app uses the same mocked extraction as before.
 
 **Verify Analyze / Claude (manual):**
