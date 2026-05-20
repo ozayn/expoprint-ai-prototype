@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+/** Vercel serverless: upstream fetch + stream cap (see `vercel.json` on `vercel-deploy`). */
+export const maxDuration = 15;
+
 const FETCH_TIMEOUT_MS = 6_000;
 /** 2 MiB upper bound for proxied logo bytes — generous for SVG/PNG/JPEG marks. */
 const MAX_BYTES = 2 * 1024 * 1024;

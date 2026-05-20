@@ -18,6 +18,9 @@ import {
 
 export const runtime = "nodejs";
 
+/** Vercel serverless: allow multi-page fetch + Claude (see `vercel.json` on `vercel-deploy`). */
+export const maxDuration = 60;
+
 type AnalyzeBody = {
   websiteUrl?: unknown;
   businessName?: unknown;
