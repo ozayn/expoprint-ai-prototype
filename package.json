@@ -9,7 +9,8 @@
     "dev": "next dev",
     "dev:local": "bash scripts/dev.sh",
     "build": "next build",
-    "start": "next start",
+    "build:railway": "bash scripts/railway-build.sh",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint"
   },
   "dependencies": {

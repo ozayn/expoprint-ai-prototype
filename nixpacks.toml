@@ -6,7 +6,7 @@ NODE_OPTIONS = "--max-old-space-size=3072"
 
 [phases.install]
 cmds = [
-  "npm ci --no-audit --no-fund --omit=optional",
+  "npm ci --no-audit --no-fund",
   "npm cache clean --force",
 ]
 

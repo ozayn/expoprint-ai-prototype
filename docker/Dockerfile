@@ -7,7 +7,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund --omit=optional \
+RUN npm ci --no-audit --no-fund \
   && npm cache clean --force
 
 FROM base AS builder

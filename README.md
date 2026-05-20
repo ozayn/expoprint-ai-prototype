@@ -21,7 +21,7 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 3. Never commit `.env.local` or any file that contains real secrets (they are listed in `.gitignore`).
 4. On Railway, add `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) in the project **Variables** tab instead of putting keys in the repo.
 
-**Railway deploy:** Production uses the root **`Dockerfile`** (multi-stage, Next.js `standalone` output) via `railway.toml` — smaller images and less peak disk than a full Nixpacks install. Next.js 16 needs **Node 20+** (`.nvmrc` / `engines` / `nixpacks.toml` as fallback).
+**Railway deploy:** Production uses **Railpack** + `scripts/railway-build.sh` and starts with `node .next/standalone/server.js` (see `railway.toml`). Next.js 16 needs **Node 20+** (`.nvmrc` / `engines`). Optional `docker/Dockerfile` for manual builds.
 
 If a **main** deploy fails with **out of disk space** before your code runs, that is usually a Railway builder issue: redeploy, **clear build cache**, or set `NO_CACHE=1` once. If it keeps failing on one service while **staging** succeeds on the same commit, clone the service settings to a fresh Railway service or use the Vercel `vercel-deploy` URL until Railway support clears the environment. See [`docs/railway-deploy.md`](docs/railway-deploy.md).
 
