@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.vercel
+coverage
+*.md
+!README.md
+.DS_Store
+npm-debug.log*
+.pnpm-debug.log*

@@ -31,6 +31,8 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  /** Smaller production artifact for Docker/Railway (see `Dockerfile`). */
+  output: "standalone",
   /** Fabric’s optional `canvas` native dep — keep off the server bundle (Railway/Vercel). */
   serverExternalPackages: ["canvas", "jsdom"],
   async headers() {

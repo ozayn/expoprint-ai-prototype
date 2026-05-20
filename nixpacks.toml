@@ -1,4 +1,19 @@
-# Railway uses Nixpacks. Next.js 16 requires Node 20+ (see package.json engines).
+# Fallback if Railway does not use Dockerfile. Next.js 16 requires Node 20+.
 [variables]
 NIXPACKS_NODE_VERSION = "22"
-NODE_OPTIONS = "--max-old-space-size=4096"
+NEXT_TELEMETRY_DISABLED = "1"
+NODE_OPTIONS = "--max-old-space-size=3072"
+
+[phases.install]
+cmds = [
+  "npm ci --no-audit --no-fund --omit=optional",
+  "npm cache clean --force",
+]
+
+[phases.build]
+cmds = [
+  "npm run build",
+  "npm prune --omit=dev",
+  "rm -rf .next/cache",
+  "npm cache clean --force",
+]
