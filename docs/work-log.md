@@ -120,8 +120,8 @@ Home layout grouping, collapsed export JSON, mobile spacing; no generation logic
 **Small multi-page website extraction (Stage 15)**  
 Homepage plus up to three same-domain pages; capped text budget for Claude.
 
-**Logo candidate extraction and review (Stage 16)**  
-Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
+**Logo candidate extraction, ranking, and review (Stage 16)**  
+Structured `logoCandidatesList` (score + transparency metadata), ranked for SVG/transparent preference; `LogoCandidatesReview` on `/` and `/demo`.
 
 **Selected logo rendering via safe proxy (Stage 17)**  
 `GET /api/proxy-image`, DesignSpec `image` layer, async Fabric load with placeholder fallback.
@@ -133,6 +133,46 @@ Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
 **Dual deployment — Railway + Vercel (Stage 18)**  
 `vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway on `main` (since superseded — see below).
 
+**Design-intake extraction API — Phase 1 direction (Stage 19, in progress)**  
+Client feedback reframes Phase 1 as an API deliverable: input a customer website URL (plus optional product category, components, and instructions) and return normalized design-intake JSON for ExpoPrint’s existing system. The stable contract is **not finished** — today’s `POST /api/analyze-website` is a prototype route (bounded scrape + optional Claude + mock fallback) that powers the in-app intake model. The `/` editor and `/demo` remain demo/test harnesses; Fabric canvas and DesignSpec exports are visualization consumers, not assumed to be the final integration output. Next: define versioned response schema, map current extraction fields into `business` / `brand` / `content` / `designIntake` / `metadata`, and keep public JSON free of raw HTML or full-page text.
+
+**Target response shape (sketch — not implemented as-is yet):**
+
+```json
+{
+  "business": {
+    "name": "ExpoPrint",
+    "website": "https://expoprint.io",
+    "domain": "expoprint.io"
+  },
+  "brand": {
+    "colors": ["#0B2E4A", "#2BB3A3"],
+    "logoCandidates": []
+  },
+  "content": {
+    "services": [],
+    "products": [],
+    "contact": {
+      "phone": "",
+      "email": "",
+      "social": []
+    }
+  },
+  "designIntake": {
+    "recommendedHeadline": "",
+    "recommendedSupportingText": "",
+    "missingAssets": [],
+    "confidenceNotes": [],
+    "needsHumanReview": true
+  },
+  "metadata": {
+    "source": "scraper_plus_claude",
+    "pagesInspected": 0,
+    "warnings": []
+  }
+}
+```
+
 ---
 
 ## Deployment — Vercel on `main` (current)
@@ -142,10 +182,10 @@ Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates; selected logo on canvas via proxy; `/demo` guided view; `/progress` deployment status current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; `/demo` guided view; `/progress` deployment status current.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel deployment on `main`. Broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain future — log new dates here as that begins.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel deployment on `main`. **Stage 19 — Design-intake extraction API (in progress):** stable ExpoPrint-facing JSON contract; prototype `POST /api/analyze-website` may evolve into that API; UI stays a harness. Broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain future — log new dates here as that begins.

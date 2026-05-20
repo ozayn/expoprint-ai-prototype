@@ -25,6 +25,10 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 
 **Analyze Website:** With a valid key, “Analyze Website” calls `POST /api/analyze-website`: the server may **fetch the homepage once** (the URL in the form — no crawling), then Claude infers structured extracted fields. Without a key or on errors, the app uses the same mocked extraction as before.
 
+### Phase 1 direction — design-intake extraction API
+
+Per client feedback, **Phase 1** is moving toward a **structured extraction API**: send a customer website URL (and optional product/category/context), receive normalized design-intake JSON for ExpoPrint’s system. That API is **not finished** — the current [`POST /api/analyze-website`](src/app/api/analyze-website/route.ts) route is a **prototype** that can evolve into the stable contract. The home editor (`/`) and guided demo (`/demo`) are **demo consumers** of the same pipeline; the Fabric canvas and DesignSpec exports are a visualization harness, not necessarily the final integration output. Target JSON shape (sketch only): see [`docs/work-log.md`](docs/work-log.md) under Stage 19.
+
 **Verify Analyze / Claude (manual):**
 
 1. Open DevTools → **Network**, filter by `analyze-website`.
@@ -35,7 +39,7 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 
 ### Project progress and work log
 
-- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (includes **Stage 8 — Optional Claude-backed Analyze Website** when the dev server is running).
+- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (includes **Stage 19 — Design-intake extraction API** and earlier milestones when the dev server is running).
 - **Clockify-style notes:** see [`docs/work-log.md`](docs/work-log.md).
 
 Alternatively, run the development server directly:

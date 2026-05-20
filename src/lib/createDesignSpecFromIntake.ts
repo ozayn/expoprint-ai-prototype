@@ -281,67 +281,109 @@ function hasContactExtractedForCanvas(intake: DesignIntakeState): boolean {
   );
 }
 
-const CONTACT_LINE_MAX = 96;
 const CONTACT_SEPARATOR = " · ";
-const EMAIL_DISPLAY_MAX = 32;
+const CONTACT_FONT_SIZE = 16;
+/** Average Latin glyph width vs. font size (matches supporting-line heuristic). */
+const CONTACT_CHAR_WIDTH_FACTOR = 0.52;
+const EMAIL_DISPLAY_MAX = 36;
 const ADDRESS_DISPLAY_MAX = 40;
 
-/**
- * One concise footer line. Items are added in priority order
- * (phone → domain → short email → one clean social → booth address) and
- * **whole items are dropped** when adding them would exceed `CONTACT_LINE_MAX`.
- * The line is never cut mid-token, so users do not see partial URLs like
- * `youtube.com/googleads, h…` on the canvas. Returns `""` when no extra
- * contact item is clean — the main website layer carries the domain alone.
- */
-function buildContactFooterLine(intake: DesignIntakeState): string {
-  if (!hasContactExtractedForCanvas(intake)) return "";
+function estimateFooterMaxChars(boxWidthPx: number, fontSize: number): number {
+  const safeWidth = Math.max(120, boxWidthPx);
+  return Math.max(
+    24,
+    Math.floor(safeWidth / (fontSize * CONTACT_CHAR_WIDTH_FACTOR)) - 2,
+  );
+}
 
-  const phone = selectedExtractedValue(intake, "phone").trim();
-  const email = selectedExtractedValue(intake, "email").trim();
-  const socialRaw = selectedExtractedValue(intake, "social").trim();
-  const social = socialRaw ? shortSocialForCanvas(socialRaw) : "";
-  const address =
-    intake.category === "Trade show booth"
-      ? selectedExtractedValue(intake, "address").trim()
-      : "";
+function joinFooterItems(items: string[]): string {
+  return items.join(CONTACT_SEPARATOR);
+}
 
-  const domain = websiteLineFromIntake(intake);
+function footerLineFits(line: string, maxChars: number): boolean {
+  return line.length > 0 && line.length <= maxChars;
+}
 
-  const ordered: string[] = [];
-  if (phone) ordered.push(phone);
-  /** Only anchor the domain in the footer when at least one other item rides with it. */
-  const hasSecondaryItem =
-    Boolean(phone) ||
-    (email.length > 0 && email.length <= EMAIL_DISPLAY_MAX) ||
-    Boolean(social) ||
-    (address.length > 0 && address.length <= ADDRESS_DISPLAY_MAX);
-  if (hasSecondaryItem && domain && phone) {
-    ordered.push(domain);
-  }
-  if (email && email.length <= EMAIL_DISPLAY_MAX) ordered.push(email);
-  if (social) ordered.push(social);
-  if (address && address.length <= ADDRESS_DISPLAY_MAX) ordered.push(address);
-
-  /** Case-insensitive dedup so domain/email twins do not stack. */
+function dedupeFooterItems(items: string[]): string[] {
   const seen = new Set<string>();
-  const unique = ordered.filter((item) => {
+  return items.filter((item) => {
     const key = item.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
 
-  let line = "";
-  for (const item of unique) {
-    if (item.length > CONTACT_LINE_MAX) continue;
-    const next = line ? `${line}${CONTACT_SEPARATOR}${item}` : item;
-    if (next.length <= CONTACT_LINE_MAX) {
-      line = next;
+/** Whole email only — never a clipped local-part or domain. */
+function emailForFooter(raw: string, maxChars: number): string {
+  const e = raw.trim();
+  if (!e || e.length > EMAIL_DISPLAY_MAX || e.length > maxChars) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "";
+  return e;
+}
+
+/**
+ * One concise footer line. Priority: phone → website domain → short email →
+ * one clean social → booth address. **Whole items only** — nothing is truncated
+ * mid-domain, mid-email, or mid-link. Uses a pixel-based char budget so Fabric
+ * does not clip the last characters (e.g. `expoprint.i`). If phone + domain
+ * do not fit together, keeps phone alone when possible, otherwise domain alone.
+ */
+function buildContactFooterLine(
+  intake: DesignIntakeState,
+  boxWidthPx: number,
+  fontSize: number = CONTACT_FONT_SIZE,
+): string {
+  if (!hasContactExtractedForCanvas(intake)) return "";
+
+  const maxChars = estimateFooterMaxChars(boxWidthPx, fontSize);
+
+  const phone = selectedExtractedValue(intake, "phone").trim();
+  const domain = websiteLineFromIntake(intake);
+  const email = emailForFooter(selectedExtractedValue(intake, "email"), maxChars);
+  const socialRaw = selectedExtractedValue(intake, "social").trim();
+  const social = socialRaw ? shortSocialForCanvas(socialRaw) : "";
+  const addressRaw =
+    intake.category === "Trade show booth"
+      ? selectedExtractedValue(intake, "address").trim()
+      : "";
+  const address =
+    addressRaw && addressRaw.length <= ADDRESS_DISPLAY_MAX ? addressRaw : "";
+
+  const ordered = dedupeFooterItems(
+    [
+      phone,
+      domain,
+      email,
+      social,
+      address,
+    ].filter((item): item is string => Boolean(item && item.length > 0)),
+  );
+
+  const picked: string[] = [];
+  for (const item of ordered) {
+    if (item.length > maxChars) continue;
+    const next = picked.length ? `${joinFooterItems([...picked, item])}` : item;
+    if (footerLineFits(next, maxChars)) {
+      picked.push(item);
     }
-    /** else: skip this item but keep trying smaller ones. */
   }
-  return line;
+
+  if (phone && domain && picked.includes(phone) && !picked.includes(domain)) {
+    const together = joinFooterItems([phone, domain]);
+    if (!footerLineFits(together, maxChars)) {
+      if (footerLineFits(phone, maxChars)) {
+        return phone;
+      }
+      if (footerLineFits(domain, maxChars)) {
+        return domain;
+      }
+      return "";
+    }
+  }
+
+  const line = joinFooterItems(picked);
+  return footerLineFits(line, maxChars) ? line : "";
 }
 
 function logoLabelFromIntake(intake: DesignIntakeState): string {
@@ -503,9 +545,6 @@ export function createDesignSpecFromIntake(
   const logoLabel = logoLabelFromIntake(intake);
   const layout = layoutForStyle(intake.style);
 
-  const contactFooter = buildContactFooterLine(intake);
-  const hasContactFooter = contactFooter.length > 0;
-
   const surfaceLabel = resolveActiveSurfaceLabel(intake, activeSurface);
   const surfaceSlug = surfaceLabel ? surfaceSlugForTemplate(surfaceLabel) : "none";
   const productType = surfaceLabel
@@ -547,6 +586,13 @@ export function createDesignSpecFromIntake(
     width: layout.website.width,
     textAlign: layout.website.textAlign,
   };
+  const footerBoxWidth = websiteBlock.width ?? 640;
+  const contactFooter = buildContactFooterLine(
+    intake,
+    footerBoxWidth,
+    CONTACT_FONT_SIZE,
+  );
+  const hasContactFooter = contactFooter.length > 0;
   /** Nudge main URL up slightly so a small contact line fits above the bottom edge. */
   const websiteTop = hasContactFooter ? websiteBlock.top - 26 : websiteBlock.top;
   const contactFooterTop = websiteTop + 36;
@@ -718,10 +764,10 @@ export function createDesignSpecFromIntake(
       left: websiteBlock.left,
       top: contactFooterTop,
       fill: plan.contactText,
-      fontSize: 15,
+      fontSize: CONTACT_FONT_SIZE,
       ...textBase,
       fontWeight: "400",
-      width: websiteBlock.width,
+      width: footerBoxWidth,
       textAlign: websiteBlock.textAlign,
       opacity: 0.92,
     });

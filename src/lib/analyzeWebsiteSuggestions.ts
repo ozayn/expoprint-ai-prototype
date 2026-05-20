@@ -105,15 +105,35 @@ export function readLogoCandidatesFromAnalyzePayload(
       typeof o.height === "number" && Number.isFinite(o.height) && o.height > 0
         ? Math.round(o.height)
         : undefined;
+    const score =
+      typeof o.score === "number" && Number.isFinite(o.score)
+        ? Math.round(o.score)
+        : undefined;
+    const transparencyRaw =
+      typeof o.transparency === "string" ? o.transparency : "";
+    const transparency =
+      transparencyRaw === "likely_transparent" ||
+      transparencyRaw === "likely_opaque" ||
+      transparencyRaw === "unknown"
+        ? transparencyRaw
+        : undefined;
+    const reason =
+      typeof o.reason === "string" && o.reason.trim()
+        ? o.reason.trim().slice(0, 160)
+        : undefined;
     out.push({
       url,
       source,
       ...(alt ? { alt } : {}),
       ...(width ? { width } : {}),
       ...(height ? { height } : {}),
+      ...(score !== undefined ? { score } : {}),
+      ...(transparency ? { transparency } : {}),
+      ...(reason ? { reason } : {}),
     });
     if (out.length >= 6) break;
   }
+  out.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return out;
 }
 

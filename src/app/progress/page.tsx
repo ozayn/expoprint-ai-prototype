@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Stages and roadmap for the ExpoPrint Fabric.js prototype.",
 };
 
-type StageStatus = "Complete" | "Planned";
+type StageStatus = "Complete" | "Planned" | "In progress";
 
 type Stage = {
   id: number;
@@ -231,16 +231,17 @@ const stages: Stage[] = [
   },
   {
     id: 16,
-    title: "Logo candidate extraction and review",
+    title: "Logo candidate extraction, ranking, and review",
     status: "Complete",
     dateLine: "Completed: 2026-05-19",
     summary:
-      "Analyze Website now collects logo image candidates from icons, apple-touch-icons, og:image, header/nav imagery, and `<img>` tags whose alt/src/class/id reads as a logo. Up to six candidates are returned to the UI with structured metadata (URL, source label, optional alt and width/height). Both `/` and `/demo` show a compact review grid inside Review identity; designers can pick one with a single click. Candidates are not yet validated as production-ready assets — production-quality logo upload is still expected.",
+      "Analyze Website collects logo candidates from icons, apple-touch-icons, og:image, header/nav imagery, and logo-like `<img>` tags. Candidates are scored and sorted for design usefulness (SVG and likely-transparent formats first), then shown in a compact review grid on `/` and `/demo`. Designers pick one manually; proxy rendering and production upload guidance are unchanged.",
     accomplishments: [
       "Server-side parsing extends to header/nav `<img>` tags, splits favicon vs. apple-touch-icon, and records `alt`, `width`, `height` when available — still same-origin and no full-site crawl.",
-      "API response exposes `websiteFetch.logoCandidatesList` with up to ~6 deduped candidates and source labels (icon / apple-touch-icon / og:image / img-logo / header-image / unknown). Raw HTML is never returned.",
+      "Logo candidate ranking and transparency preference: score by source (header/nav and logo-tagged images first; generic og:image lower unless logo-like), format (SVG/PNG/WebP), and lightweight transparency hints (SVG markup sniff, PNG alpha byte check when feasible).",
+      "API `websiteFetch.logoCandidatesList` returns up to ~6 candidates sorted by `score` descending with optional `transparency` and `reason` — not production asset validation.",
       "Client intake state carries `logoCandidates` + `selectedLogoCandidateUrl`; merge logic clears stale selections when a fresh analyze returns a different list and resets cleanly on mock fallback.",
-      "Compact grid in `Review identity` (editor + `/demo` Step 6) with thumbnail, source pill, and a clear `Use this logo` toggle; failed thumbnail loads fall back to `N/A` while still showing source/host info.",
+      "`LogoCandidatesReview`: ranked list with “Best match” on the first row and “Transparent likely” when detected; failed thumbnails fall back to `N/A`. No auto-select — first row is simply the top-ranked candidate.",
       "Canvas behavior is conservative on purpose: when a candidate is selected the existing dashed logo placeholder switches to a solid stroke and bumps label opacity (no remote image embedded — avoids tainted-canvas / CORS issues with PNG/SVG export).",
       "Design brief lists the selected candidate URL with a reminder that a production-quality logo upload is still recommended before print.",
       "CSP `img-src` allows `https:` so external favicons / og:images render in previews; `http:` remains blocked.",
@@ -279,17 +280,38 @@ const stages: Stage[] = [
       "Deleted `staging` and `vercel-deploy` branches; Railway project/services removed — see Deployment status above for the current rule.",
     ],
   },
+  {
+    id: 19,
+    title: "Design-intake extraction API",
+    status: "In progress",
+    dateLine: "In progress — documented 2026-05-20",
+    summary:
+      "Per client feedback, Phase 1 is framed as an API deliverable: accept a customer website URL (plus optional product/category/context) and return structured design-intake JSON that ExpoPrint’s existing system can consume. The current `POST /api/analyze-website` route is a prototype that can evolve into this stable contract; it is not finished as the final integration API. The `/` editor and `/demo` guided view remain demo consumers of the extraction pipeline — the Fabric canvas and DesignSpec exports are visualization harnesses, not necessarily what ExpoPrint will integrate in production.",
+    accomplishments: [
+      "Planned: define a stable, versioned JSON response schema for ExpoPrint’s downstream system (see `docs/work-log.md` for a target shape sketch).",
+      "Planned: accept website URL plus optional product category, selected components, and customer instructions in the request body.",
+      "Planned: return business identity fields — name, domain, canonical website URL — with cautious confidence when inferred.",
+      "Planned: return brand fields — normalized colors, ranked logo candidates, recommended/selected logo metadata — without raw HTML.",
+      "Planned: return content fields — services, products, phone, email, social links, address when available — with cleanup and caps as today.",
+      "Planned: return design-intake fields — recommended headline, supporting text, missing assets, confidence notes, human-review flags.",
+      "Planned: return extraction metadata — pages inspected, sources used, fetch status, Claude vs mock status, warnings — machine-readable only.",
+      "Planned: keep responses safe for integration — no raw HTML, no full-page text blobs in the public JSON.",
+      "In place today (prototype): `POST /api/analyze-website` runs bounded multi-page fetch + optional Claude extraction and fills the in-app intake model; `/` and `/demo` read the same pipeline for review and canvas preview.",
+      "Preserve the current UI as a demo/test harness while the API contract hardens; no requirement to adopt Fabric/DesignSpec as the integration output.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
-  const isComplete = status === "Complete";
+  const styles =
+    status === "Complete"
+      ? "bg-emerald-100 text-emerald-800"
+      : status === "In progress"
+        ? "bg-amber-100 text-amber-900"
+        : "bg-zinc-200 text-zinc-700";
   return (
     <span
-      className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        isComplete
-          ? "bg-emerald-100 text-emerald-800"
-          : "bg-zinc-200 text-zinc-700"
-      }`}
+      className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${styles}`}
     >
       {status}
     </span>
@@ -310,7 +332,11 @@ export default function ProgressPage() {
             ExpoPrint AI prototype — progress
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">
-            Stages completed so far and planned next steps. A written work log lives in{" "}
+            Stages completed so far and planned next steps.{" "}
+            <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
+            targets a structured design-intake extraction API for ExpoPrint’s system; the editor
+            and guided demo stay as visual consumers of that pipeline (see Stage 19). A written
+            work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
             </code>{" "}

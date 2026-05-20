@@ -16,7 +16,7 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
 };
 
 const PROTOTYPE_NOTE =
-  "Prototype note: selected logos render in the editable preview through a same-origin image proxy when possible; if the load fails the editable placeholder stays in place. Production-quality logo upload is still recommended before print.";
+  "Candidates are ranked for brand/wordmark fit first; transparent formats are a secondary hint. Designers should still confirm or upload a production-quality logo. Selected logos render through a same-origin image proxy when possible; if the load fails the editable placeholder stays in place.";
 
 export type LogoCandidatesReviewProps = {
   candidates: LogoCandidate[];
@@ -27,12 +27,8 @@ export type LogoCandidatesReviewProps = {
 };
 
 /**
- * Compact, conventional review grid for logo image candidates discovered by the
- * website extraction. Designers can pick one as the working choice; production
- * upload is still expected later. Failed image loads fall back to a small mark.
- *
- * The component is render-after-Analyze: callers gate it on `showExtracted` so
- * the empty state ("0 logo candidates found") only appears after a real run.
+ * Compact review grid for logo candidates (server-ranked). First row is the best
+ * match; designers pick one manually — no auto-select.
  */
 export function LogoCandidatesReview({
   candidates,
@@ -72,17 +68,18 @@ export function LogoCandidatesReview({
       ) : (
         <>
           <p className="text-xs leading-snug text-zinc-500">
-            Logo candidates found from the website. Designers should confirm or
-            upload a production-quality logo.
+            Ranked for brand logo fit (wordmark/header evidence first). Pick one
+            to preview on the canvas — production upload still recommended.
           </p>
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {candidates.map((c) => (
+            {candidates.map((c, index) => (
               <LogoCandidateCard
                 key={c.url}
                 candidate={c}
                 selected={c.url === selectedUrl}
                 onSelect={onSelect}
                 thumbClass={thumb}
+                isBestMatch={index === 0}
               />
             ))}
           </ul>
@@ -127,6 +124,7 @@ type LogoCandidateCardProps = {
   selected: boolean;
   onSelect: (url: string) => void;
   thumbClass: string;
+  isBestMatch: boolean;
 };
 
 function LogoCandidateCard({
@@ -134,6 +132,7 @@ function LogoCandidateCard({
   selected,
   onSelect,
   thumbClass,
+  isBestMatch,
 }: LogoCandidateCardProps) {
   const [loadFailed, setLoadFailed] = useState(false);
   const sourceLabel = SOURCE_LABEL[candidate.source] ?? "image";
@@ -142,8 +141,10 @@ function LogoCandidateCard({
     candidate.width && candidate.height
       ? `${candidate.width}×${candidate.height}`
       : "";
-  /** Compact second row: host always, dims appended when known. */
   const metaLine = [host || "image", dims].filter(Boolean).join(" · ");
+  const showTransparentBadge =
+    candidate.transparency === "likely_transparent";
+  const rankingHint = formatRankingHint(candidate.reason);
 
   return (
     <li>
@@ -179,10 +180,27 @@ function LogoCandidateCard({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-medium text-zinc-700">
-            {sourceLabel}
-          </p>
+          <div className="flex flex-wrap items-center gap-1">
+            <p className="truncate text-[11px] font-medium text-zinc-700">
+              {sourceLabel}
+            </p>
+            {isBestMatch ? (
+              <span className="rounded bg-zinc-900 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-white">
+                Best match
+              </span>
+            ) : null}
+            {showTransparentBadge ? (
+              <span className="rounded border border-zinc-200 bg-zinc-50 px-1 py-px text-[9px] font-medium text-zinc-500">
+                Transparent likely
+              </span>
+            ) : null}
+          </div>
           <p className="truncate text-[10px] text-zinc-400">{metaLine}</p>
+          {rankingHint ? (
+            <p className="truncate text-[10px] text-zinc-400" title={candidate.reason}>
+              {rankingHint}
+            </p>
+          ) : null}
           {selected ? (
             <p className="truncate text-[10px] font-medium text-zinc-900">
               In use
@@ -196,6 +214,17 @@ function LogoCandidateCard({
       </button>
     </li>
   );
+}
+
+/** One short line from server ranking reasons for the card. */
+function formatRankingHint(reason: string | undefined): string {
+  if (!reason?.trim()) return "";
+  const parts = reason.split(";").map((s) => s.trim()).filter(Boolean);
+  const preferred = parts.find((p) =>
+    /brand name|header|wordmark|logo-tagged|penalized/i.test(p),
+  );
+  const pick = preferred ?? parts[0];
+  return pick.length > 72 ? `${pick.slice(0, 69)}…` : pick;
 }
 
 function hostnameOf(url: string): string {

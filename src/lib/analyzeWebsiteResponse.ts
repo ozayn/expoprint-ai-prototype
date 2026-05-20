@@ -26,12 +26,22 @@ export type LogoCandidateSource =
  * Safe metadata about a single discovered logo candidate. URLs are absolute and
  * same-protocol-as-fetch; not validated as actual images on the server.
  */
+export type LogoCandidateTransparency =
+  | "likely_transparent"
+  | "likely_opaque"
+  | "unknown";
+
 export type LogoCandidate = {
   url: string;
   source: LogoCandidateSource;
   alt?: string;
   width?: number;
   height?: number;
+  /** Higher = better for design placement (server-ranked). */
+  score?: number;
+  transparency?: LogoCandidateTransparency;
+  /** Short human-readable ranking note for UI/debug. */
+  reason?: string;
 };
 
 /**

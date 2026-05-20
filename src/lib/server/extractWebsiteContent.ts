@@ -4,6 +4,12 @@ import type {
   LogoCandidateSource,
   WebsiteFetchMeta,
 } from "@/lib/analyzeWebsiteResponse";
+import { prepareLogoCandidatesForUi } from "@/lib/server/prepareLogoCandidatesForUi";
+import {
+  buildLogoRankingContext,
+  scoreLogoCandidate,
+  type LogoRankingContext,
+} from "@/lib/logoCandidateRanking";
 
 /** Per GET (homepage or one extra page); avoids one short global timeout for multi-fetch. */
 const PER_PAGE_FETCH_MS = 12_000;
@@ -489,7 +495,10 @@ async function fetchHtmlPage(
   }
 }
 
-function mergePageLists(pages: ScrapedPageSummary[]): {
+function mergePageLists(
+  pages: ScrapedPageSummary[],
+  rankingCtx: LogoRankingContext = { brandTokens: [] },
+): {
   logoCandidateUrls: string[];
   logoCandidatesDetailed: LogoCandidate[];
   mailtoHrefs: string[];
@@ -505,7 +514,17 @@ function mergePageLists(pages: ScrapedPageSummary[]): {
   for (const p of pages) {
     logos.push(...p.logoCandidateUrls);
     for (const c of p.logoCandidatesDetailed) {
-      if (logoSeen.has(c.url)) continue;
+      if (logoSeen.has(c.url)) {
+        const idx = logoDetailed.findIndex((x) => x.url === c.url);
+        if (idx >= 0) {
+          const prevScore = scoreLogoCandidate(logoDetailed[idx]!, rankingCtx).score;
+          const nextScore = scoreLogoCandidate(c, rankingCtx).score;
+          if (nextScore > prevScore) {
+            logoDetailed[idx] = c;
+          }
+        }
+        continue;
+      }
       logoSeen.add(c.url);
       logoDetailed.push(c);
     }
@@ -685,11 +704,17 @@ export async function extractWebsiteContent(
     }
 
     pagesFetched = 1 + extraHttpSuccess;
-    const merged = mergePageLists([homepage, ...additionalPages]);
+    const rankingCtx = buildLogoRankingContext({
+      finalUrl: homeFinal,
+      pageTitle: homepage.title,
+      ogTitle: homepage.ogTitle,
+    });
+    const merged = mergePageLists([homepage, ...additionalPages], rankingCtx);
 
-    const logoCandidatesList = merged.logoCandidatesDetailed.slice(
-      0,
+    const logoCandidatesList = await prepareLogoCandidatesForUi(
+      merged.logoCandidatesDetailed,
       MAX_LOGO_CANDIDATES_FOR_UI,
+      rankingCtx,
     );
     const flat = buildFlatExtraction(
       {
