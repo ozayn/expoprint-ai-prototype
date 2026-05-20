@@ -330,10 +330,9 @@ export default function ProgressPage() {
             </p>
             <ul className="mt-2 list-disc space-y-1.5 pl-4 marker:text-zinc-400">
               <li>
-                <strong className="font-medium text-zinc-900">Vercel</strong> — current demo URL. Production
+                <strong className="font-medium text-zinc-900">Vercel</strong> — current demo URL; production
                 branch is{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> (Analyze,
-                multi-page scrape, logo proxy, and canvas on the live deploy).
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code>.
               </li>
               <li>
                 <strong className="font-medium text-zinc-900">Git</strong> — only{" "}
@@ -348,6 +347,23 @@ export default function ProgressPage() {
                 pushes to{" "}
                 <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">main</code> deploy on
                 Vercel.
+              </li>
+            </ul>
+            <p className="mt-3 text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Verified on Vercel (`main`)
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-zinc-600 marker:text-zinc-400">
+              <li>Claude Analyze Website works</li>
+              <li>Multi-page scraping works</li>
+              <li>Logo candidates show up</li>
+              <li>Selected logo appears on the canvas through the proxy</li>
+              <li>
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/demo</code> guided view
+                works
+              </li>
+              <li>
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/progress</code> reflects
+                the current deployment setup
               </li>
             </ul>
           </div>

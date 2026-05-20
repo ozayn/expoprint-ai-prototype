@@ -142,6 +142,8 @@ Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates; selected logo on canvas via proxy; `/demo` guided view; `/progress` deployment status current.
+
 ---
 
 ## Later (planned)

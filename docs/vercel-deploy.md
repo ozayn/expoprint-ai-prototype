@@ -14,10 +14,13 @@ The prototype **deploys on Vercel from the `main` branch** only. Railway is no l
    | `ANTHROPIC_API_KEY` | For Claude analyze | Never commit the value |
    | `ANTHROPIC_MODEL` | Optional | e.g. `claude-sonnet-4-20250514` |
 
-5. Deploy. Smoke-test:
-   - `/` — canvas + Analyze Website
-   - `/demo` — guided flow
-   - `/progress` — roadmap (includes deployment status)
+5. Deploy. Smoke-test on production (`main`):
+
+   - Claude **Analyze Website** works
+   - **Multi-page scraping** works
+   - **Logo candidates** show up; **selected logo** renders on canvas via `/api/proxy-image`
+   - **`/demo`** guided view works
+   - **`/progress`** reflects current deployment setup (Vercel on `main` only)
 
 When `VERCEL=1`, the home page shows **Deployed on Vercel** with the git branch and short SHA (`DeployPlatformBadge`).
 
