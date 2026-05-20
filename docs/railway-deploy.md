@@ -11,15 +11,23 @@ Optional manual Docker build: `docker/Dockerfile` (not auto-detected at repo roo
 | `ANTHROPIC_API_KEY` | Claude Analyze Website (optional for mock fallback) |
 | `ANTHROPIC_MODEL` | Optional model override |
 
-## Build fails: out of disk space
+## Railway builder disk-space failures
 
-If the log shows disk exhaustion **before** `npm install` / `COPY` (no project output), the failure is on Railway’s build host, not your source tree.
+If a deployment fails **before** `npm install`, `npm ci`, `COPY`, or your build scripts run, and logs show **`no space left on device`**, treat it as **Railway builder infrastructure**, not an app build failure. Changing Node version, Dockerfile, or `railway-build.sh` will not fix a host that is already full.
 
-1. **Redeploy** and **Clear build cache** (service → Settings).
-2. One-time variable: `NO_CACHE=1` or `NIXPACKS_NO_CACHE=1`, deploy, then remove it.
-3. Confirm the service uses **Railpack** and build command `bash scripts/railway-build.sh` (Settings → Build; `railway.toml` on `main`).
-4. If **staging** deploys but **production** does not on the **same commit**, compare services: production may need a **new Railway service** linked to `main`, or Railway support to reset the environment volume.
-5. **Fallback:** Vercel on branch `vercel-deploy` — see [`vercel-deploy.md`](vercel-deploy.md).
+A **redeploy** may help if Railway assigns a different builder, but **repeated failures** on the same service often mean a **saturated builder pool** or a bad environment — not a bug in your repo.
+
+**Recommended actions:**
+
+1. **Redeploy once** (quick retry in case the next builder has free disk).
+2. **Clear build cache** and/or deploy once with **`NO_CACHE=1`** (or `NIXPACKS_NO_CACHE=1`), then remove that variable after a successful build.
+3. **Open a Railway support ticket** with the **deploy ID** and the exact **`no space left on device`** log line; ask for environment reset or a healthy builder.
+4. If urgent, **create a fresh Railway service** from the same repo/branch (`main`), copy **environment variables** (`ANTHROPIC_API_KEY`, etc.), and point DNS or share the new URL.
+5. Use **staging Railway** or **Vercel** (`vercel-deploy`) for demos while production Railway is blocked — see [`vercel-deploy.md`](vercel-deploy.md).
+
+**Same commit, staging works:** If staging deploys successfully while production fails with disk errors before install, the **code and config are likely fine**; focus on the production service, builder pool, or Railway support — not more app changes.
+
+For normal app-level build failures (after install/build starts), confirm **Railpack** and `bash scripts/railway-build.sh` in Settings → Build (`railway.toml` on `main`).
 
 ## Local Docker smoke test
 
