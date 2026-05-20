@@ -136,6 +136,9 @@ Structured `logoCandidatesList` (score + transparency metadata), ranked for SVG/
 **Design-intake extraction API — Phase 1 direction (Stage 19, in progress)**  
 Client feedback reframes Phase 1 as an API deliverable: input a customer website URL (plus optional product category, components, and instructions) and return normalized design-intake JSON for ExpoPrint’s existing system. The stable contract is **not finished** — today’s `POST /api/analyze-website` is a prototype route (bounded scrape + optional Claude + mock fallback) that powers the in-app intake model. The `/` editor and `/demo` remain demo/test harnesses; Fabric canvas and DesignSpec exports are visualization consumers, not assumed to be the final integration output. Next: define versioned response schema, map current extraction fields into `business` / `brand` / `content` / `designIntake` / `metadata`, and keep public JSON free of raw HTML or full-page text.
 
+**Typography/font signal extraction (Stage 20)**  
+Server parses font-family hints from HTML/CSS/Google Fonts links (no font file downloads). `websiteFetch.typography` exposes safe name lists + style guess; intake stores `typographySignals` for Fabric mapping via `typographyMapping.ts` (system/geometric/serif fallbacks). Claude context includes typography when available. Compact row in Review identity on `/` and `/demo`. Not exact production font matching.
+
 **Target response shape (sketch — not implemented as-is yet):**
 
 ```json
@@ -182,7 +185,7 @@ Client feedback reframes Phase 1 as an API deliverable: input a customer website
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; `/demo` guided view; `/progress` deployment status current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; typography signals + canvas font mapping; `/demo` guided view; `/progress` deployment status current.
 
 ---
 

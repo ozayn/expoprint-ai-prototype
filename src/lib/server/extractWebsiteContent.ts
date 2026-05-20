@@ -10,6 +10,16 @@ import {
   scoreLogoCandidate,
   type LogoRankingContext,
 } from "@/lib/logoCandidateRanking";
+import {
+  emptyTypographySignals,
+  toWebsiteTypographyMeta,
+  type TypographySignals,
+} from "@/lib/typographySignals";
+import {
+  enrichTypographyWithSameOriginCss,
+  extractTypographyFromHtml,
+  mergeTypographyAcrossPages,
+} from "@/lib/server/extractTypographySignals";
 
 /** Per GET (homepage or one extra page); avoids one short global timeout for multi-fetch. */
 const PER_PAGE_FETCH_MS = 12_000;
@@ -64,6 +74,7 @@ export type ScrapedPageSummary = {
   socialHrefs: string[];
   /** Raw parse cap; formatter applies global budget. */
   visibleTextSample: string;
+  typography: TypographySignals;
 };
 
 export type WebsiteContentExtraction = {
@@ -86,6 +97,7 @@ export type WebsiteContentExtraction = {
   telHrefs: string[];
   socialHrefs: string[];
   visibleTextSample: string;
+  typography: TypographySignals;
 };
 
 function toAbsolute(href: string, base: string): string | null {
@@ -280,13 +292,13 @@ function selectExtraPageUrls(ranked: RankedLink[], max: number): RankedLink[] {
   return out.slice(0, max);
 }
 
-function parseHtmlToPageSummary(
+async function parseHtmlToPageSummary(
   html: string,
   baseFinalUrl: string,
   sourceUrl: string,
   pageTypeHint: string | undefined,
   visibleCap: number,
-): ScrapedPageSummary {
+): Promise<ScrapedPageSummary> {
   const $ = load(html);
   const title = $("title").first().text().replace(/\s+/g, " ").trim();
   const metaDesc =
@@ -422,6 +434,13 @@ function parseHtmlToPageSummary(
     }
   }
 
+  const typographyBase = extractTypographyFromHtml(html);
+  const typography = await enrichTypographyWithSameOriginCss(
+    html,
+    baseFinalUrl,
+    typographyBase,
+  );
+
   return {
     url: sourceUrl,
     pageType: pageType === "other" ? undefined : pageType,
@@ -438,6 +457,7 @@ function parseHtmlToPageSummary(
     telHrefs: uniqCap(telHrefs, MAX_TEL_MERGED),
     socialHrefs: uniqCap(socialHrefs, MAX_SOCIAL_MERGED),
     visibleTextSample,
+    typography,
   };
 }
 
@@ -591,6 +611,7 @@ function emptySlice(url: string): ScrapedPageSummary {
     telHrefs: [],
     socialHrefs: [],
     visibleTextSample: "",
+    typography: emptyTypographySignals(),
   };
 }
 
@@ -614,6 +635,7 @@ function buildFlatExtraction(
     telHrefs: merged.telHrefs,
     socialHrefs: merged.socialHrefs,
     visibleTextSample: homepage.visibleTextSample,
+    typography: mergeTypographyAcrossPages([homepage, ...additionalPages]),
   };
 }
 
@@ -659,7 +681,7 @@ export async function extractWebsiteContent(
     }
 
     const homeFinal = homeResult.finalUrl;
-    const homepage = parseHtmlToPageSummary(
+    const homepage = await parseHtmlToPageSummary(
       homeResult.html,
       homeFinal,
       homeFinal,
@@ -685,7 +707,7 @@ export async function extractWebsiteContent(
         continue;
       }
       extraHttpSuccess += 1;
-      const summary = parseHtmlToPageSummary(
+      const summary = await parseHtmlToPageSummary(
         sub.html,
         sub.finalUrl,
         sub.finalUrl,
@@ -716,6 +738,10 @@ export async function extractWebsiteContent(
       MAX_LOGO_CANDIDATES_FOR_UI,
       rankingCtx,
     );
+    const typographyMerged = mergeTypographyAcrossPages([
+      homepage,
+      ...additionalPages,
+    ]);
     const flat = buildFlatExtraction(
       {
         status: "success",
@@ -731,6 +757,7 @@ export async function extractWebsiteContent(
         pagesFailed,
         pageTypesFound:
           pageTypesFound.size > 0 ? Array.from(pageTypesFound).sort() : undefined,
+        typography: toWebsiteTypographyMeta(typographyMerged),
       },
       homepage,
       additionalPages,
@@ -834,6 +861,30 @@ export function formatWebsiteContextForClaude(
   }
   if (extraction.socialHrefs.length) {
     lines.push(`Social links found: ${extraction.socialHrefs.join(" | ")}`);
+  }
+
+  const typo = extraction.typography;
+  if (
+    typo.fontFamilies.length > 0 ||
+    typo.googleFontFamilies.length > 0
+  ) {
+    lines.push("", "=== Typography signals (from HTML/CSS — not exact font files) ===");
+    if (typo.googleFontFamilies.length) {
+      lines.push(`Google Fonts families (link tags): ${typo.googleFontFamilies.join(", ")}`);
+    }
+    if (typo.fontFamilies.length) {
+      lines.push(`Font families detected: ${typo.fontFamilies.join(", ")}`);
+    }
+    if (typo.headingFontCandidates.length) {
+      lines.push(`Heading font candidates: ${typo.headingFontCandidates.join(", ")}`);
+    }
+    if (typo.bodyFontCandidates.length) {
+      lines.push(`Body font candidates: ${typo.bodyFontCandidates.join(", ")}`);
+    }
+    lines.push(`Style guess (heuristic): ${typo.styleGuess}`);
+    lines.push(
+      "Use typography only as a weak hint for brand tone. Do NOT claim exact webfonts are available for print; the canvas uses safe system fallbacks.",
+    );
   }
 
   lines.push(

@@ -300,6 +300,22 @@ const stages: Stage[] = [
       "Preserve the current UI as a demo/test harness while the API contract hardens; no requirement to adopt Fabric/DesignSpec as the integration output.",
     ],
   },
+  {
+    id: 20,
+    title: "Typography/font signal extraction",
+    status: "Complete",
+    dateLine: "Completed: 2026-05-20",
+    summary:
+      "Analyze Website now collects lightweight typography signals from inspected pages (inline font-family, style blocks, CSS variables, Google Fonts links, and limited same-origin CSS snippets) and maps them to safe browser/Fabric font stacks on generated concepts. This is prototype-grade tone matching — not exact production font reproduction or webfont embedding.",
+    accomplishments: [
+      "Server extraction parses font-family from inline styles, `<style>` blocks, `--font*` CSS variables, and `fonts.googleapis.com` link tags; optional same-origin stylesheet fetch (strict size/timeout caps, no recursive `@import`).",
+      "Merged `typography` metadata on `websiteFetch` (font name lists + `styleGuess` — no raw CSS in API JSON).",
+      "Claude prompt includes typography signals when present; instructs cautious tone inference only.",
+      "`typographyMapping.ts` maps detected families (Inter, Roboto, Montserrat, Playfair, etc.) to safe system/geometric/serif stacks for Fabric text layers.",
+      "`createDesignSpecFromIntake` applies mapped fonts to headline, supporting, website, and contact text; sizes unchanged for readability.",
+      "Compact “Typography signals” row in Review identity on `/` and `/demo` (e.g. Detected: Inter · Style: modern sans).",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {

@@ -1,4 +1,5 @@
 import type { ExtractedKey, ExtractedRow } from "./designIntakeState";
+import type { WebsiteTypographyMeta } from "./typographySignals";
 
 /**
  * Safe, non-secret fields returned by `POST /api/analyze-website`.
@@ -68,6 +69,8 @@ export type WebsiteFetchMeta = {
   pagesFailed?: number;
   /** Heuristic buckets seen on fetched paths, e.g. about / services / contact. */
   pageTypesFound?: string[];
+  /** Typography/font signals (names only — no raw CSS). */
+  typography?: WebsiteTypographyMeta;
 };
 
 export type AnalyzeWebsiteApiSuccess = {

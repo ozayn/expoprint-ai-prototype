@@ -297,7 +297,7 @@ export async function POST(req: Request) {
 
   const systemPrompt = `You are helping build a trade-show / tent graphics prototype.
 
-The user message may include a **bounded website content block** from the server: a homepage fetch plus up to three additional same-origin pages (about / services / contact-style links only — no full-site crawl, no headless browser). The block includes titles, meta descriptions, open-graph fields, deduped mailto/tel/social links, logo image URL candidates, and truncated visible-text excerpts per page (total size capped). When the block says the fetch succeeded, you may use it to fill the JSON fields where it clearly applies. When the fetch failed or was skipped, rely on the structured intake lines only.
+The user message may include a **bounded website content block** from the server: a homepage fetch plus up to three additional same-origin pages (about / services / contact-style links only — no full-site crawl, no headless browser). The block includes titles, meta descriptions, open-graph fields, deduped mailto/tel/social links, logo image URL candidates, typography/font-family signals (when detected), and truncated visible-text excerpts per page (total size capped). When the block says the fetch succeeded, you may use it to fill the JSON fields where it clearly applies. When the fetch failed or was skipped, rely on the structured intake lines only.
 
 Intake business name line:
 - If **Business name:** in the user message is exactly \`(not provided)\` (no other text on that line), the user left the name empty **or** it is only the app's demo placeholder — **treat as no user-provided business name**. Do **not** echo any demo placeholder into \`suggestedBusinessName\`. Infer \`suggestedBusinessName\` from the homepage title, og:title, URL domain (registrable label), logo-related alt text or captions if they appear in the excerpt, or other visible branding text only when clearly supported.
@@ -326,7 +326,11 @@ Rules for "extracted":
 Output discipline (services / products specifically):
 - Prefer pulling phrases from headings, hero text, "What we do" / "Our services" / "Products" sections.
 - Reject bullet residue, JSON keys, code, numbers without context, and cookie / cart / login text.
-- If only marketing fluff is available, return \`""\` rather than fabricate a list.`;
+- If only marketing fluff is available, return \`""\` rather than fabricate a list.
+
+Typography (when the website block includes a typography section):
+- Font hints come from inline styles, style blocks, CSS variables, and Google Fonts links — not downloaded font files.
+- Infer cautious brand typography tone only; do not invent exact unavailable font names in extracted strings; do not add new JSON fields for fonts.`;
 
   const client = new Anthropic({ apiKey });
 

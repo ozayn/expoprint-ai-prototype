@@ -36,6 +36,7 @@ import {
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
+import { TypographySignalsRow } from "@/components/TypographySignalsRow";
 
 const { width: CANVAS_W, height: CANVAS_H } = sampleDesignSpec.canvas;
 const TOTAL_STEPS = 7;
@@ -90,6 +91,7 @@ function blankIntake(): DesignIntakeState {
     extractionSource: "none",
     logoCandidates: [],
     selectedLogoCandidateUrl: "",
+    typographySignals: null,
     designBrief: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };
@@ -337,6 +339,7 @@ export function GuidedIntakeDemo() {
         extractionSource: "mock_fallback",
         logoCandidates: [],
         selectedLogoCandidateUrl: "",
+        typographySignals: null,
       };
       return { ...next, designBrief: computeDesignBriefText(next) };
     });
@@ -593,6 +596,10 @@ export function GuidedIntakeDemo() {
               ) : null}
             </div>
             <div className="border-b border-zinc-100 pb-4">
+              <TypographySignalsRow
+                signals={intake.typographySignals}
+                extractionSource={intake.extractionSource}
+              />
               <LogoCandidatesReview
                 candidates={intake.logoCandidates}
                 selectedUrl={intake.selectedLogoCandidateUrl}

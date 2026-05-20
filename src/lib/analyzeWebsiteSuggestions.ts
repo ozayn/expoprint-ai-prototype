@@ -1,5 +1,6 @@
 import type { LogoCandidate } from "./analyzeWebsiteResponse";
 import type { DesignIntakeState } from "./designIntakeState";
+import type { TypographySignals, WebsiteTypographyMeta } from "./typographySignals";
 import {
   computeDesignBriefText,
   DEFAULT_DEMO_BUSINESS_NAME,
@@ -137,6 +138,67 @@ export function readLogoCandidatesFromAnalyzePayload(
   return out;
 }
 
+function typographyFromMeta(meta: WebsiteTypographyMeta): TypographySignals {
+  return {
+    fontFamilies: meta.fontFamilies ?? [],
+    headingFontCandidates: meta.headingFontCandidates ?? [],
+    bodyFontCandidates: meta.bodyFontCandidates ?? [],
+    googleFontFamilies: meta.googleFontFamilies ?? [],
+    styleGuess: meta.styleGuess ?? "unknown",
+  };
+}
+
+/**
+ * Typography signals from `websiteFetch.typography` (defensive parse).
+ */
+export function readTypographyFromAnalyzePayload(
+  rec: Record<string, unknown>,
+): TypographySignals | null {
+  const wf = rec.websiteFetch;
+  if (!wf || typeof wf !== "object" || Array.isArray(wf)) return null;
+  const t = (wf as Record<string, unknown>).typography;
+  if (!t || typeof t !== "object" || Array.isArray(t)) return null;
+  const o = t as Record<string, unknown>;
+  const styleRaw = typeof o.styleGuess === "string" ? o.styleGuess : "unknown";
+  const styleGuess =
+    styleRaw === "modern_sans" ||
+    styleRaw === "classic_serif" ||
+    styleRaw === "playful" ||
+    styleRaw === "technical"
+      ? styleRaw
+      : "unknown";
+  const strList = (key: string, max: number): string[] => {
+    const arr = o[key];
+    if (!Array.isArray(arr)) return [];
+    const out: string[] = [];
+    for (const item of arr) {
+      if (typeof item !== "string") continue;
+      const s = item.trim().slice(0, 48);
+      if (s) out.push(s);
+      if (out.length >= max) break;
+    }
+    return out;
+  };
+  const signals = typographyFromMeta({
+    fontFamilies: strList("fontFamilies", 8),
+    headingFontCandidates: strList("headingFontCandidates", 4),
+    bodyFontCandidates: strList("bodyFontCandidates", 4),
+    googleFontFamilies: strList("googleFontFamilies", 6),
+    styleGuess,
+    fontFamilyCount:
+      typeof o.fontFamilyCount === "number" ? o.fontFamilyCount : 0,
+    googleFontCount:
+      typeof o.googleFontCount === "number" ? o.googleFontCount : 0,
+  });
+  if (
+    signals.fontFamilies.length === 0 &&
+    signals.googleFontFamilies.length === 0
+  ) {
+    return null;
+  }
+  return signals;
+}
+
 /**
  * Merges validated Claude `extracted` plus optional `suggestedBusinessName` / canonical URL hints.
  * `businessName` is updated only when {@link businessNameIsAutoFillable} (blank or {@link DEFAULT_DEMO_BUSINESS_NAME}).
@@ -161,6 +223,7 @@ export function applyClaudeAnalyzeSuccessToIntake(
     : prev.websiteUrl;
 
   const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
+  const typographySignals = readTypographyFromAnalyzePayload(rec);
   /** Drop a previously selected URL if it is no longer in the new candidate list. */
   const stillValidSelection = logoCandidates.some(
     (c) => c.url === prev.selectedLogoCandidateUrl,
@@ -178,6 +241,7 @@ export function applyClaudeAnalyzeSuccessToIntake(
     extractionSource: "claude",
     logoCandidates,
     selectedLogoCandidateUrl,
+    typographySignals,
   };
   return {
     next: { ...next, designBrief: computeDesignBriefText(next) },

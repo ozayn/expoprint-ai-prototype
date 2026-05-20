@@ -15,6 +15,7 @@ import {
   type StylePreference,
 } from "@/lib/designIntakeState";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
+import { TypographySignalsRow } from "@/components/TypographySignalsRow";
 
 const STYLE_SUGGESTIONS: Record<
   StylePreference,
@@ -235,6 +236,10 @@ export function DesignIntakePanel({
           </div>
           {intake.showExtracted ? (
             <div className="mt-4 border-t border-zinc-100 pt-3">
+              <TypographySignalsRow
+                signals={intake.typographySignals}
+                extractionSource={intake.extractionSource}
+              />
               <LogoCandidatesReview
                 candidates={intake.logoCandidates}
                 selectedUrl={intake.selectedLogoCandidateUrl}

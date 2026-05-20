@@ -1,4 +1,5 @@
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
+import type { TypographySignals } from "@/lib/typographySignals";
 import { cleanExtractedRowValue } from "@/lib/extractedValueCleanup";
 
 export type ProductCategory = "Outdoor tent" | "Trade show booth";
@@ -75,6 +76,11 @@ export interface DesignIntakeState {
   logoCandidates: LogoCandidate[];
   /** URL of the candidate the user marked as "Use this logo", or "" when none. */
   selectedLogoCandidateUrl: string;
+  /**
+   * Typography signals from the last successful website extraction (server-ranked).
+   * Used for canvas font mapping only — not exact production font matching.
+   */
+  typographySignals: TypographySignals | null;
   designBrief: string;
 }
 
@@ -291,6 +297,7 @@ export function defaultDesignIntake(): DesignIntakeState {
     extractionSource: "none",
     logoCandidates: [],
     selectedLogoCandidateUrl: "",
+    typographySignals: null,
     designBrief: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };

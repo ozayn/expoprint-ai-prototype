@@ -174,6 +174,7 @@ export function FabricDesignEditor() {
         extractionSource: "mock_fallback",
         logoCandidates: [],
         selectedLogoCandidateUrl: "",
+        typographySignals: null,
       };
       return { ...next, designBrief: computeDesignBriefText(next) };
     });

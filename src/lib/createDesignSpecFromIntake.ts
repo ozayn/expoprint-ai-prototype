@@ -6,6 +6,7 @@ import {
   OUTDOOR_COMPONENTS,
 } from "./designIntakeState";
 import { buildConceptColorPlan } from "./designStyleGuide";
+import { buildFabricTypographyFromSignals } from "@/lib/typographyMapping";
 
 const CANVAS = { width: 1000, height: 600 } as const;
 
@@ -552,8 +553,18 @@ export function createDesignSpecFromIntake(
     : `${intake.category} (${intake.style})`;
   const templateId = `intake-preview-v1|${intake.category}|surface:${surfaceSlug}|${intake.style}`;
 
+  const typo = buildFabricTypographyFromSignals(
+    intake.typographySignals,
+    intake.style,
+  );
   const textBase = {
-    fontFamily: "system-ui, -apple-system, sans-serif",
+    fontFamily: typo.supportingFontFamily,
+  } as const;
+  const headlineFont = {
+    fontFamily: typo.headlineFontFamily,
+  } as const;
+  const uiFont = {
+    fontFamily: typo.uiFontFamily,
   } as const;
 
   const accentOpacity = Math.min(
@@ -724,6 +735,7 @@ export function createDesignSpecFromIntake(
       fill: plan.headlineText,
       fontSize: 48,
       ...textBase,
+      ...headlineFont,
       fontWeight: "700",
       width: headlineBlock.width,
       textAlign: headlineBlock.textAlign,
@@ -750,6 +762,7 @@ export function createDesignSpecFromIntake(
       fill: plan.websiteText,
       fontSize: 30,
       ...textBase,
+      ...uiFont,
       fontWeight: "500",
       width: websiteBlock.width,
       textAlign: websiteBlock.textAlign,
@@ -766,6 +779,7 @@ export function createDesignSpecFromIntake(
       fill: plan.contactText,
       fontSize: CONTACT_FONT_SIZE,
       ...textBase,
+      ...uiFont,
       fontWeight: "400",
       width: footerBoxWidth,
       textAlign: websiteBlock.textAlign,
