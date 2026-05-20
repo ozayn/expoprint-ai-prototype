@@ -12,6 +12,8 @@ type Stage = {
   id: number;
   title: string;
   status: StageStatus;
+  /** From docs/work-log.md and git history; never guessed. */
+  dateLine: string;
   summary: string;
   accomplishments: string[];
 };
@@ -21,6 +23,7 @@ const stages: Stage[] = [
     id: 1,
     title: "Standalone Fabric.js editor",
     status: "Complete",
+    dateLine: "Completed: 2026-05-12",
     summary:
       "Created a standalone Next.js prototype with an editable Fabric.js canvas.",
     accomplishments: [
@@ -34,6 +37,7 @@ const stages: Stage[] = [
     id: 2,
     title: "DesignSpec architecture",
     status: "Complete",
+    dateLine: "Completed: 2026-05-12",
     summary:
       "Separated design generation from Fabric rendering using an app-level DesignSpec format.",
     accomplishments: [
@@ -47,6 +51,7 @@ const stages: Stage[] = [
     id: 3,
     title: "Local workflow and deployment",
     status: "Complete",
+    dateLine: "Completed: 2026-05-12",
     summary: "Made the prototype easy to run locally and share online.",
     accomplishments: [
       "Added scripts/dev.sh.",
@@ -59,6 +64,7 @@ const stages: Stage[] = [
     id: 4,
     title: "Demo polish and reliability fixes",
     status: "Complete",
+    dateLine: "Completed: 2026-05-12",
     summary: "Improved the demo experience and fixed Fabric rendering issues.",
     accomplishments: [
       "Added canvas status messaging.",
@@ -72,6 +78,7 @@ const stages: Stage[] = [
     id: 5,
     title: "Design intake state / debugging milestone",
     status: "Complete",
+    dateLine: "Completed: 2026-05-13",
     summary:
       "Prototype intake panel is wired end-to-end to shared state, mock extraction, a generated brief, and intake-driven canvas output. No real website scraping or AI yet.",
     accomplishments: [
@@ -87,6 +94,7 @@ const stages: Stage[] = [
     id: 6,
     title: "Intake-driven canvas and design surfaces",
     status: "Complete",
+    dateLine: "Completed: 2026-05-13",
     summary:
       "The Fabric preview can follow the same intake object as the form: copy, palette, contact strip, and per-component surface metadata. Still mock extraction and hand-authored mapping — real website scraping and AI generation remain planned.",
     accomplishments: [
@@ -101,6 +109,7 @@ const stages: Stage[] = [
     id: 7,
     title: "Demo layout and mobile clarity pass",
     status: "Complete",
+    dateLine: "Completed: 2026-05-14",
     summary:
       "Reorganized the home page for a clearer demo path and lighter default chrome: intake → extracted → brief on the left, concept preview on the right, exports tucked away. Layout and copy only — no change to Fabric export dimensions or generation rules.",
     accomplishments: [
@@ -115,6 +124,7 @@ const stages: Stage[] = [
     id: 8,
     title: "Optional Claude-backed Analyze Website",
     status: "Complete",
+    dateLine: "Completed: 2026-05-14",
     summary:
       "Added a narrow, optional server path so Analyze Website can ask Claude for structured extracted rows from the current intake fields only. The Anthropic API key stays in environment variables; there is still no end-to-end AI design generation — mock extraction remains the safe default when the key is absent or the model output cannot be used. A later slice (Stage 10) adds homepage-only HTML fetch to enrich Claude context; full-site crawling is still out of scope.",
     accomplishments: [
@@ -132,6 +142,7 @@ const stages: Stage[] = [
     id: 9,
     title: "AI-assisted design intake workflow",
     status: "Planned",
+    dateLine: "Planned",
     summary:
       "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
     accomplishments: [
@@ -142,6 +153,7 @@ const stages: Stage[] = [
     id: 10,
     title: "Website/content extraction",
     status: "Complete",
+    dateLine: "Completed: 2026-05-14",
     summary:
       "First homepage-only fetch for Analyze Website: the server retrieves the entered public URL once (no crawling, no browser automation), parses HTML for lightweight signals, and passes a bounded text summary to Claude. Failures fall back to the prior intake-only context. This is prototype-grade, not audited for every site or anti-bot edge case.",
     accomplishments: [
@@ -157,6 +169,7 @@ const stages: Stage[] = [
     id: 11,
     title: "Production-ready design brief generation",
     status: "Planned",
+    dateLine: "Planned",
     summary:
       "The prototype already generates a basic live design brief from selected intake and extracted rows. Planned work is to make this more structured, validated, and designer-ready for internal ExpoPrint workflows.",
     accomplishments: [
@@ -169,6 +182,7 @@ const stages: Stage[] = [
     id: 12,
     title: "AI-generated editable DesignSpec",
     status: "Planned",
+    dateLine: "Planned",
     summary:
       "Use AI to generate editable DesignSpec JSON that can populate Fabric.js templates.",
     accomplishments: ["Not started yet."],
@@ -177,6 +191,7 @@ const stages: Stage[] = [
     id: 13,
     title: "Guided customer-style demo view",
     status: "Complete",
+    dateLine: "Completed: 2026-05-14",
     summary:
       "Added a separate `/demo` route with a step-by-step guided intake for a cleaner customer-style presentation. The home `/` editor workspace is unchanged and remains where JSON/PNG/SVG export and developer-oriented tools live.",
     accomplishments: [
@@ -189,6 +204,7 @@ const stages: Stage[] = [
     id: 14,
     title: "Style guide layer for cleaner generated concepts",
     status: "Complete",
+    dateLine: "Completed: 2026-05-14",
     summary:
       "Added a prototype design-style layer so extracted brand colors are normalized before being used on the editable Fabric canvas. Bright palettes are treated as accents, and generated concepts prioritize contrast, readability, and cleaner large-format-print composition.",
     accomplishments: [
@@ -201,6 +217,7 @@ const stages: Stage[] = [
     id: 15,
     title: "Small multi-page website extraction",
     status: "Complete",
+    dateLine: "Completed: 2026-05-19",
     summary:
       "Analyze Website now enriches Claude with a bounded slice of the site beyond the homepage only: the server loads the homepage, discovers same-domain links, ranks about/services/contact-style paths, and fetches at most three extra HTML pages (no recursion, no browser automation, no full crawl). Raw page text is never returned to the client; API responses add safe `websiteFetch` counters and page-type hints only.",
     accomplishments: [
@@ -216,6 +233,7 @@ const stages: Stage[] = [
     id: 16,
     title: "Logo candidate extraction and review",
     status: "Complete",
+    dateLine: "Completed: 2026-05-19",
     summary:
       "Analyze Website now collects logo image candidates from icons, apple-touch-icons, og:image, header/nav imagery, and `<img>` tags whose alt/src/class/id reads as a logo. Up to six candidates are returned to the UI with structured metadata (URL, source label, optional alt and width/height). Both `/` and `/demo` show a compact review grid inside Review identity; designers can pick one with a single click. Candidates are not yet validated as production-ready assets — production-quality logo upload is still expected.",
     accomplishments: [
@@ -232,21 +250,25 @@ const stages: Stage[] = [
     id: 17,
     title: "Selected logo rendering via safe proxy",
     status: "Complete",
+    dateLine: "Completed: 2026-05-19",
     summary:
-      "When a designer picks a logo candidate, the editable Fabric preview now actually renders that image. The browser never fetches the remote URL directly — Fabric loads through a same-origin `/api/proxy-image` proxy with `crossOrigin: 'anonymous'`, so PNG export stays untainted. The placeholder + label layers remain as a safe fallback; nothing on the canvas is broken if the proxy refuses, the upstream is missing, or the load times out. Production-quality logo validation and upload are still expected before print.",
+      "Prototype milestone: when a designer selects a logo candidate from website extraction, the editable Fabric preview can show that image inside the logo area — but only when the same-origin `/api/proxy-image` route successfully fetches an allowed image type. Remote URLs are not loaded directly into Fabric (avoids tainted canvas / CORS issues). Not all third-party logos will always load; this is not print-ready logo handling or production-grade asset validation. Production-quality logo upload and review are still expected later.",
     accomplishments: [
-      "New server route `src/app/api/proxy-image/route.ts`: only `http:`/`https:` URLs, DNS lookup blocking RFC1918 / loopback / link-local / multicast hosts, ~6s timeout, 2 MiB body cap, and a small MIME whitelist (`png` / `jpeg` / `webp` / `gif` / `svg+xml` / `x-icon` / `avif`). Distinct status codes (400 / 403 / 413 / 415 / 502 / 504) and `no-store` on rejections.",
-      "Open CORS + `Cross-Origin-Resource-Policy: cross-origin` + `Referrer-Policy: no-referrer` on success so Fabric's `crossOrigin: 'anonymous'` load keeps the canvas un-tainted; `Cache-Control: public, max-age=3600` for prototype caching.",
-      "DesignSpec gains an `image` layer (`type: 'image'`) with bounding-box geometry, padding, and an optional `replacePlaceholderIds` list. `createDesignSpecFromIntake` emits one when `selectedLogoCandidateUrl` is set and points it at `/api/proxy-image?url=...`.",
-      "Renderer loads images asynchronously via `FabricImage.fromURL`; on success it scales to fit the placeholder, centers, removes the placeholder + label layers, and re-renders. On failure or stale render generation it leaves the safe placeholder visible and never mutates the canvas.",
-      "PNG export verified via the proxy + crossOrigin path. SVG export keeps Fabric's default behavior — embedded data URLs when same-origin lets the canvas inline bytes, otherwise an `<image href>` reference; helper copy notes this prototype caveat instead of breaking export.",
-      "UI copy in `LogoCandidatesReview` and the prototype note updated to describe the new behavior; `/` editor and `/demo` Step 6 share the same flow.",
+      "Added a server-side image proxy route (`GET /api/proxy-image?url=...`) for selected logo candidates, with http/https-only URLs, public-IP DNS checks, timeout, response size cap, and a small image MIME whitelist.",
+      "Selected logo candidates can render inside the Fabric canvas when they load safely through the proxy (not guaranteed for every remote URL).",
+      "Remote logos are loaded through the app proxy instead of directly from third-party domains; Fabric uses `crossOrigin: 'anonymous'` on the same-origin proxied URL.",
+      "Fabric places the logo inside the existing logo placeholder area while preserving aspect ratio; the image layer stays selectable/editable on the canvas.",
+      "If the proxy or image load fails, the canvas keeps the safe logo placeholder and “Logo selected / candidate recorded” labels — the flow does not error out.",
+      "PNG export is intended to remain CORS-clean when the proxied image loads successfully; this is prototype behavior, not final print production proofing.",
+      "SVG export may still reference the proxied image URL depending on Fabric’s `toSVG()` behavior (inline bytes when possible, otherwise an external `<image href>`) — not final production asset handling.",
+      "Production-quality logo upload and validation are still needed later; UI copy in `LogoCandidatesReview` sets that expectation on `/` and `/demo`.",
     ],
   },
   {
     id: 18,
     title: "Dual deployment — Railway (main) and Vercel (vercel-deploy)",
     status: "Complete",
+    dateLine: "Completed: 2026-05-20",
     summary:
       "Prototype hosting is split on purpose: Railway stays wired to `main` for the existing production-style demo, while a dedicated `vercel-deploy` branch carries Vercel-only config (`vercel.json`, API `maxDuration`, CSP tweak for `VERCEL=1`, home-page deploy badge). Website scraping and Claude-backed Analyze Website work on the Vercel deployment; Railway remains the default integration path but has had recent build/platform reliability issues, so Vercel is documented as a dependable fallback and demo URL.",
     accomplishments: [
@@ -294,6 +316,9 @@ export default function ProgressPage() {
             </code>{" "}
             for Clockify-style time entry notes.
           </p>
+          <p className="mt-2 max-w-2xl text-sm text-zinc-500">
+            Dates are based on the project work log and git history.
+          </p>
           <div className="mt-4 max-w-2xl rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm leading-relaxed text-zinc-700 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
               Deployment status (prototype)
@@ -330,20 +355,18 @@ export default function ProgressPage() {
                   </h2>
                   <StatusBadge status={stage.status} />
                 </div>
-                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                  Status
-                </p>
+                <p className="mt-2 text-xs text-zinc-500">{stage.dateLine}</p>
                 <p className="mt-3 text-sm leading-relaxed text-zinc-600">{stage.summary}</p>
-                <div className="mt-4 border-t border-zinc-100 pt-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                    Accomplishments
-                  </p>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-zinc-700 marker:text-zinc-400">
+                <details className="mt-4 border-t border-zinc-100 pt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-zinc-600 hover:text-zinc-900">
+                    View accomplishments
+                  </summary>
+                  <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-zinc-700 marker:text-zinc-400">
                     {stage.accomplishments.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
-                </div>
+                </details>
               </article>
             </li>
           ))}

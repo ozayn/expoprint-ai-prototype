@@ -2,6 +2,30 @@
 
 Short dated notes for **Clockify**-style descriptions. Copy lines into time entry descriptions as needed.
 
+Dates on `/progress` are taken from this file and from `git log` for the related commits. If a stage date is unknown, the UI shows **Date: Not recorded yet** — do not guess.
+
+---
+
+## Template (new entries)
+
+Use one block per slice of work. Include the stage number so `/progress` can stay aligned.
+
+```markdown
+## YYYY-MM-DD
+
+**Short title (Stage N)**  
+One-sentence summary. Optional bullets for Clockify detail.
+```
+
+Example:
+
+```markdown
+## 2026-05-20
+
+**Dual deployment — Railway + Vercel (Stage 18)**  
+Documented Railway `main` vs `vercel-deploy` on Vercel; home badge when `VERCEL=1`.
+```
+
 ---
 
 ## 2026-05-12
@@ -52,13 +76,62 @@ Server-side `extractWebsiteContent`: after a successful homepage GET, same-domai
 Added `src/lib/extractedValueCleanup.ts` and wired it into `buildExtractedFromPlainValues` so every extracted row is normalized after Claude returns. Services/Products are split on `,;·•|`, each item is trimmed of empty parens, repeated punctuation, navigation tokens (`Home`, `Menu`, …), and items shorter than 3 characters unless explicitly meaningful (`AI`, `3D`, `10x10`); deduped case-insensitively and capped at ~6 items. Free-text fields (logo / address / social / brand colors) get a lighter pass; phone/email use stricter checks. Claude system prompt also tightened: services / products must be a single comma-separated readable line (≤6 items) or `""`. Verified live against `https://expoprint.io/` (4 pages inspected) — Services and Products both render as clean phrases instead of garbled fragments. No new AI calls; multi-page fetch limits unchanged; raw scraped text still never exposed to the UI.
 
 **Selected logo rendering via safe proxy (Stage 17, staging)**  
-New server route `src/app/api/proxy-image/route.ts`: same-origin GET proxy for selected logo candidate URLs only — `http:` / `https:`, DNS-resolved to a public IP (RFC1918 / loopback / link-local / multicast / `localhost` rejected), ~6 s timeout, 2 MiB body cap, MIME whitelist (`image/png|jpeg|webp|gif|svg+xml|x-icon|avif`). Distinct status codes (400/403/413/415/502/504) and `Cache-Control: no-store` on rejection. Successful responses pass through the upstream `Content-Type` with `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, and `Cache-Control: public, max-age=3600`. `DesignSpec` gains an `image` layer with bounding-box geometry, padding, optional `replacePlaceholderIds`, and `opacity`. `createDesignSpecFromIntake` emits one `image` layer when `selectedLogoCandidateUrl` is set, pointing at `/api/proxy-image?url=...`. `renderDesignSpecToFabric` loads images asynchronously via `FabricImage.fromURL` with `crossOrigin: "anonymous"`, scales to fit the 132×132 placeholder, centers, removes the placeholder + two label layers on success, and re-renders. A per-canvas render generation guards against stale loads after a re-render. On failure or stale generation the placeholder + label layers remain visible — nothing on the canvas breaks. UI copy in `LogoCandidatesReview` reflects the new "appears in preview when it can be loaded safely" behavior; `/` and `/demo` share the flow. PNG export confirmed clean via proxy + crossOrigin; SVG export uses Fabric defaults — same-origin proxy means Fabric inlines the bytes when it can, otherwise the SVG holds an `<image href>` reference, documented in helper copy rather than blocking export. No changes to multi-page extraction limits, Claude prompting, or any other intake/brief logic. Production logo validation and upload still expected before print.
+Added `GET /api/proxy-image?url=...` — a server-side image proxy for selected logo candidates (`http:`/`https:` only, public-IP DNS checks, timeout, size cap, image MIME whitelist). Selected candidates can appear in the Fabric logo area when the proxy fetch succeeds; remote logos are not loaded directly from third-party domains (same-origin proxy + `crossOrigin: "anonymous"`). `DesignSpec` `image` layer + async `FabricImage.fromURL`; logo is fitted inside the existing placeholder with aspect ratio preserved and remains editable. On proxy/image failure, the safe placeholder and label text stay — not every remote logo will always load. PNG export is intended to stay CORS-clean through the proxy when load succeeds (prototype, not print-ready proofing). SVG may reference the proxied URL per Fabric `toSVG()` — not final production asset handling. Production-quality logo upload/validation still needed later; `/progress` Stage 17 and `LogoCandidatesReview` copy reflect cautious expectations. `/` and `/demo` share the same DesignSpec path.
 
 **Dual deployment — Railway + Vercel (Stage 18, `vercel-deploy` branch)**  
 Documented split hosting so Railway is not disrupted while Vercel is tested. **Railway** remains connected to **`main`** (original GitHub deploy path; recent build/platform reliability has been uneven). **`vercel-deploy`** branch adds Vercel-only files: `vercel.json`, API `maxDuration`, conditional CSP `connect-src` when `VERCEL=1`, `docs/vercel-deploy.md`, and `DeployPlatformBadge` on `/` (shows “Deployed on Vercel” + `VERCEL_GIT_COMMIT_REF` when running on Vercel). Confirmed on Vercel: multi-page website scraping, Claude Analyze Website, logo candidates, `/api/proxy-image`, Fabric concept generation on `/` and `/demo`. **Vercel is the documented working fallback/demo URL** when Railway builds fail; do not repoint Railway to `vercel-deploy` without approval. `/progress` Stage 18 + deployment status callout summarize this for the team.
 
 **Logo candidate extraction and review (Stage 16, staging)**  
 Server `parseHtmlToPageSummary` now collects a structured list of logo candidates per page: `link rel=icon`, `link rel=apple-touch-icon(-precomposed)`, `meta og:image`, `<header>`/`<nav>` `<img>` tags, and `<img>` with `logo` in alt/src/class/id. Each candidate is normalized to an absolute URL with a `source` label and optional `alt` / `width` / `height`; deduped across the inspected pages and capped at 6 for the UI (`websiteFetch.logoCandidatesList`). `DesignIntakeState` carries `logoCandidates` + `selectedLogoCandidateUrl`; `applyClaudeAnalyzeSuccessToIntake` parses + sanitizes the list, drops a stale selection when a fresh analyze returns a different list, and the editor + `/demo` Step 6 render the same compact `LogoCandidatesReview` grid inside `Review identity` (failed image loads fall back to a small `N/A` placeholder; selected candidate exposes a `Clear` action). Canvas signals selection conservatively — the existing dashed logo placeholder switches to a solid stroke and the label opacity nudges from 0.45 → 0.72; no remote image is loaded into Fabric so PNG/SVG export remains untainted. Brief includes the selected candidate URL with a reminder that a production-quality logo upload is still needed. CSP `img-src` widened to allow `https:` (data/blob/`'self'` + https) so external favicons / og:images render in previews. Verified locally on `expoprint.io` (3 candidates: icon, og:image, header-image with alt + 170×53 SVG) and `stripe.com` (14 surfaced; 6 returned including favicon, apple-touch-icon, og:image, img-logo with alt). No new AI calls; multi-page fetch limits unchanged; raw HTML still never exposed to the UI.
+
+---
+
+## 2026-05-13
+
+**Design intake state (Stage 5)**  
+Controlled intake fields, mock analyze path, brief from selections, live “Selected for design” summary.
+
+**Intake-driven canvas and design surfaces (Stage 6)**  
+`createDesignSpecFromIntake`, design-surface tabs, contact/footer line on canvas; still mock extraction.
+
+---
+
+## 2026-05-14
+
+**Demo layout and mobile clarity (Stage 7)**  
+Home layout grouping, collapsed export JSON, mobile spacing; no generation logic changes.
+
+**Optional Claude Analyze Website (Stage 8)**  
+`POST /api/analyze-website`, env-only API key, mock fallback, cautious response metadata.
+
+**Homepage content for Analyze (Stage 10)**  
+`extractWebsiteContent.ts` — single homepage GET, cheerio heuristics, `websiteFetch` on API JSON.
+
+**Guided customer-style demo (Stage 13)**  
+`/demo` route, seven-step guided intake; links to full editor on `/`.
+
+**Style guide layer (Stage 14)**  
+`designStyleGuide.ts` / `buildConceptColorPlan` — normalized palettes and contrast on canvas.
+
+---
+
+## 2026-05-19
+
+**Small multi-page website extraction (Stage 15)**  
+Homepage plus up to three same-domain pages; capped text budget for Claude.
+
+**Logo candidate extraction and review (Stage 16)**  
+Structured `logoCandidatesList`, `LogoCandidatesReview` on `/` and `/demo`.
+
+**Selected logo rendering via safe proxy (Stage 17)**  
+`GET /api/proxy-image`, DesignSpec `image` layer, async Fabric load with placeholder fallback.
+
+---
+
+## 2026-05-20
+
+**Dual deployment — Railway + Vercel (Stage 18)**  
+`vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway stays on `main`.
 
 ---
 
