@@ -2,7 +2,7 @@
 
 Short dated notes for **Clockify**-style descriptions. Copy lines into time entry descriptions as needed.
 
-Dates on `/progress` are taken from this file and from `git log` for the related commits. If a stage date is unknown, the UI shows **Date: Not recorded yet** — do not guess.
+Dates on `/progress` are taken from this file and from `git log` for the related commits. Each complete stage shows **Completed** (first functional milestone) and, when applicable, **Last updated** (later refinements). If a stage date is unknown, the UI shows **Date: Not recorded yet** — do not guess.
 
 ---
 
@@ -184,6 +184,28 @@ Updated `logoCandidateRanking.ts`: header/nav and brand-matched images rank abov
   }
 }
 ```
+
+---
+
+## 2026-05-21
+
+**Progress dates — Completed vs Last updated**  
+`/progress` stages now show `Completed` and `Last updated` separately so first-ship dates stay visible when a stage is refined later.
+
+**Logo candidate ranking and review UI (Stage 16)**  
+`logoCandidateRanking.ts` prioritizes header wordmarks over favicons; `prepareLogoCandidatesForUi` hides weak candidates when a strong header loads; `LogoCandidatesReview` labels and shorter production reminders on `/`.
+
+**Typography signals polish (Stage 19)**  
+`typographyFontCleanup.ts` and metadata counts on `websiteFetch.typography` match cleaned font-family lists in API JSON.
+
+**Phase 1 extract API + docs/tester (Stages 20–21)**  
+`POST /api/design-intake/extract`, `/api-docs` (form-driven curl/npm), `/api-test`, and `npm run api:test` — shipped and smoke-tested on Vercel.
+
+**Bullet-list layout + display copy (Stage 22)**  
+Canvas bullet lists for services/products when layout rules allow; `supportingBulletText.ts` normalizes bullet phrases for sentence case while preserving brands, acronyms, and dimensions.
+
+**Editor UI clarity (Stage 7 follow-up)**  
+`/` main editor: long helper paragraphs replaced with `InfoTooltip` icons; `/demo` keeps guided step copy.
 
 ---
 

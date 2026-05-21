@@ -12,18 +12,45 @@ type Stage = {
   id: number;
   title: string;
   status: StageStatus;
-  /** From docs/work-log.md and git history; never guessed. */
-  dateLine: string;
+  /** First date the stage was functionally complete (YYYY-MM-DD). */
+  completed?: string;
+  /** Later refinement date when work continued after completion (YYYY-MM-DD). */
+  lastUpdated?: string;
   summary: string;
   accomplishments: string[];
 };
+
+function StageDates({
+  status,
+  completed,
+  lastUpdated,
+}: {
+  status: StageStatus;
+  completed?: string;
+  lastUpdated?: string;
+}) {
+  if (status === "Planned") {
+    return <p className="mt-2 text-xs text-zinc-500">Planned</p>;
+  }
+  const showUpdated =
+    lastUpdated !== undefined && lastUpdated !== "" && lastUpdated !== completed;
+  if (!completed && !showUpdated) {
+    return <p className="mt-2 text-xs text-zinc-500">Date: Not recorded yet</p>;
+  }
+  return (
+    <div className="mt-2 space-y-0.5 text-xs text-zinc-500">
+      {completed ? <p>Completed: {completed}</p> : null}
+      {showUpdated ? <p>Last updated: {lastUpdated}</p> : null}
+    </div>
+  );
+}
 
 const stages: Stage[] = [
   {
     id: 1,
     title: "Standalone Fabric.js editor",
     status: "Complete",
-    dateLine: "Completed: 2026-05-12",
+    completed: "2026-05-12",
     summary:
       "Created a standalone Next.js prototype with an editable Fabric.js canvas.",
     accomplishments: [
@@ -37,7 +64,7 @@ const stages: Stage[] = [
     id: 2,
     title: "DesignSpec architecture",
     status: "Complete",
-    dateLine: "Completed: 2026-05-12",
+    completed: "2026-05-12",
     summary:
       "Separated design generation from Fabric rendering using an app-level DesignSpec format.",
     accomplishments: [
@@ -51,7 +78,7 @@ const stages: Stage[] = [
     id: 3,
     title: "Local workflow and deployment",
     status: "Complete",
-    dateLine: "Completed: 2026-05-12",
+    completed: "2026-05-12",
     summary: "Made the prototype easy to run locally and share online.",
     accomplishments: [
       "Added scripts/dev.sh.",
@@ -64,7 +91,7 @@ const stages: Stage[] = [
     id: 4,
     title: "Demo polish and reliability fixes",
     status: "Complete",
-    dateLine: "Completed: 2026-05-12",
+    completed: "2026-05-12",
     summary: "Improved the demo experience and fixed Fabric rendering issues.",
     accomplishments: [
       "Added canvas status messaging.",
@@ -78,7 +105,7 @@ const stages: Stage[] = [
     id: 5,
     title: "Design intake state / debugging milestone",
     status: "Complete",
-    dateLine: "Completed: 2026-05-13",
+    completed: "2026-05-13",
     summary:
       "Prototype intake panel is wired end-to-end to shared state, mock extraction, a generated brief, and intake-driven canvas output. No real website scraping or AI yet.",
     accomplishments: [
@@ -94,7 +121,7 @@ const stages: Stage[] = [
     id: 6,
     title: "Intake-driven canvas and design surfaces",
     status: "Complete",
-    dateLine: "Completed: 2026-05-13",
+    completed: "2026-05-13",
     summary:
       "The Fabric preview can follow the same intake object as the form: copy, palette, contact strip, and per-component surface metadata. Still mock extraction and hand-authored mapping — real website scraping and AI generation remain planned.",
     accomplishments: [
@@ -109,7 +136,8 @@ const stages: Stage[] = [
     id: 7,
     title: "Demo layout and mobile clarity pass",
     status: "Complete",
-    dateLine: "Completed: 2026-05-14",
+    completed: "2026-05-14",
+    lastUpdated: "2026-05-21",
     summary:
       "Reorganized the home page for a clearer demo path and lighter default chrome: intake → extracted → brief on the left, concept preview on the right, exports tucked away. Layout and copy only — no change to Fabric export dimensions or generation rules.",
     accomplishments: [
@@ -118,13 +146,14 @@ const stages: Stage[] = [
       "Grouped export/import actions and raw canvas JSON under collapsed details/summary blocks so casual demos see less developer UI by default.",
       "Adjusted mobile spacing, touch targets, and preview scaling behavior already in place; horizontal scrolling for the artboard preview is still avoided via scaled CSS dimensions.",
       "Fabric editability, JSON/PNG/SVG export, Load JSON, and 1000×600 export geometry unchanged.",
+      "2026-05-21: `/` editor helper copy moved into accessible info tooltips; `/demo` guided explanations unchanged.",
     ],
   },
   {
     id: 8,
     title: "Optional Claude-backed Analyze Website",
     status: "Complete",
-    dateLine: "Completed: 2026-05-14",
+    completed: "2026-05-14",
     summary:
       "Added a narrow, optional server path so Analyze Website can ask Claude for structured extracted rows from the current intake fields only. The Anthropic API key stays in environment variables; there is still no end-to-end AI design generation — mock extraction remains the safe default when the key is absent or the model output cannot be used. A later slice (Stage 10) adds homepage-only HTML fetch to enrich Claude context; full-site crawling is still out of scope.",
     accomplishments: [
@@ -142,7 +171,6 @@ const stages: Stage[] = [
     id: 9,
     title: "AI-assisted design intake workflow",
     status: "Planned",
-    dateLine: "Planned",
     summary:
       "Extend the prototype intake with real AI assistance, validation, and workflow features beyond mock extraction.",
     accomplishments: [
@@ -153,7 +181,7 @@ const stages: Stage[] = [
     id: 10,
     title: "Website/content extraction",
     status: "Complete",
-    dateLine: "Completed: 2026-05-14",
+    completed: "2026-05-14",
     summary:
       "First homepage-only fetch for Analyze Website: the server retrieves the entered public URL once (no crawling, no browser automation), parses HTML for lightweight signals, and passes a bounded text summary to Claude. Failures fall back to the prior intake-only context. This is prototype-grade, not audited for every site or anti-bot edge case.",
     accomplishments: [
@@ -169,7 +197,6 @@ const stages: Stage[] = [
     id: 11,
     title: "Production-ready design brief generation",
     status: "Planned",
-    dateLine: "Planned",
     summary:
       "The prototype already generates a basic live design brief from selected intake and extracted rows. Planned work is to make this more structured, validated, and designer-ready for internal ExpoPrint workflows.",
     accomplishments: [
@@ -182,7 +209,6 @@ const stages: Stage[] = [
     id: 12,
     title: "AI-generated editable DesignSpec",
     status: "Planned",
-    dateLine: "Planned",
     summary:
       "Use AI to generate editable DesignSpec JSON that can populate Fabric.js templates.",
     accomplishments: ["Not started yet."],
@@ -191,7 +217,7 @@ const stages: Stage[] = [
     id: 13,
     title: "Guided customer-style demo view",
     status: "Complete",
-    dateLine: "Completed: 2026-05-14",
+    completed: "2026-05-14",
     summary:
       "Added a separate `/demo` route with a step-by-step guided intake for a cleaner customer-style presentation. The home `/` editor workspace is unchanged and remains where JSON/PNG/SVG export and developer-oriented tools live.",
     accomplishments: [
@@ -204,7 +230,7 @@ const stages: Stage[] = [
     id: 14,
     title: "Style guide layer for cleaner generated concepts",
     status: "Complete",
-    dateLine: "Completed: 2026-05-14",
+    completed: "2026-05-14",
     summary:
       "Added a prototype design-style layer so extracted brand colors are normalized before being used on the editable Fabric canvas. Bright palettes are treated as accents, and generated concepts prioritize contrast, readability, and cleaner large-format-print composition.",
     accomplishments: [
@@ -217,7 +243,7 @@ const stages: Stage[] = [
     id: 15,
     title: "Small multi-page website extraction",
     status: "Complete",
-    dateLine: "Completed: 2026-05-19",
+    completed: "2026-05-19",
     summary:
       "Analyze Website now enriches Claude with a bounded slice of the site beyond the homepage only: the server loads the homepage, discovers same-domain links, ranks about/services/contact-style paths, and fetches at most three extra HTML pages (no recursion, no browser automation, no full crawl). Raw page text is never returned to the client; API responses add safe `websiteFetch` counters and page-type hints only.",
     accomplishments: [
@@ -233,7 +259,8 @@ const stages: Stage[] = [
     id: 16,
     title: "Logo candidate extraction, ranking, and review",
     status: "Complete",
-    dateLine: "Completed: 2026-05-19",
+    completed: "2026-05-19",
+    lastUpdated: "2026-05-21",
     summary:
       "Analyze Website collects logo candidates from icons, apple-touch-icons, og:image, header/nav imagery, and logo-like `<img>` tags. Candidates are scored and sorted for design usefulness — full header wordmarks and logo-tagged brand images should rank above small transparent favicons. Review grid on `/` and `/demo`; designers pick one manually. Selected logos can render via the safe proxy when load succeeds; placeholder fallback and production upload guidance remain.",
     accomplishments: [
@@ -243,6 +270,7 @@ const stages: Stage[] = [
       "API `websiteFetch.logoCandidatesList` returns up to ~6 candidates sorted by `score` descending with optional `transparency` and `reason` — not production asset validation.",
       "Client intake state carries `logoCandidates` + `selectedLogoCandidateUrl`; merge logic clears stale selections when a fresh analyze returns a different list and resets cleanly on mock fallback.",
       "`LogoCandidatesReview`: ranked list with “Best match” on the first row and “Transparent likely” when detected; failed thumbnails fall back to `N/A`. No auto-select — first row is simply the top-ranked candidate.",
+      "2026-05-21: wordmark-first ranking polish; review UI filters weak favicon/product icons when a strong header logo loads; shorter production-logo reminders on `/`.",
       "Canvas behavior is conservative on purpose: when a candidate is selected the existing dashed logo placeholder switches to a solid stroke and bumps label opacity (no remote image embedded — avoids tainted-canvas / CORS issues with PNG/SVG export).",
       "Design brief lists the selected candidate URL with a reminder that a production-quality logo upload is still recommended before print.",
       "CSP `img-src` allows `https:` so external favicons / og:images render in previews; `http:` remains blocked.",
@@ -252,7 +280,7 @@ const stages: Stage[] = [
     id: 17,
     title: "Selected logo rendering via safe proxy",
     status: "Complete",
-    dateLine: "Completed: 2026-05-19",
+    completed: "2026-05-19",
     summary:
       "Prototype milestone: when a designer selects a logo candidate from website extraction, the editable Fabric preview can show that image inside the logo area — but only when the same-origin `/api/proxy-image` route successfully fetches an allowed image type. Remote URLs are not loaded directly into Fabric (avoids tainted canvas / CORS issues). Not all third-party logos will always load; this is not print-ready logo handling or production-grade asset validation. Production-quality logo upload and review are still expected later.",
     accomplishments: [
@@ -270,7 +298,7 @@ const stages: Stage[] = [
     id: 18,
     title: "Prototype deployment — Vercel on main",
     status: "Complete",
-    dateLine: "Completed: 2026-05-20",
+    completed: "2026-05-20",
     summary:
       "Added Vercel deployment config on `main` (`vercel.json`, API `maxDuration`, CSP tweak when `VERCEL=1`, home-page deploy badge). The app was briefly split across Railway (`main`) and a `vercel-deploy` branch; Railway services and the extra branches are now removed, and Vercel on `main` is the current demo path.",
     accomplishments: [
@@ -285,7 +313,8 @@ const stages: Stage[] = [
     id: 19,
     title: "Typography/font signal extraction",
     status: "Complete",
-    dateLine: "Completed: 2026-05-20",
+    completed: "2026-05-20",
+    lastUpdated: "2026-05-21",
     summary:
       "Analyze Website collects lightweight typography signals from inspected pages and maps them to safe browser/Fabric font stacks on generated concepts. Feeds the Phase 1 extraction API and the editor/demo pipeline — prototype tone matching only, not exact production font reproduction.",
     accomplishments: [
@@ -298,13 +327,14 @@ const stages: Stage[] = [
       "Font-family cleanup filters non-font CSS tokens (`normal`, numeric weights, `1.0`, `!important`, lengths); stack families like `system-ui` and `-apple-system` are kept.",
       "`websiteFetch.typography` counts (`fontFamilyCount`, `googleFontCount`) match the cleaned lists returned in API JSON — not raw pre-clean totals.",
       "Signals feed the extract API and canvas mapping via safe browser/Fabric stacks only — no webfont downloads.",
+      "2026-05-21: `websiteFetch.typography` counts aligned with cleaned font lists after token filtering.",
     ],
   },
   {
     id: 20,
     title: "Design-intake extraction API contract",
     status: "Complete",
-    dateLine: "Completed: 2026-05-20",
+    completed: "2026-05-21",
     summary:
       "Phase 1 integration deliverable: `POST /api/design-intake/extract` accepts a public website URL plus optional product category, components, style preference, and customer instructions, then returns normalized JSON for ExpoPrint’s downstream system. Reuses the bounded scrape + Claude pipeline (logo candidates, typography, services/products, contact, design recommendations, metadata). No raw HTML or full scraped text in responses. `/` and `/demo` remain visual consumers and test harnesses via `POST /api/analyze-website`. First stable v1 contract — not production-final; `needsHumanReview` stays true.",
     accomplishments: [
@@ -321,7 +351,7 @@ const stages: Stage[] = [
     id: 21,
     title: "API docs and browser tester",
     status: "Complete",
-    dateLine: "Completed: 2026-05-20",
+    completed: "2026-05-21",
     summary:
       "Local tooling to exercise the Phase 1 extract API without hand-writing curl every time: `/api-docs` explains the contract with copyable commands, `/api-test` runs the API from the browser, and a shell/npm helper supports terminal smoke tests. Deployed Vercel endpoint verified successfully — prototype tooling only, not a public developer portal.",
     accomplishments: [
@@ -336,7 +366,7 @@ const stages: Stage[] = [
     id: 22,
     title: "Bullet-list services/products on canvas",
     status: "Complete",
-    dateLine: "Completed: 2026-05-20",
+    completed: "2026-05-21",
     summary:
       "When selected services or products split into enough clean items, generated concepts can show readable bullet lines (•) in the supporting area instead of one long ` · ` line — especially on trade-show surfaces, back wall, and side wall. Canopy tent can still use the simpler one-line layout when appropriate. Prototype layout rules only — not a full template system.",
     accomplishments: [
@@ -344,6 +374,7 @@ const stages: Stage[] = [
       "Up to four bullets in a multiline Fabric `Textbox` with readable font size; `metadata.contentLayout` on DesignSpec records the choice for inspection.",
       "One-line supporting copy remains the fallback for canopy tent and tight vertical space; bullets are kept above the website/contact footer band.",
       "Applies to `/` and `/demo` through the shared DesignSpec → Fabric path; exports and editability unchanged.",
+      "2026-05-21: display normalization for bullet phrases (sentence case, brands/acronyms/dimensions preserved, up to five bullets).",
     ],
   },
 ];
@@ -391,7 +422,13 @@ export default function ProgressPage() {
             for Clockify-style time entry notes.
           </p>
           <p className="mt-2 max-w-2xl text-sm text-zinc-500">
-            Dates are based on the project work log and git history.
+            <strong className="font-medium text-zinc-700">Completed</strong> is the first
+            functional milestone; <strong className="font-medium text-zinc-700">Last updated</strong>{" "}
+            appears when a stage was refined later. Dates come from{" "}
+            <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
+              docs/work-log.md
+            </code>{" "}
+            and git history.
           </p>
           <div className="mt-4 max-w-2xl rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm leading-relaxed text-zinc-700 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
@@ -465,7 +502,11 @@ export default function ProgressPage() {
                   </h2>
                   <StatusBadge status={stage.status} />
                 </div>
-                <p className="mt-2 text-xs text-zinc-500">{stage.dateLine}</p>
+                <StageDates
+                  status={stage.status}
+                  completed={stage.completed}
+                  lastUpdated={stage.lastUpdated}
+                />
                 <p className="mt-3 text-sm leading-relaxed text-zinc-600">{stage.summary}</p>
                 <details className="mt-4 border-t border-zinc-100 pt-4">
                   <summary className="cursor-pointer text-sm font-medium text-zinc-600 hover:text-zinc-900">
