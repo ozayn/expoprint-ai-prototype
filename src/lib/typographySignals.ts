@@ -1,3 +1,5 @@
+import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
+
 /**
  * Typography signals extracted from website HTML/CSS (prototype).
  * Shared by server extraction, API metadata, and client intake state.
@@ -50,19 +52,20 @@ export type WebsiteTypographyMeta = {
 export function toWebsiteTypographyMeta(
   signals: TypographySignals,
 ): WebsiteTypographyMeta | undefined {
+  const clean = sanitizeTypographySignals(signals);
   if (
-    signals.fontFamilies.length === 0 &&
-    signals.googleFontFamilies.length === 0
+    clean.fontFamilies.length === 0 &&
+    clean.googleFontFamilies.length === 0
   ) {
     return undefined;
   }
   return {
-    fontFamilies: signals.fontFamilies.slice(0, 8),
-    headingFontCandidates: signals.headingFontCandidates.slice(0, 4),
-    bodyFontCandidates: signals.bodyFontCandidates.slice(0, 4),
-    googleFontFamilies: signals.googleFontFamilies.slice(0, 6),
-    styleGuess: signals.styleGuess,
-    fontFamilyCount: signals.fontFamilies.length,
-    googleFontCount: signals.googleFontFamilies.length,
+    fontFamilies: clean.fontFamilies.slice(0, 8),
+    headingFontCandidates: clean.headingFontCandidates.slice(0, 4),
+    bodyFontCandidates: clean.bodyFontCandidates.slice(0, 4),
+    googleFontFamilies: clean.googleFontFamilies.slice(0, 6),
+    styleGuess: clean.styleGuess,
+    fontFamilyCount: clean.fontFamilies.length,
+    googleFontCount: clean.googleFontFamilies.length,
   };
 }

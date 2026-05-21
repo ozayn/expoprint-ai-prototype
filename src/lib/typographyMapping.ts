@@ -1,4 +1,5 @@
 import type { StylePreference } from "@/lib/designIntakeState";
+import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import {
   TYPOGRAPHY_STYLE_LABELS,
   type TypographySignals,
@@ -102,7 +103,8 @@ export function buildFabricTypographyFromSignals(
   signals: TypographySignals | null | undefined,
   stylePreference?: StylePreference,
 ): FabricTypographyPlan {
-  if (!signals || signals.fontFamilies.length === 0) {
+  const clean = signals ? sanitizeTypographySignals(signals) : null;
+  if (!clean || clean.fontFamilies.length === 0) {
     const stack = stackFromStyleGuess("unknown", stylePreference);
     return {
       headlineFontFamily: stack,
@@ -113,33 +115,33 @@ export function buildFabricTypographyFromSignals(
     };
   }
 
-  const primary = pickPrimaryFontName(signals);
+  const primary = pickPrimaryFontName(clean);
   const headlineName =
-    signals.headingFontCandidates[0] ??
-    signals.googleFontFamilies[0] ??
+    clean.headingFontCandidates[0] ??
+    clean.googleFontFamilies[0] ??
     primary;
   const bodyName =
-    signals.bodyFontCandidates[0] ??
-    signals.googleFontFamilies[0] ??
+    clean.bodyFontCandidates[0] ??
+    clean.googleFontFamilies[0] ??
     primary;
 
   const headlineStack = headlineName
     ? stackForBucket(bucketForFontName(headlineName))
-    : stackFromStyleGuess(signals.styleGuess, stylePreference);
+    : stackFromStyleGuess(clean.styleGuess, stylePreference);
   const bodyStack = bodyName
     ? stackForBucket(bucketForFontName(bodyName))
     : headlineStack;
 
   const detected = [
-    ...signals.googleFontFamilies.slice(0, 2),
-    ...signals.fontFamilies.slice(0, 3),
+    ...clean.googleFontFamilies.slice(0, 2),
+    ...clean.fontFamilies.slice(0, 3),
   ].filter((n, i, arr) => arr.findIndex((x) => normalizeKey(x) === normalizeKey(n)) === i);
 
   return {
     headlineFontFamily: headlineStack,
     supportingFontFamily: bodyStack,
     uiFontFamily: bodyStack,
-    styleGuess: signals.styleGuess,
+    styleGuess: clean.styleGuess,
     detectedLabel: detected.slice(0, 4).join(", "),
   };
 }
@@ -148,12 +150,13 @@ export function formatTypographySignalsLine(
   signals: TypographySignals | null | undefined,
 ): string {
   if (!signals) return "";
+  const clean = sanitizeTypographySignals(signals);
   const names = [
-    ...signals.googleFontFamilies,
-    ...signals.fontFamilies,
+    ...clean.googleFontFamilies,
+    ...clean.fontFamilies,
   ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
   if (names.length === 0) return "";
   const shown = names.slice(0, 3).join(", ");
-  const style = TYPOGRAPHY_STYLE_LABELS[signals.styleGuess];
+  const style = TYPOGRAPHY_STYLE_LABELS[clean.styleGuess];
   return `Detected: ${shown}${names.length > 3 ? "…" : ""} · Style: ${style}`;
 }

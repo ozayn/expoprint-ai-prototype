@@ -7,6 +7,9 @@
     "src/app/api/analyze-website/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/design-intake/extract/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/proxy-image/route.ts": {
       "maxDuration": 15
     }

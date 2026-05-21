@@ -282,38 +282,35 @@ const stages: Stage[] = [
   },
   {
     id: 19,
-    title: "Design-intake extraction API",
-    status: "In progress",
-    dateLine: "In progress — documented 2026-05-20",
-    summary:
-      "Per client feedback, Phase 1 is framed as an API deliverable: accept a customer website URL (plus optional product/category/context) and return structured design-intake JSON that ExpoPrint’s existing system can consume. The current `POST /api/analyze-website` route is a prototype that can evolve into this stable contract; it is not finished as the final integration API. The `/` editor and `/demo` guided view remain demo consumers of the extraction pipeline — the Fabric canvas and DesignSpec exports are visualization harnesses, not necessarily what ExpoPrint will integrate in production.",
-    accomplishments: [
-      "Planned: define a stable, versioned JSON response schema for ExpoPrint’s downstream system (see `docs/work-log.md` for a target shape sketch).",
-      "Planned: accept website URL plus optional product category, selected components, and customer instructions in the request body.",
-      "Planned: return business identity fields — name, domain, canonical website URL — with cautious confidence when inferred.",
-      "Planned: return brand fields — normalized colors, ranked logo candidates, recommended/selected logo metadata — without raw HTML.",
-      "Planned: return content fields — services, products, phone, email, social links, address when available — with cleanup and caps as today.",
-      "Planned: return design-intake fields — recommended headline, supporting text, missing assets, confidence notes, human-review flags.",
-      "Planned: return extraction metadata — pages inspected, sources used, fetch status, Claude vs mock status, warnings — machine-readable only.",
-      "Planned: keep responses safe for integration — no raw HTML, no full-page text blobs in the public JSON.",
-      "In place today (prototype): `POST /api/analyze-website` runs bounded multi-page fetch + optional Claude extraction and fills the in-app intake model; `/` and `/demo` read the same pipeline for review and canvas preview.",
-      "Preserve the current UI as a demo/test harness while the API contract hardens; no requirement to adopt Fabric/DesignSpec as the integration output.",
-    ],
-  },
-  {
-    id: 20,
     title: "Typography/font signal extraction",
     status: "Complete",
     dateLine: "Completed: 2026-05-20",
     summary:
-      "Analyze Website now collects lightweight typography signals from inspected pages (inline font-family, style blocks, CSS variables, Google Fonts links, and limited same-origin CSS snippets) and maps them to safe browser/Fabric font stacks on generated concepts. This is prototype-grade tone matching — not exact production font reproduction or webfont embedding.",
+      "Analyze Website collects lightweight typography signals from inspected pages and maps them to safe browser/Fabric font stacks on generated concepts. Feeds the Phase 1 extraction API and the editor/demo pipeline — prototype tone matching only, not exact production font reproduction.",
     accomplishments: [
       "Server extraction parses font-family from inline styles, `<style>` blocks, `--font*` CSS variables, and `fonts.googleapis.com` link tags; optional same-origin stylesheet fetch (strict size/timeout caps, no recursive `@import`).",
       "Merged `typography` metadata on `websiteFetch` (font name lists + `styleGuess` — no raw CSS in API JSON).",
       "Claude prompt includes typography signals when present; instructs cautious tone inference only.",
       "`typographyMapping.ts` maps detected families (Inter, Roboto, Montserrat, Playfair, etc.) to safe system/geometric/serif stacks for Fabric text layers.",
       "`createDesignSpecFromIntake` applies mapped fonts to headline, supporting, website, and contact text; sizes unchanged for readability.",
-      "Compact “Typography signals” row in Review identity on `/` and `/demo` (e.g. Detected: Inter · Style: modern sans).",
+      "Compact “Typography signals” row in Review identity on `/` and `/demo`, including empty and mock-fallback states.",
+    ],
+  },
+  {
+    id: 20,
+    title: "Design-intake extraction API contract",
+    status: "In progress",
+    dateLine: "In progress — v1 endpoint 2026-05-20",
+    summary:
+      "Per client feedback, Phase 1 is framed as a structured API deliverable — not only a visual Fabric prototype. `POST /api/design-intake/extract` returns stable, normalized JSON for ExpoPrint’s downstream system: business identity, brand signals (colors, typography, ranked logo candidates), content (services, products, contact), design-intake recommendations, and extraction metadata. The `/` editor and `/demo` remain visual consumers and test harnesses; `POST /api/analyze-website` still powers the UI. First stable contract — not production-final; human review still required; no raw HTML or full scraped text in responses.",
+    accomplishments: [
+      "Integration endpoint: `POST /api/design-intake/extract` — documented in `docs/design-intake-api.md` (request/response, curl example, limitations).",
+      "Normalized response sections: `business` (name, website, domain, canonical URL), `brand` (colors, typography, logoCandidates), `content` (services, products, contact), `designIntake` (category, components, style, recommended copy, missingAssets, confidenceNotes, needsHumanReview), `metadata` (source, pagesInspected, websiteFetch, claude, warnings).",
+      "Reuses shared `claudeWebsiteAnalyze.ts` pipeline: bounded multi-page scrape, logo candidate ranking, typography signals, Claude extraction, services/products cleanup.",
+      "`buildDesignIntakeApiResponse.ts` maps pipeline output to the integration contract; partial `ok: true` with `metadata.source: scraper_only` when Claude fails but scrape data exists.",
+      "`POST /api/analyze-website` refactored to the same pipeline — editor and guided demo behavior unchanged.",
+      "Safe for integration: no raw HTML, no full-page text blobs; machine-readable warnings when extraction is partial.",
+      "Logo candidates and typography are signals only — production-quality logo upload and human review still expected before print.",
     ],
   },
 ];
@@ -350,8 +347,9 @@ export default function ProgressPage() {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
-            targets a structured design-intake extraction API for ExpoPrint’s system; the editor
-            and guided demo stay as visual consumers of that pipeline (see Stage 19). A written
+            is a structured design-intake extraction API for ExpoPrint’s system — not only a
+            canvas demo. See Stage 20 (`POST /api/design-intake/extract`); the editor and guided
+            demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
@@ -406,6 +404,12 @@ export default function ProgressPage() {
               <li>
                 <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/progress</code> reflects
                 the current deployment setup
+              </li>
+              <li>
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                  POST /api/design-intake/extract
+                </code>{" "}
+                (Phase 1 integration contract)
               </li>
             </ul>
           </div>

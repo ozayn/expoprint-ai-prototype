@@ -1,4 +1,5 @@
 import { load } from "cheerio";
+import { sanitizeFontFamilyToken, sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import {
   emptyTypographySignals,
   type TypographySignals,
@@ -14,24 +15,6 @@ const MAX_HEADING = 6;
 const MAX_BODY = 6;
 const MAX_GOOGLE = 8;
 
-const GENERIC_FAMILIES = new Set([
-  "serif",
-  "sans-serif",
-  "monospace",
-  "cursive",
-  "fantasy",
-  "system-ui",
-  "ui-sans-serif",
-  "ui-serif",
-  "ui-monospace",
-  "inherit",
-  "initial",
-  "unset",
-  "revert",
-  "default",
-  "auto",
-]);
-
 const SERIF_HINTS =
   /\b(playfair|georgia|garamond|merriweather|lora|times|baskerville|caslon|dm serif|libre baskerville|noto serif|source serif)\b/i;
 const SANS_HINTS =
@@ -45,23 +28,18 @@ const TECH_HINTS =
 const CLASS_FONT_RE =
   /\bfont[-_](inter|roboto|montserrat|poppins|playfair|lato|open-sans|raleway|nunito|merriweather|georgia|helvetica|arial)\b/i;
 
-function normalizeFontName(raw: string): string | null {
-  const t = raw.replace(/^['"]|['"]$/g, "").replace(/\s+/g, " ").trim();
-  if (!t || t.length < 2 || t.length > 48) return null;
-  const lower = t.toLowerCase();
-  if (GENERIC_FAMILIES.has(lower)) return null;
-  if (/^var\s*\(/i.test(t)) return null;
-  return t;
-}
-
 function parseFontFamilyList(value: string): string[] {
   const out: string[] = [];
   for (const part of value.split(",")) {
-    const name = normalizeFontName(part);
+    const name = sanitizeFontFamilyToken(part);
     if (name) out.push(name);
   }
   return out;
 }
+
+/** CSS custom properties that hold font-family stacks — not weight/size/style. */
+const FONT_FAMILY_VAR_RE =
+  /--(?:font-family|font-heading|font-body|heading-font|body-font|font-sans|font-serif|typeface|typography)(?:-[a-z0-9]+)?\s*:\s*([^;}{]+)/gi;
 
 function pushUnique(target: string[], names: string[], max: number) {
   for (const n of names) {
@@ -80,16 +58,10 @@ function extractFontFamiliesFromCssText(css: string, into: string[]) {
   while ((m = familyRe.exec(capped)) !== null) {
     pushUnique(into, parseFontFamilyList(m[1] ?? ""), MAX_FAMILIES);
   }
-  const varRe =
-    /--(?:font|font-family|font-heading|font-body|heading-font|body-font)[a-z0-9-]*\s*:\s*([^;}{]+)/gi;
-  while ((m = varRe.exec(capped)) !== null) {
-    const val = (m[1] ?? "").trim();
-    if (val.includes(",")) {
-      pushUnique(into, parseFontFamilyList(val), MAX_FAMILIES);
-    } else {
-      const name = normalizeFontName(val);
-      if (name) pushUnique(into, [name], MAX_FAMILIES);
-    }
+  let vm: RegExpExecArray | null;
+  while ((vm = FONT_FAMILY_VAR_RE.exec(capped)) !== null) {
+    const val = (vm[1] ?? "").trim();
+    pushUnique(into, parseFontFamilyList(val), MAX_FAMILIES);
   }
 }
 
@@ -101,7 +73,7 @@ function parseGoogleFontsHref(href: string, into: string[]) {
     if (!familyParam) return;
     for (const chunk of familyParam.split("|")) {
       const namePart = chunk.split(":")[0]?.replace(/\+/g, " ").trim();
-      const name = namePart ? normalizeFontName(namePart) : null;
+      const name = namePart ? sanitizeFontFamilyToken(namePart) : null;
       if (name) pushUnique(into, [name], MAX_GOOGLE);
     }
   } catch {
@@ -236,7 +208,7 @@ export function extractTypographyFromHtml(html: string): TypographySignals {
     const cls = $(el).attr("class") ?? "";
     const cm = CLASS_FONT_RE.exec(cls);
     if (cm?.[1]) {
-      const name = normalizeFontName(cm[1].replace(/-/g, " "));
+      const name = sanitizeFontFamilyToken(cm[1].replace(/-/g, " "));
       if (name) pushUnique(headingFontCandidates, [name], MAX_HEADING);
     }
   });
@@ -256,13 +228,13 @@ export function extractTypographyFromHtml(html: string): TypographySignals {
     ...fontFamilies,
   ]);
 
-  return {
+  return sanitizeTypographySignals({
     fontFamilies: fontFamilies.slice(0, MAX_FAMILIES),
     headingFontCandidates: headingFontCandidates.slice(0, MAX_HEADING),
     bodyFontCandidates: bodyFontCandidates.slice(0, MAX_BODY),
     googleFontFamilies: googleFontFamilies.slice(0, MAX_GOOGLE),
     styleGuess,
-  };
+  });
 }
 
 /**
@@ -286,15 +258,14 @@ export async function enrichTypographyWithSameOriginCss(
     if (css) extractFontFamiliesFromCssText(css, fontFamilies);
   }
 
-  const merged = {
+  return sanitizeTypographySignals({
     ...partial,
     fontFamilies: fontFamilies.slice(0, MAX_FAMILIES),
     styleGuess: classifyStyleGuess([
       ...partial.googleFontFamilies,
       ...fontFamilies,
     ]),
-  };
-  return merged;
+  });
 }
 
 export function mergeTypographyAcrossPages(
@@ -319,11 +290,11 @@ export function mergeTypographyAcrossPages(
     pushUnique(bodyFontCandidates, homepage.bodyFontCandidates, MAX_BODY);
   }
 
-  return {
+  return sanitizeTypographySignals({
     fontFamilies,
     headingFontCandidates,
     bodyFontCandidates,
     googleFontFamilies,
     styleGuess: classifyStyleGuess([...googleFontFamilies, ...fontFamilies]),
-  };
+  });
 }

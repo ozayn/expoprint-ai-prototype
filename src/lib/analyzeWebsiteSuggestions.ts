@@ -1,5 +1,6 @@
 import type { LogoCandidate } from "./analyzeWebsiteResponse";
 import type { DesignIntakeState } from "./designIntakeState";
+import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import type { TypographySignals, WebsiteTypographyMeta } from "./typographySignals";
 import {
   computeDesignBriefText,
@@ -179,17 +180,19 @@ export function readTypographyFromAnalyzePayload(
     }
     return out;
   };
-  const signals = typographyFromMeta({
-    fontFamilies: strList("fontFamilies", 8),
-    headingFontCandidates: strList("headingFontCandidates", 4),
-    bodyFontCandidates: strList("bodyFontCandidates", 4),
-    googleFontFamilies: strList("googleFontFamilies", 6),
-    styleGuess,
-    fontFamilyCount:
-      typeof o.fontFamilyCount === "number" ? o.fontFamilyCount : 0,
-    googleFontCount:
-      typeof o.googleFontCount === "number" ? o.googleFontCount : 0,
-  });
+  const signals = sanitizeTypographySignals(
+    typographyFromMeta({
+      fontFamilies: strList("fontFamilies", 8),
+      headingFontCandidates: strList("headingFontCandidates", 4),
+      bodyFontCandidates: strList("bodyFontCandidates", 4),
+      googleFontFamilies: strList("googleFontFamilies", 6),
+      styleGuess,
+      fontFamilyCount:
+        typeof o.fontFamilyCount === "number" ? o.fontFamilyCount : 0,
+      googleFontCount:
+        typeof o.googleFontCount === "number" ? o.googleFontCount : 0,
+    }),
+  );
   if (
     signals.fontFamilies.length === 0 &&
     signals.googleFontFamilies.length === 0

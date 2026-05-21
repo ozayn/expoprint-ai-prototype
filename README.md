@@ -25,9 +25,25 @@ Future Claude / Anthropic calls read configuration from the environment. The app
 
 **Analyze Website:** With a valid key, “Analyze Website” calls `POST /api/analyze-website`: the server may **fetch the homepage once** (the URL in the form — no crawling), then Claude infers structured extracted fields. Without a key or on errors, the app uses the same mocked extraction as before.
 
-### Phase 1 direction — design-intake extraction API
+### Phase 1 — design-intake extraction API (structured deliverable)
 
-Per client feedback, **Phase 1** is moving toward a **structured extraction API**: send a customer website URL (and optional product/category/context), receive normalized design-intake JSON for ExpoPrint’s system. That API is **not finished** — the current [`POST /api/analyze-website`](src/app/api/analyze-website/route.ts) route is a **prototype** that can evolve into the stable contract. The home editor (`/`) and guided demo (`/demo`) are **demo consumers** of the same pipeline; the Fabric canvas and DesignSpec exports are a visualization harness, not necessarily the final integration output. Target JSON shape (sketch only): see [`docs/work-log.md`](docs/work-log.md) under Stage 19.
+Per client feedback, **Phase 1** is framed as a **structured API deliverable** for ExpoPrint’s system — not only a visual Fabric prototype.
+
+| Route | Role |
+|-------|------|
+| **`POST /api/design-intake/extract`** | Integration API — stable normalized JSON (`business`, `brand`, `content`, `designIntake`, `metadata`). See [`docs/design-intake-api.md`](docs/design-intake-api.md). |
+| **`POST /api/analyze-website`** | UI-oriented analyze for the editor and guided demo (unchanged). |
+
+The home editor (`/`) and guided demo (`/demo`) are **visual consumers and test harnesses** for the same scrape + Claude pipeline. Responses do **not** include raw HTML or full scraped text. Logo candidates, typography, and Claude-inferred fields require **human review**; the contract is a **first stable v1**, not production-final.
+
+**Verify extract API (local):**
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/design-intake/extract" \
+  -H "Content-Type: application/json" \
+  -d '{"websiteUrl":"https://expoprint.io","productCategory":"Outdoor tent"}' \
+  | jq '.ok, .metadata.source, .metadata.warnings | length'
+```
 
 **Verify Analyze / Claude (manual):**
 
@@ -39,7 +55,7 @@ Per client feedback, **Phase 1** is moving toward a **structured extraction API*
 
 ### Project progress and work log
 
-- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (includes **Stage 19 — Design-intake extraction API** and earlier milestones when the dev server is running).
+- **Roadmap / stages:** [http://localhost:3000/progress](http://localhost:3000/progress) (**Stage 20 — Design-intake extraction API contract**, Stage 19 typography, and earlier milestones).
 - **Clockify-style notes:** see [`docs/work-log.md`](docs/work-log.md).
 
 Alternatively, run the development server directly:

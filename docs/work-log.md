@@ -133,13 +133,13 @@ Structured `logoCandidatesList` (score + transparency metadata), ranked for SVG/
 **Dual deployment — Railway + Vercel (Stage 18)**  
 `vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway on `main` (since superseded — see below).
 
-**Design-intake extraction API — Phase 1 direction (Stage 19, in progress)**  
-Client feedback reframes Phase 1 as an API deliverable: input a customer website URL (plus optional product category, components, and instructions) and return normalized design-intake JSON for ExpoPrint’s existing system. The stable contract is **not finished** — today’s `POST /api/analyze-website` is a prototype route (bounded scrape + optional Claude + mock fallback) that powers the in-app intake model. The `/` editor and `/demo` remain demo/test harnesses; Fabric canvas and DesignSpec exports are visualization consumers, not assumed to be the final integration output. Next: define versioned response schema, map current extraction fields into `business` / `brand` / `content` / `designIntake` / `metadata`, and keep public JSON free of raw HTML or full-page text.
-
-**Typography/font signal extraction (Stage 20)**  
+**Typography/font signal extraction (Stage 19)**  
 Server parses font-family hints from HTML/CSS/Google Fonts links (no font file downloads). `websiteFetch.typography` exposes safe name lists + style guess; intake stores `typographySignals` for Fabric mapping via `typographyMapping.ts` (system/geometric/serif fallbacks). Claude context includes typography when available. Compact row in Review identity on `/` and `/demo`. Not exact production font matching.
 
-**Target response shape (sketch — not implemented as-is yet):**
+**Design-intake extraction API contract — Phase 1 deliverable (Stage 20, in progress)**  
+Client direction reframes Phase 1 as a structured API — not only a visual prototype. Added `POST /api/design-intake/extract` returning stable normalized JSON: business identity, brand (colors, typography, logo candidates), content (services, products, contact), design-intake recommendations (`recommendedHeadline`, `recommendedSupportingText`, `missingAssets`, `confidenceNotes`, `needsHumanReview`), and metadata (`websiteFetch`, Claude status, warnings). Reuses `runClaudeWebsiteAnalyze` (bounded scrape + Claude); `/api/analyze-website` unchanged for `/` and `/demo` test harnesses. Docs: `docs/design-intake-api.md`. Partial `ok: true` with `scraper_only` when Claude fails but scrape has useful data. Not production-final; no raw HTML or full scraped text; human review required.
+
+**Earlier Phase 1 target shape (sketch — largely reflected in v1 extract API):**
 
 ```json
 {
@@ -185,10 +185,10 @@ Server parses font-family hints from HTML/CSS/Google Fonts links (no font file d
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; typography signals + canvas font mapping; `/demo` guided view; `/progress` deployment status current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; typography signals + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/demo` guided view; `/progress` current.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stage 10 documents a cautious homepage-only slice; Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel deployment on `main`. **Stage 19 — Design-intake extraction API (in progress):** stable ExpoPrint-facing JSON contract; prototype `POST /api/analyze-website` may evolve into that API; UI stays a harness. Broader AI-assisted intake, full-site extraction, production-ready brief workflow, and AI-generated DesignSpec remain future — log new dates here as that begins.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel on `main`. **Stage 19** — typography signals. **Stage 20 (in progress)** — `POST /api/design-intake/extract` integration contract (`docs/design-intake-api.md`); `/` and `/demo` stay visual harnesses; not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec.
