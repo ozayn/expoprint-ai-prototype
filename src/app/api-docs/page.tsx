@@ -35,6 +35,9 @@ export default function ApiDocsPage() {
             <Link href="/demo" className={linkClass}>
               Guided demo
             </Link>
+            <Link href="/api-test" className={linkClass}>
+              API test
+            </Link>
             <Link href="/progress" className={linkClass}>
               Progress
             </Link>
