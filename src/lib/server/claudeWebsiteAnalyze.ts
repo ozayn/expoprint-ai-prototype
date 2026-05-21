@@ -20,6 +20,7 @@ import {
   buildExtractedFromPlainValues,
   type ExtractedKey,
 } from "@/lib/designIntakeState";
+import { resolveBusinessName } from "@/lib/resolveBusinessName";
 import {
   extractWebsiteContent,
   formatWebsiteContextForClaude,
@@ -62,6 +63,10 @@ export type ClaudeWebsiteAnalyzeFailure = {
   claudeAttempted: boolean;
   websiteFetch: WebsiteFetchMeta;
   extraction: WebsiteContentExtraction;
+  /** Resolved hints (Claude + title/domain fallbacks) for UI routes. */
+  suggestedBusinessName: string;
+  suggestedWebsiteDomain: string;
+  suggestedCanonicalWebsiteUrl: string;
 };
 
 export type ClaudeWebsiteAnalyzeResult =
@@ -148,12 +153,37 @@ function hostnameFromHttpUrl(url: string): string {
   }
 }
 
+/** Same name/URL hints as integration API (`resolveBusinessName` + canonical URL). */
+export function buildAnalyzeSuggestionHints(
+  websiteUrl: string,
+  websiteFetch: WebsiteFetchMeta,
+  extraction: WebsiteContentExtraction,
+  claudeSuggestedName?: string,
+): {
+  suggestedBusinessName: string;
+  suggestedWebsiteDomain: string;
+  suggestedCanonicalWebsiteUrl: string;
+} {
+  const { canonical, domain } = buildPublicUrlHints(websiteUrl, websiteFetch);
+  const resolved = resolveBusinessName({
+    claudeSuggestedName,
+    domain,
+    extraction,
+  });
+  return {
+    suggestedBusinessName: resolved.name,
+    suggestedWebsiteDomain: domain,
+    suggestedCanonicalWebsiteUrl: canonical,
+  };
+}
+
 function buildPublicUrlHints(
   websiteUrl: string,
   fetchMeta: WebsiteFetchMeta,
 ): { canonical: string; domain: string } {
   const fromFetch =
-    fetchMeta.status === "success" && typeof fetchMeta.finalUrl === "string"
+    (fetchMeta.status === "success" || fetchMeta.status === "partial") &&
+    typeof fetchMeta.finalUrl === "string"
       ? fetchMeta.finalUrl.trim()
       : "";
   const fromInput = normalizePublicWebsiteUrlForIntake(websiteUrl) ?? "";
@@ -259,8 +289,11 @@ export async function runClaudeWebsiteAnalyze(
     process.env.ANTHROPIC_MODEL?.trim() || "claude-3-5-sonnet-latest";
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
-  const extraction = await extractWebsiteContent(input.websiteUrl);
+  const websiteUrl = input.websiteUrl.trim();
+  const extraction = await extractWebsiteContent(websiteUrl);
   const websiteFetch = normalizeWebsiteFetchMeta(extraction.meta);
+  const hints = (claudeName?: string) =>
+    buildAnalyzeSuggestionHints(websiteUrl, websiteFetch, extraction, claudeName);
 
   if (!apiKey) {
     return {
@@ -271,6 +304,7 @@ export async function runClaudeWebsiteAnalyze(
       claudeAttempted: false,
       websiteFetch,
       extraction,
+      ...hints(),
     };
   }
 
@@ -311,6 +345,7 @@ export async function runClaudeWebsiteAnalyze(
         claudeAttempted: true,
         websiteFetch,
         extraction,
+        ...hints(),
       };
     }
 
@@ -324,24 +359,24 @@ export async function runClaudeWebsiteAnalyze(
         claudeAttempted: true,
         websiteFetch,
         extraction,
+        ...hints(),
       };
     }
 
     const rows = buildExtractedFromPlainValues(parsed.extractedPlain);
-    const { canonical: canonicalHint, domain: domainFromUrl } = buildPublicUrlHints(
-      input.websiteUrl,
-      websiteFetch,
-    );
+    const resolvedHints = hints(parsed.suggestedBusinessName);
     const mergedDomain =
-      domainFromUrl || parsed.suggestedWebsiteDomainClaude || "";
+      resolvedHints.suggestedWebsiteDomain ||
+      parsed.suggestedWebsiteDomainClaude ||
+      "";
 
     return {
       ok: true,
       source: "claude",
       extracted: rows,
-      suggestedBusinessName: parsed.suggestedBusinessName,
+      suggestedBusinessName: resolvedHints.suggestedBusinessName,
       suggestedWebsiteDomain: mergedDomain,
-      suggestedCanonicalWebsiteUrl: canonicalHint,
+      suggestedCanonicalWebsiteUrl: resolvedHints.suggestedCanonicalWebsiteUrl,
       model,
       claudeAttempted: true,
       websiteFetch,
@@ -356,6 +391,7 @@ export async function runClaudeWebsiteAnalyze(
       claudeAttempted: true,
       websiteFetch,
       extraction,
+      ...hints(),
     };
   }
 }

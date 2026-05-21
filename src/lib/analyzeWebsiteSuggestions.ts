@@ -253,3 +253,51 @@ export function applyClaudeAnalyzeSuccessToIntake(
       nameOk && trimmedName ? BUSINESS_NAME_AUTO_UPDATE_NOTE : "",
   };
 }
+
+/**
+ * When Claude failed but static scrape succeeded — apply logos, typography, and
+ * resolved business name / URL without overwriting custom business names or Claude rows.
+ */
+export function applyPartialScrapeAnalyzeToIntake(
+  prev: DesignIntakeState,
+  rec: Record<string, unknown>,
+): { next: DesignIntakeState; businessNameNote: string } {
+  const { suggestedBusinessName, suggestedCanonicalWebsiteUrl } =
+    readAnalyzeSuggestionFields(rec);
+  const trimmedName = suggestedBusinessName.trim();
+  const nameOk = businessNameIsAutoFillable(prev.businessName);
+  const nextName =
+    nameOk && trimmedName ? trimmedName : prev.businessName;
+  const urlOk = shouldApplyCanonicalWebsiteUrl(
+    prev.websiteUrl,
+    suggestedCanonicalWebsiteUrl,
+  );
+  const nextUrl = urlOk
+    ? suggestedCanonicalWebsiteUrl.trim()
+    : prev.websiteUrl;
+
+  const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
+  const typographySignals = readTypographyFromAnalyzePayload(rec);
+  const stillValidSelection = logoCandidates.some(
+    (c) => c.url === prev.selectedLogoCandidateUrl,
+  );
+  const selectedLogoCandidateUrl = stillValidSelection
+    ? prev.selectedLogoCandidateUrl
+    : "";
+
+  const next: DesignIntakeState = {
+    ...prev,
+    businessName: nextName,
+    websiteUrl: nextUrl,
+    showExtracted: true,
+    extractionSource: "scraper_only",
+    logoCandidates,
+    selectedLogoCandidateUrl,
+    typographySignals,
+  };
+  return {
+    next: { ...next, designBrief: computeDesignBriefText(next) },
+    businessNameNote:
+      nameOk && trimmedName ? BUSINESS_NAME_AUTO_UPDATE_NOTE : "",
+  };
+}

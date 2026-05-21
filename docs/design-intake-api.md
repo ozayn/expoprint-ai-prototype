@@ -160,6 +160,44 @@ HTTP **400** for invalid JSON or missing `websiteUrl`. HTTP **200** with `ok: fa
 - `needsHumanReview` is always `true` in v1.
 - Missing `ANTHROPIC_API_KEY` → Claude skipped; response may be `ok: true` with `metadata.source: "scraper_only"` when scrape data exists.
 
+### Large pages (partial HTML extraction)
+
+Homepage HTML is capped at **800 KB** per GET (unchanged). When `Content-Length` or the streamed body exceeds that cap, the server **keeps the first 800 KB** and parses it (title, meta/OG, logo candidates, mailto/tel/social, capped visible text). Raw HTML is never returned.
+
+| `metadata.websiteFetch` | Meaning |
+| --- | --- |
+| `status: "success"` | Full page within cap |
+| `status: "partial"` | Homepage truncated; `reason: "body_truncated"` |
+| `status: "failed"` | No usable HTML (HTTP error, timeout, non-HTML, empty body) |
+
+Warning code: `large_site_partial_extraction` (also a human-readable line in `metadata.warnings`). Useful for heavy retail sites (e.g. `cvs.com`) where the full homepage is multi‑MB but head metadata is still in the first chunk.
+
+## Compare UI vs integration routes (same pipeline)
+
+With the dev server running, compare both endpoints for the same URL (e.g. bare `google.com`):
+
+```bash
+npm run api:compare -- google.com
+# or
+./scripts/compare-analyze-api-routes.sh google.com
+```
+
+Manual curls:
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/analyze-website" \
+  -H "Content-Type: application/json" \
+  -d '{"websiteUrl":"google.com","businessName":"Example Brand Co.","productCategory":"Trade show booth","style":"Modern"}' \
+  | jq '{ok,source,reason,suggestedBusinessName,websiteFetch}'
+
+curl -sS -X POST "http://localhost:3000/api/design-intake/extract" \
+  -H "Content-Type: application/json" \
+  -d '{"websiteUrl":"google.com","productCategory":"Trade show booth","components":["Backdrop"],"stylePreference":"Modern"}' \
+  | jq '{ok,business:.business.name,source:.metadata.source,warnings:.metadata.warnings,websiteFetch:.metadata.websiteFetch}'
+```
+
+Expect matching `pagesFetched`, logo counts, and business name (integration uses `resolveBusinessName`; analyze-website returns the same resolved `suggestedBusinessName`).
+
 ## Local test script
 
 With the dev server running (`npm run dev`):

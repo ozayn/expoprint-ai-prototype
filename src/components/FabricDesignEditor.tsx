@@ -13,15 +13,15 @@ import {
   HELP_GENERATE_CONCEPT,
   HELP_PAGE_INTRO,
 } from "@/lib/editorHelpCopy";
-import { analyzeStatusLineFromApiPayload, formatClaudeSuccessStatusLine } from "@/lib/analyzeWebsiteResponse";
-import { applyClaudeAnalyzeSuccessToIntake } from "@/lib/analyzeWebsiteSuggestions";
-import { isValidExtractedRowsPayload } from "@/lib/claudeExtractedContent";
+import {
+  normalizeWebsiteUrlForAnalyzeInput,
+  processAnalyzeWebsiteApiResponse,
+} from "@/lib/analyzeWebsiteClient";
 import {
   createDesignSpecFromIntake,
   shouldUseIntakeDesignSpec,
 } from "@/lib/createDesignSpecFromIntake";
 import {
-  buildMockExtracted,
   computeDesignBriefText,
   defaultDesignIntake,
   getSelectedProductComponents,
@@ -59,6 +59,7 @@ export function FabricDesignEditor() {
   /** Resolved tab for async generate (matches highlighted surface, including first paint). */
   const displaySurfaceRef = useRef<string | null>(null);
   const generateSampleRunIdRef = useRef(0);
+  const analyzeRequestSeqRef = useRef(0);
 
   const [canvasPhase, setCanvasPhase] = useState<CanvasPhase>("initializing");
   const [canvasErrorDetail, setCanvasErrorDetail] = useState<string | null>(null);
@@ -110,6 +111,7 @@ export function FabricDesignEditor() {
   }, []);
 
   const handleAnalyzeWebsite = useCallback(async () => {
+    const requestSeq = ++analyzeRequestSeqRef.current;
     setAnalyzeInProgress(true);
     setAnalyzeBusinessNameNote("");
     try {
@@ -118,69 +120,36 @@ export function FabricDesignEditor() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          websiteUrl: snap.websiteUrl,
+          websiteUrl: normalizeWebsiteUrlForAnalyzeInput(snap.websiteUrl),
           businessName: snap.businessName,
           productCategory: snap.category,
           style: snap.style,
           specialInstructions: snap.instructions,
         }),
       });
+      if (requestSeq !== analyzeRequestSeqRef.current) return;
+
       const data: unknown = await res.json().catch(() => null);
-      const rec =
-        data && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : null;
-      const extractedUnknown =
-        rec && "extracted" in rec
-          ? (rec as { extracted: unknown }).extracted
-          : undefined;
+      const outcome = processAnalyzeWebsiteApiResponse(snap, data);
+      if (requestSeq !== analyzeRequestSeqRef.current) return;
 
-      const apiClaimsClaude = Boolean(
-        rec && rec.ok === true && rec.source === "claude",
-      );
-
-      if (apiClaimsClaude && isValidExtractedRowsPayload(extractedUnknown)) {
-        setAnalyzeStatusLine(formatClaudeSuccessStatusLine(rec ?? {}));
-        let nameNote = "";
-        setIntake((prev) => {
-          // Same suggestedBusinessName / URL rules as /demo (GuidedIntakeDemo).
-          const { next, businessNameNote } = applyClaudeAnalyzeSuccessToIntake(
-            prev,
-            extractedUnknown,
-            rec ?? {},
-          );
-          nameNote = businessNameNote;
-          return next;
-        });
-        setAnalyzeBusinessNameNote(nameNote);
-        return;
-      }
-
-      if (apiClaimsClaude) {
-        setAnalyzeStatusLine(
-          "Using mocked extraction: invalid Claude response.",
-        );
-      } else {
-        setAnalyzeStatusLine(analyzeStatusLineFromApiPayload(data).line);
-      }
+      setAnalyzeStatusLine(outcome.statusLine);
+      setAnalyzeBusinessNameNote(outcome.businessNameNote);
+      setIntake(outcome.next);
     } catch {
-      setAnalyzeStatusLine("Using mocked extraction for prototype.");
+      if (requestSeq !== analyzeRequestSeqRef.current) return;
+      const outcome = processAnalyzeWebsiteApiResponse(
+        intakeRef.current,
+        null,
+      );
+      setAnalyzeStatusLine(outcome.statusLine);
+      setAnalyzeBusinessNameNote("");
+      setIntake(outcome.next);
     } finally {
-      setAnalyzeInProgress(false);
+      if (requestSeq === analyzeRequestSeqRef.current) {
+        setAnalyzeInProgress(false);
+      }
     }
-
-    setIntake((prev) => {
-      const next: DesignIntakeState = {
-        ...prev,
-        extracted: buildMockExtracted(),
-        showExtracted: true,
-        extractionSource: "mock_fallback",
-        logoCandidates: [],
-        selectedLogoCandidateUrl: "",
-        typographySignals: null,
-      };
-      return { ...next, designBrief: computeDesignBriefText(next) };
-    });
   }, []);
 
   const ready = canvasPhase === "ready";

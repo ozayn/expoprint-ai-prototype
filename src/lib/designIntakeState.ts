@@ -53,7 +53,11 @@ export type ExtractedRow = { value: string; useForDesign: boolean };
 export const DEFAULT_DEMO_BUSINESS_NAME = "Example Brand Co.";
 
 /** How extracted rows were last filled by “Analyze Website”. */
-export type ExtractionSource = "none" | "claude" | "mock_fallback";
+export type ExtractionSource =
+  | "none"
+  | "claude"
+  | "scraper_only"
+  | "mock_fallback";
 
 export interface DesignIntakeState {
   websiteUrl: string;

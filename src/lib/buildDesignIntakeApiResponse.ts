@@ -97,7 +97,8 @@ function resolveDomain(
   let domain = claude?.suggestedWebsiteDomain?.trim() ?? "";
   const canonical =
     claude?.suggestedCanonicalWebsiteUrl?.trim() ||
-    (websiteFetch.status === "success" && websiteFetch.finalUrl
+    ((websiteFetch.status === "success" || websiteFetch.status === "partial") &&
+    websiteFetch.finalUrl
       ? websiteFetch.finalUrl.trim()
       : "");
   const website = canonical || request.websiteUrl.trim();
@@ -121,7 +122,8 @@ function buildBusiness(
 ): DesignIntakeApiBusiness {
   const canonical =
     claude?.suggestedCanonicalWebsiteUrl?.trim() ||
-    (websiteFetch.status === "success" && websiteFetch.finalUrl
+    ((websiteFetch.status === "success" || websiteFetch.status === "partial") &&
+    websiteFetch.finalUrl
       ? websiteFetch.finalUrl.trim()
       : "");
   const website = canonical || request.websiteUrl.trim();
@@ -208,7 +210,7 @@ function scrapeHasUsefulPartial(
   websiteFetch: WebsiteFetchMeta,
   extraction: WebsiteContentExtraction,
 ): boolean {
-  if (websiteFetch.status === "success") {
+  if (websiteFetch.status === "success" || websiteFetch.status === "partial") {
     const logos = logoCandidatesFromFetch(websiteFetch).length;
     const typo =
       extraction.typography.fontFamilies.length > 0 ||
@@ -282,6 +284,13 @@ function humanReadableWarnings(result: ClaudeWebsiteAnalyzeResult): string[] {
     warnings.push(`Website fetch failed (${websiteFetch.reason ?? "unknown"}).`);
   } else if (websiteFetch.status === "skipped") {
     warnings.push(`Website fetch skipped (${websiteFetch.reason ?? "unknown"}).`);
+  } else if (
+    websiteFetch.status === "partial" ||
+    websiteFetch.reason === "body_truncated"
+  ) {
+    warnings.push(
+      "Homepage HTML exceeded size cap; partial extraction from truncated page (title, meta, logos, links).",
+    );
   }
 
   if (!result.claudeAttempted) {

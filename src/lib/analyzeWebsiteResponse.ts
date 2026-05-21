@@ -50,7 +50,7 @@ export type LogoCandidate = {
  * Multi-page fields are optional for backward compatibility with older clients.
  */
 export type WebsiteFetchMeta = {
-  status: "success" | "skipped" | "failed";
+  status: "success" | "partial" | "skipped" | "failed";
   reason?: string;
   finalUrl?: string;
   titleFound?: boolean;
@@ -97,6 +97,10 @@ export type AnalyzeWebsiteApiFailure = {
   /** Resolved model id from env (no secrets). */
   model?: string;
   websiteFetch?: WebsiteFetchMeta;
+  /** Debug hints (title/domain fallbacks when Claude name is empty). */
+  suggestedBusinessName?: string;
+  suggestedWebsiteDomain?: string;
+  suggestedCanonicalWebsiteUrl?: string;
 };
 
 export type AnalyzeWebsiteApiResponse =
@@ -165,7 +169,9 @@ export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): st
   }
   const w = wf as Record<string, unknown>;
   const status = typeof w.status === "string" ? w.status : "";
-  if (status === "success") {
+  if (status === "success" || status === "partial") {
+    const truncated =
+      typeof w.reason === "string" && w.reason === "body_truncated";
     const pagesFetched =
       typeof w.pagesFetched === "number" && Number.isFinite(w.pagesFetched)
         ? w.pagesFetched
@@ -174,10 +180,11 @@ export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): st
       ? w.logoCandidatesList.length
       : 0;
     const logoHint = logoCount > 0 ? ` · ${logoCount} logo candidate${logoCount === 1 ? "" : "s"}` : "";
+    const truncHint = truncated ? " · large page (partial HTML)" : "";
     if (pagesFetched >= 2) {
-      return `Claude extraction used · ${pagesFetched} pages inspected${logoHint}.`;
+      return `Claude extraction used · ${pagesFetched} pages inspected${logoHint}${truncHint}.`;
     }
-    return `Claude extraction used · Website content fetched${logoHint}.`;
+    return `Claude extraction used · Website content fetched${logoHint}${truncHint}.`;
   }
   if (status === "failed") {
     return "Claude extraction used · Website fetch failed.";

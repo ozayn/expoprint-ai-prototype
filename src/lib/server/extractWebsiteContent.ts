@@ -162,30 +162,45 @@ function dedupeUrlKey(href: string): string {
   }
 }
 
+type BodyReadResult = { buffer: ArrayBuffer; truncated: boolean };
+
+/** Read up to `maxBytes`; when the body exceeds the cap, keep the prefix for partial HTML parse. */
 async function readBodyWithByteLimit(
   res: Response,
   maxBytes: number,
-): Promise<ArrayBuffer> {
+): Promise<BodyReadResult> {
   if (!res.body) {
     const buf = await res.arrayBuffer();
     if (buf.byteLength > maxBytes) {
-      throw new Error("body_too_large");
+      return { buffer: buf.slice(0, maxBytes), truncated: true };
     }
-    return buf;
+    return { buffer: buf, truncated: false };
   }
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let truncated = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (!value) continue;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        throw new Error("body_too_large");
+      if (!value?.byteLength) continue;
+      if (total + value.byteLength > maxBytes) {
+        const keep = maxBytes - total;
+        if (keep > 0) {
+          chunks.push(value.subarray(0, keep));
+          total += keep;
+        }
+        truncated = true;
+        try {
+          await reader.cancel();
+        } catch {
+          /* ignore */
+        }
+        break;
       }
       chunks.push(value);
+      total += value.byteLength;
     }
   } finally {
     reader.releaseLock?.();
@@ -196,7 +211,10 @@ async function readBodyWithByteLimit(
     out.set(c, offset);
     offset += c.byteLength;
   }
-  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+  return {
+    buffer: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength),
+    truncated,
+  };
 }
 
 function uniqCap<T>(arr: T[], max: number): T[] {
@@ -483,7 +501,7 @@ async function parseHtmlToPageSummary(
 async function fetchHtmlPage(
   url: string,
 ): Promise<
-  | { ok: true; finalUrl: string; html: string }
+  | { ok: true; finalUrl: string; html: string; bodyTruncated?: boolean }
   | { ok: false; finalUrl: string; reason: string }
 > {
   const controller = new AbortController();
@@ -508,25 +526,36 @@ async function fetchHtmlPage(
       return { ok: false, finalUrl, reason: "non_html" };
     }
     const cl = res.headers.get("content-length");
+    let contentLengthTruncated = false;
     if (cl) {
       const n = Number(cl);
       if (Number.isFinite(n) && n > MAX_HTML_BYTES) {
-        return { ok: false, finalUrl, reason: "body_too_large" };
+        contentLengthTruncated = true;
       }
     }
-    const buf = await readBodyWithByteLimit(res, MAX_HTML_BYTES);
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(
-      new Uint8Array(buf),
+    const { buffer, truncated } = await readBodyWithByteLimit(
+      res,
+      MAX_HTML_BYTES,
     );
-    return { ok: true, finalUrl, html };
+    const html = new TextDecoder("utf-8", { fatal: false }).decode(
+      new Uint8Array(buffer),
+    );
+    if (!html.trim()) {
+      return { ok: false, finalUrl, reason: "empty_body" };
+    }
+    const bodyTruncated = truncated || contentLengthTruncated;
+    return {
+      ok: true,
+      finalUrl,
+      html,
+      ...(bodyTruncated ? { bodyTruncated: true } : {}),
+    };
   } catch (err) {
     const reason =
       err instanceof Error
         ? err.name === "AbortError"
           ? "timeout"
-          : err.message === "body_too_large"
-            ? "body_too_large"
-            : "fetch_error"
+          : "fetch_error"
         : "fetch_error";
     return { ok: false, finalUrl: url, reason };
   } finally {
@@ -700,6 +729,7 @@ export async function extractWebsiteContent(
     }
 
     const homeFinal = homeResult.finalUrl;
+    const homeBodyTruncated = homeResult.bodyTruncated === true;
     const homepage = await parseHtmlToPageSummary(
       homeResult.html,
       homeFinal,
@@ -763,7 +793,8 @@ export async function extractWebsiteContent(
     ]);
     const flat = buildFlatExtraction(
       {
-        status: "success",
+        status: homeBodyTruncated ? "partial" : "success",
+        ...(homeBodyTruncated ? { reason: "body_truncated" } : {}),
         finalUrl: homeFinal,
         titleFound: homepage.title.length > 0,
         textChars: 0,
@@ -793,9 +824,7 @@ export async function extractWebsiteContent(
       err instanceof Error
         ? err.name === "AbortError"
           ? "timeout"
-          : err.message === "body_too_large"
-            ? "body_too_large"
-            : "fetch_error"
+          : "fetch_error"
         : "fetch_error";
     const meta: WebsiteFetchMeta = {
       status: "failed",

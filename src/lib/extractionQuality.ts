@@ -17,7 +17,12 @@ export const RELIABILITY_WARNING_CODES = {
   websiteFetchFailed: "website_fetch_failed",
   claudeFailedOrSkipped: "claude_failed_or_skipped",
   businessNameFromDomain: "business_name_inferred_from_domain",
+  largeSitePartialExtraction: "large_site_partial_extraction",
 } as const;
+
+function websiteFetchUsable(meta: WebsiteFetchMeta): boolean {
+  return meta.status === "success" || meta.status === "partial";
+}
 
 function minLevel(
   ...levels: ExtractionQualityLevel[]
@@ -96,8 +101,15 @@ export function collectReliabilityWarningCodes(params: {
   const codes: string[] = [];
   const { result, websiteFetch, content } = params;
 
-  if (websiteFetch.status === "failed" || websiteFetch.status === "skipped") {
+  if (!websiteFetchUsable(websiteFetch)) {
     codes.push(RELIABILITY_WARNING_CODES.websiteFetchFailed);
+  }
+
+  if (
+    websiteFetch.status === "partial" ||
+    websiteFetch.reason === "body_truncated"
+  ) {
+    codes.push(RELIABILITY_WARNING_CODES.largeSitePartialExtraction);
   }
 
   if (!result.claudeAttempted || !result.ok) {

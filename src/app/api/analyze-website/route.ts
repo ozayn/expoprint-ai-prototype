@@ -132,5 +132,8 @@ export async function POST(req: Request) {
     claudeAttempted: result.claudeAttempted,
     model: result.model,
     websiteFetch: result.websiteFetch,
+    suggestedBusinessName: result.suggestedBusinessName,
+    suggestedWebsiteDomain: result.suggestedWebsiteDomain,
+    suggestedCanonicalWebsiteUrl: result.suggestedCanonicalWebsiteUrl,
   });
 }

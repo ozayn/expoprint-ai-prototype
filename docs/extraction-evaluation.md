@@ -50,9 +50,13 @@ Extract responses now include additive debug fields (backwards-compatible):
 | Field | Purpose |
 | --- | --- |
 | `metadata.quality` | `high` / `medium` / `low` for `businessName`, `logo`, `servicesProducts`, `overall` |
-| `metadata.warnings` | Human-readable lines plus machine codes such as `missing_business_name`, `website_fetch_failed`, `claude_failed_or_skipped`, `business_name_inferred_from_domain` |
+| `metadata.warnings` | Human-readable lines plus machine codes such as `missing_business_name`, `website_fetch_failed`, `claude_failed_or_skipped`, `business_name_inferred_from_domain`, `large_site_partial_extraction` |
 
 Business names use deterministic fallbacks when Claude omits a name: Claude suggestion → brand-like title/og:title → cautious domain label.
+
+### Partial extraction (large homepages)
+
+If a fixture URL serves a homepage larger than the HTML byte cap (~800 KB), expect `metadata.websiteFetch.status` of `"partial"` and `reason` `"body_truncated"`, with warning `large_site_partial_extraction`. Title, logos, and contact links may still pass **required** checks when present in the truncated head of the document. Manual smoke URL: `https://www.cvs.com` (or `cvs.com`).
 
 ## Fixture format
 
