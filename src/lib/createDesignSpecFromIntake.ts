@@ -11,6 +11,7 @@ import {
 } from "./designIntakeState";
 import { buildConceptColorPlan } from "./designStyleGuide";
 import { buildFabricTypographyFromSignals } from "@/lib/typographyMapping";
+import { normalizeBulletPhrasesForDisplay } from "@/lib/supportingBulletText";
 
 const CANVAS = { width: 1000, height: 600 } as const;
 
@@ -67,7 +68,7 @@ const MAX_SUPPORTING_FONT = 24;
 const SUPPORTING_LINE_HEIGHT_FACTOR = 1.28;
 const SUPPORTING_CHAR_WIDTH_FACTOR = 0.52;
 
-const MAX_BULLET_ITEMS = 4;
+const MAX_BULLET_ITEMS = 5;
 const MAX_BULLET_ITEM_CHARS = 44;
 const MIN_BULLET_FONT = 20;
 const MAX_BULLET_FONT = 22;
@@ -113,7 +114,10 @@ function compactSupportingSegments(raw: string): string[] {
 
 /** Short list items from selected services/products for bullet layout. */
 function cleanSupportingItems(raw: string): string[] {
-  return compactSupportingSegments(raw).filter((item) => item.trim().length >= 3);
+  const segments = compactSupportingSegments(raw).filter(
+    (item) => item.trim().length >= 3,
+  );
+  return normalizeBulletPhrasesForDisplay(segments, MAX_BULLET_ITEMS);
 }
 
 function supportingItemsFromIntake(intake: DesignIntakeState): string[] {
@@ -160,9 +164,10 @@ function finalizeBulletsForConcept(
     maxHeightPx,
   );
 
-  let lines = items
-    .slice(0, MAX_BULLET_ITEMS)
-    .map((item) => `• ${truncate(item.replace(/\s+/g, " "), MAX_BULLET_ITEM_CHARS)}`);
+  const normalized = normalizeBulletPhrasesForDisplay(items, MAX_BULLET_ITEMS);
+  let lines = normalized.map(
+    (item) => `• ${truncate(item.replace(/\s+/g, " "), MAX_BULLET_ITEM_CHARS)}`,
+  );
 
   const fits = (count: number, fs: number) =>
     count * fs * BULLET_LINE_HEIGHT <= safeHeight;
