@@ -34,6 +34,8 @@ import {
   type StylePreference,
 } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
+import { ExportPngButton } from "@/components/ExportPngButton";
+import { exportFabricCanvasPng } from "@/lib/fabricCanvasExport";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
 import { TypographySignalsRow } from "@/components/TypographySignalsRow";
@@ -254,6 +256,12 @@ export function GuidedIntakeDemo() {
   }, [step, runGenerate]);
 
   const ready = canvasPhase === "ready";
+
+  const exportPng = () => {
+    const c = fabricRef.current;
+    if (!c) return;
+    exportFabricCanvasPng(c);
+  };
 
   useLayoutEffect(() => {
     if (step !== 7 || !ready) return;
@@ -676,7 +684,10 @@ export function GuidedIntakeDemo() {
 
         {step === 7 && (
           <div className="space-y-5">
-            <h1 className="text-lg font-semibold text-zinc-900">Your concept</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-lg font-semibold text-zinc-900">Your concept</h1>
+              <ExportPngButton disabled={!ready} onClick={exportPng} />
+            </div>
             <div>
               <h2 className="text-sm font-medium text-zinc-700">Design brief</h2>
               <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-100 bg-zinc-50 p-3 font-mono text-xs leading-relaxed text-zinc-800">
@@ -728,8 +739,8 @@ export function GuidedIntakeDemo() {
                   : "Source: sample fallback")}
             </p>
             <p className="text-xs text-zinc-400">
-              {CANVAS_W}×{CANVAS_H}px artboard — preview scales to fit; open the
-              editor for PNG/SVG/JSON export.
+              {CANVAS_W}×{CANVAS_H}px artboard — preview scales to fit. Use Export
+              PNG above, or open the editor for SVG/JSON export.
             </p>
           </div>
         )}
@@ -799,7 +810,7 @@ export function GuidedIntakeDemo() {
                 href="/"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-800 underline-offset-4 hover:underline"
               >
-                Open editor view for export tools
+                Open editor view
               </Link>
             </>
           )}

@@ -195,6 +195,12 @@
           "severity": "required"
         },
         {
+          "type": "pathIncludes",
+          "path": "brand.logoCandidates[0].url",
+          "substring": "favicon",
+          "severity": "required"
+        },
+        {
           "type": "countGte",
           "path": "brand.typography.fontFamilies",
           "min": 1,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { DesignIntakePanel } from "@/components/DesignIntakePanel";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import {
   HELP_CLAUDE_FALLBACK,
@@ -27,20 +28,13 @@ import {
   type DesignIntakeState,
 } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
+import {
+  exportFabricCanvasPng,
+  triggerDownload,
+} from "@/lib/fabricCanvasExport";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 
 const { width: CANVAS_W, height: CANVAS_H } = sampleDesignSpec.canvas;
-
-function triggerDownload(data: string, filename: string, mime: string) {
-  const a = document.createElement("a");
-  a.href = data;
-  a.download = filename;
-  a.setAttribute("type", mime);
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
 
 type CanvasPhase = "initializing" | "ready" | "error";
 
@@ -368,8 +362,7 @@ export function FabricDesignEditor() {
   const exportPng = () => {
     const c = fabricRef.current;
     if (!c) return;
-    const dataUrl = c.toDataURL({ format: "png", multiplier: 1 });
-    triggerDownload(dataUrl, "expoprint-concept.png", "image/png");
+    exportFabricCanvasPng(c);
     setStatus("PNG download started.");
   };
 
@@ -585,16 +578,19 @@ export function FabricDesignEditor() {
 
       <section className="flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
         <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col gap-4 overflow-x-hidden">
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-sm">
-              Editable concept preview
-            </h2>
-            <InfoTooltip
-              label="About concept preview"
-              titleText={HELP_CONCEPT_PREVIEW}
-            >
-              {HELP_CONCEPT_PREVIEW} Artboard: {CANVAS_W}×{CANVAS_H}px.
-            </InfoTooltip>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-sm">
+                Editable concept preview
+              </h2>
+              <InfoTooltip
+                label="About concept preview"
+                titleText={HELP_CONCEPT_PREVIEW}
+              >
+                {HELP_CONCEPT_PREVIEW} Artboard: {CANVAS_W}×{CANVAS_H}px.
+              </InfoTooltip>
+            </div>
+            <ExportPngButton disabled={!ready} onClick={exportPng} />
           </div>
 
           <div className="flex flex-col gap-2">

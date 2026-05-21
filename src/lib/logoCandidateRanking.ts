@@ -27,6 +27,17 @@ const PRODUCT_APP_HINT_RE =
 const PRODUCT_PATH_RE =
   /\/(chrome|docs|sheets|slides|maps|youtube|gmail|android|workspace|drive|calendar|meet|photos|news|play|store|apps?|products?|images\/branding\/product|intl\/[a-z]{2}\/about\/products)\//i;
 
+/** CMS modules, nav promos, case-study art — not primary wordmarks. */
+const MARKETING_OR_CUSTOMER_PATH_RE =
+  /enterprise-accordion|nav-bg|nav_background|sessions-\d|testimonial|headshot|case-study|customer-story|hero-?bg|bento|platform-graphic|annual-letter|the-happenings|lovable\.png|runway\.png|supabase\.png/i;
+
+/** Long photo captions that mention "logo" or the brand incidentally (e.g. Stripe homepage). */
+const PHOTO_CAPTION_ALT_RE =
+  /\b(view of|overhead|aerial|exterior|street view|imitating|forms a|crosswalk|showcasing|delivery bag|boutique|kiosk|window display|door stoop|newspaper)\b/i;
+
+const PRIMARY_BRAND_MARK_PATH_RE =
+  /(?:^|\/)(?:favicon\.svg|logo(?:[_-]|\.|$)|wordmark|brand[_-]?mark|site[_-]?logo|stripe[_-]?logo)/i;
+
 const TITLE_STOPWORDS = new Set([
   "home",
   "official",
@@ -111,12 +122,27 @@ function candidateTextBlob(candidate: LogoCandidate): string {
 /** Path + alt only — avoids treating the site hostname as brand evidence on every URL. */
 function candidateBrandBlob(candidate: LogoCandidate): string {
   const alt = (candidate.alt ?? "").toLowerCase();
+  const path = candidatePathBlob(candidate);
+  return alt ? `${alt} ${path}` : path;
+}
+
+function candidatePathBlob(candidate: LogoCandidate): string {
   try {
     const u = new URL(candidate.url);
-    return `${alt} ${u.pathname} ${u.search}`.toLowerCase();
+    const path = u.pathname.toLowerCase();
+    const search = u.search.toLowerCase();
+    return search ? `${path} ${search}` : path;
   } catch {
-    return `${alt} ${candidate.url}`.toLowerCase();
+    return candidate.url.toLowerCase();
   }
+}
+
+function altLooksLikeMarketingPhotoCaption(alt: string): boolean {
+  const trimmed = alt.replace(/\s+/g, " ").trim();
+  if (!trimmed) return false;
+  if (PHOTO_CAPTION_ALT_RE.test(trimmed)) return true;
+  if (trimmed.length > 72 && /\blogo\b/i.test(trimmed)) return true;
+  return false;
 }
 
 function urlLooksLogoish(url: string): boolean {
@@ -142,8 +168,59 @@ function hasBrandNameEvidence(
   candidate: LogoCandidate,
   ctx: LogoRankingContext,
 ): boolean {
+  const alt = candidate.alt ?? "";
+  const pathBlob = candidatePathBlob(candidate);
+  const pathMatch = ctx.brandTokens.some((t) => brandTokenMatches(pathBlob, t));
+  if (altLooksLikeMarketingPhotoCaption(alt)) {
+    return pathMatch;
+  }
   const blob = candidateBrandBlob(candidate);
   return ctx.brandTokens.some((t) => brandTokenMatches(blob, t));
+}
+
+function looksLikeMarketingOrCustomerImage(candidate: LogoCandidate): boolean {
+  const blob = candidateTextBlob(candidate);
+  if (MARKETING_OR_CUSTOMER_PATH_RE.test(blob)) return true;
+  const alt = candidate.alt ?? "";
+  if (candidate.source === "img-logo" && altLooksLikeMarketingPhotoCaption(alt)) {
+    return true;
+  }
+  return false;
+}
+
+function looksLikeNavDecorNotLogo(candidate: LogoCandidate): boolean {
+  const blob = candidateTextBlob(candidate);
+  if (/flags\.svg|\/flags(?:\/|$)/i.test(blob)) return true;
+  if (/nav-bg|nav_background|sessions-\d/i.test(blob)) return true;
+  const alt = (candidate.alt ?? "").trim();
+  if (alt.length >= 2 && alt.length <= 3 && /^[A-Z]{2,3}$/.test(alt)) return true;
+  if (
+    candidate.source === "header-image" &&
+    /background|sessions/i.test(blob) &&
+    !LOGOISH_PATH_RE.test(blob)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function looksLikePrimaryBrandMarkAsset(
+  candidate: LogoCandidate,
+  ctx: LogoRankingContext,
+): boolean {
+  const pathBlob = candidatePathBlob(candidate);
+  if (PRIMARY_BRAND_MARK_PATH_RE.test(pathBlob)) return true;
+  if (LOGOISH_PATH_RE.test(pathBlob) && !MARKETING_OR_CUSTOMER_PATH_RE.test(pathBlob)) {
+    return true;
+  }
+  if (
+    isFaviconSource(candidate.source) &&
+    /favicon/i.test(pathBlob) &&
+    ctx.brandTokens.length > 0
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** Whether an og:image is plausibly a logo mark vs. a generic share/hero image. */
@@ -342,7 +419,10 @@ export function scoreLogoCandidate(
     score += 42;
     reasons.push("brand name in alt/URL");
   }
-  if (alt.includes("logo") || /\blogo\b/i.test(blob)) {
+  if (
+    (alt.includes("logo") || /\blogo\b/i.test(blob)) &&
+    !altLooksLikeMarketingPhotoCaption(alt)
+  ) {
     score += 18;
     reasons.push("logo in alt or path");
   }
@@ -393,22 +473,47 @@ export function scoreLogoCandidate(
     reasons.push("larger usable dimensions");
   }
 
+  if (looksLikePrimaryBrandMarkAsset(candidate, ctx)) {
+    score += 58;
+    reasons.push("primary brand mark asset");
+  }
+  if (/favicon\.svg(?:$|\?)/i.test(candidatePathBlob(candidate))) {
+    score += 14;
+    reasons.push("SVG favicon brand mark");
+  }
+
+  if (looksLikeMarketingOrCustomerImage(candidate)) {
+    score -= 120;
+    reasons.push("penalized: marketing/customer image");
+  }
+
+  if (looksLikeNavDecorNotLogo(candidate)) {
+    score -= 85;
+    reasons.push("penalized: nav/decor image");
+  }
+
   if (looksLikeProductAppIcon(candidate)) {
     score -= 58;
     reasons.push("penalized: product/app icon");
   }
 
-  if (isFaviconSource(candidate.source)) {
+  const primaryBrandMark = looksLikePrimaryBrandMarkAsset(candidate, ctx);
+
+  if (isFaviconSource(candidate.source) && !primaryBrandMark) {
     score -= 36;
     reasons.push("favicon fallback");
   }
 
-  if (isVerySmallLogoIcon(candidate)) {
+  if (isVerySmallLogoIcon(candidate) && !primaryBrandMark) {
     score -= 48;
     reasons.push("small icon penalty");
   }
 
-  if (isFaviconSource(candidate.source) && isSquareIcon(candidate)) {
+  if (
+    isFaviconSource(candidate.source) &&
+    isSquareIcon(candidate) &&
+    !primaryBrandMark
+  ) {
     score -= 28;
     reasons.push("square favicon/app icon");
   }
@@ -499,6 +604,11 @@ export function isStrongDesignLogoCandidate(
       : scoreLogoCandidate(candidate, ctx);
 
   if (looksLikeProductAppIcon(scored)) return false;
+  if (looksLikeMarketingOrCustomerImage(scored)) return false;
+  if (looksLikeNavDecorNotLogo(scored)) return false;
+  if (looksLikePrimaryBrandMarkAsset(scored, ctx) && (scored.score ?? 0) >= 70) {
+    return true;
+  }
   if (scored.score >= 120) return true;
   if (
     scored.source === "header-image" &&
@@ -527,7 +637,15 @@ function shouldHideWhenStrongCandidatesExist(
 ): boolean {
   if (isStrongDesignLogoCandidate(candidate, ctx)) return false;
   if (looksLikeProductAppIcon(candidate)) return true;
-  if (hasHeaderWordmark && isFaviconSource(candidate.source)) return true;
+  if (looksLikeMarketingOrCustomerImage(candidate)) return true;
+  if (looksLikeNavDecorNotLogo(candidate)) return true;
+  if (
+    hasHeaderWordmark &&
+    isFaviconSource(candidate.source) &&
+    !looksLikePrimaryBrandMarkAsset(candidate, ctx)
+  ) {
+    return true;
+  }
   if (hasHeaderWordmark && candidate.source === "og:image") return true;
   if (isFaviconSource(candidate.source) && isVerySmallLogoIcon(candidate)) {
     return true;

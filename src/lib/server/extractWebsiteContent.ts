@@ -386,6 +386,21 @@ async function parseHtmlToPageSummary(
     const cls = $el.attr("class") ?? "";
     const blob = `${src} ${alt} ${id} ${cls}`.toLowerCase();
     if (blob.includes("logo")) {
+      if (
+        /enterprise-accordion|nav-bg|testimonial|headshot|case-study|sessions-\d/i.test(
+          blob,
+        )
+      ) {
+        return;
+      }
+      if (
+        alt.length > 60 &&
+        /\b(view of|imitating|forms a|overhead|aerial|exterior|street view)\b/i.test(
+          alt,
+        )
+      ) {
+        return;
+      }
       pushLogoCandidate(src, "img-logo", {
         alt,
         width: parseDimAttr($el.attr("width")),
