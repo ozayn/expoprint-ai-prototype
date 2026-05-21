@@ -235,10 +235,11 @@ const stages: Stage[] = [
     status: "Complete",
     dateLine: "Completed: 2026-05-19",
     summary:
-      "Analyze Website collects logo candidates from icons, apple-touch-icons, og:image, header/nav imagery, and logo-like `<img>` tags. Candidates are scored and sorted for design usefulness (SVG and likely-transparent formats first), then shown in a compact review grid on `/` and `/demo`. Designers pick one manually; proxy rendering and production upload guidance are unchanged.",
+      "Analyze Website collects logo candidates from icons, apple-touch-icons, og:image, header/nav imagery, and logo-like `<img>` tags. Candidates are scored and sorted for design usefulness — full header wordmarks and logo-tagged brand images should rank above small transparent favicons. Review grid on `/` and `/demo`; designers pick one manually. Selected logos can render via the safe proxy when load succeeds; placeholder fallback and production upload guidance remain.",
     accomplishments: [
       "Server-side parsing extends to header/nav `<img>` tags, splits favicon vs. apple-touch-icon, and records `alt`, `width`, `height` when available — still same-origin and no full-site crawl.",
-      "Logo candidate ranking and transparency preference: score by source (header/nav and logo-tagged images first; generic og:image lower unless logo-like), format (SVG/PNG/WebP), and lightweight transparency hints (SVG markup sniff, PNG alpha byte check when feasible).",
+      "Logo candidate ranking for design usefulness: header/nav and logo-tagged images with brand/wordmark evidence rank first; SVG wordmarks and wider header logos beat small square favicons even when favicons are transparent.",
+      "Transparency is a small bonus only — it must not outweigh header placement, wordmark proportions, brand name in alt/URL, or larger usable dimensions; favicon/icon sources get explicit fallback and small-icon penalties.",
       "API `websiteFetch.logoCandidatesList` returns up to ~6 candidates sorted by `score` descending with optional `transparency` and `reason` — not production asset validation.",
       "Client intake state carries `logoCandidates` + `selectedLogoCandidateUrl`; merge logic clears stale selections when a fresh analyze returns a different list and resets cleanly on mock fallback.",
       "`LogoCandidatesReview`: ranked list with “Best match” on the first row and “Transparent likely” when detected; failed thumbnails fall back to `N/A`. No auto-select — first row is simply the top-ranked candidate.",
@@ -294,23 +295,55 @@ const stages: Stage[] = [
       "`typographyMapping.ts` maps detected families (Inter, Roboto, Montserrat, Playfair, etc.) to safe system/geometric/serif stacks for Fabric text layers.",
       "`createDesignSpecFromIntake` applies mapped fonts to headline, supporting, website, and contact text; sizes unchanged for readability.",
       "Compact “Typography signals” row in Review identity on `/` and `/demo`, including empty and mock-fallback states.",
+      "Font-family cleanup filters non-font CSS tokens (`normal`, numeric weights, `1.0`, `!important`, lengths); stack families like `system-ui` and `-apple-system` are kept.",
+      "`websiteFetch.typography` counts (`fontFamilyCount`, `googleFontCount`) match the cleaned lists returned in API JSON — not raw pre-clean totals.",
+      "Signals feed the extract API and canvas mapping via safe browser/Fabric stacks only — no webfont downloads.",
     ],
   },
   {
     id: 20,
     title: "Design-intake extraction API contract",
-    status: "In progress",
-    dateLine: "In progress — v1 endpoint 2026-05-20",
+    status: "Complete",
+    dateLine: "Completed: 2026-05-20",
     summary:
-      "Per client feedback, Phase 1 is framed as a structured API deliverable — not only a visual Fabric prototype. `POST /api/design-intake/extract` returns stable, normalized JSON for ExpoPrint’s downstream system: business identity, brand signals (colors, typography, ranked logo candidates), content (services, products, contact), design-intake recommendations, and extraction metadata. The `/` editor and `/demo` remain visual consumers and test harnesses; `POST /api/analyze-website` still powers the UI. First stable contract — not production-final; human review still required; no raw HTML or full scraped text in responses.",
+      "Phase 1 integration deliverable: `POST /api/design-intake/extract` accepts a public website URL plus optional product category, components, style preference, and customer instructions, then returns normalized JSON for ExpoPrint’s downstream system. Reuses the bounded scrape + Claude pipeline (logo candidates, typography, services/products, contact, design recommendations, metadata). No raw HTML or full scraped text in responses. `/` and `/demo` remain visual consumers and test harnesses via `POST /api/analyze-website`. First stable v1 contract — not production-final; `needsHumanReview` stays true.",
     accomplishments: [
-      "Integration endpoint: `POST /api/design-intake/extract` — documented in `docs/design-intake-api.md` (request/response, curl example, limitations).",
-      "Normalized response sections: `business` (name, website, domain, canonical URL), `brand` (colors, typography, logoCandidates), `content` (services, products, contact), `designIntake` (category, components, style, recommended copy, missingAssets, confidenceNotes, needsHumanReview), `metadata` (source, pagesInspected, websiteFetch, claude, warnings).",
-      "Reuses shared `claudeWebsiteAnalyze.ts` pipeline: bounded multi-page scrape, logo candidate ranking, typography signals, Claude extraction, services/products cleanup.",
-      "`buildDesignIntakeApiResponse.ts` maps pipeline output to the integration contract; partial `ok: true` with `metadata.source: scraper_only` when Claude fails but scrape data exists.",
-      "`POST /api/analyze-website` refactored to the same pipeline — editor and guided demo behavior unchanged.",
-      "Safe for integration: no raw HTML, no full-page text blobs; machine-readable warnings when extraction is partial.",
-      "Logo candidates and typography are signals only — production-quality logo upload and human review still expected before print.",
+      "Implemented `POST /api/design-intake/extract` — request: `websiteUrl` (required) plus optional `productCategory`, `components`, `stylePreference`, `customerInstructions`.",
+      "Response sections: `business`, `brand` (colors, typography, ranked `logoCandidates`), `content` (services, products, contact), `designIntake` (recommendations, `missingAssets`, `confidenceNotes`, `needsHumanReview: true`), `metadata` (`source`, `pagesInspected`, `websiteFetch`, `claude`, `warnings`).",
+      "Shared pipeline in `claudeWebsiteAnalyze.ts` + `buildDesignIntakeApiResponse.ts`; partial `ok: true` with `metadata.source: scraper_only` when Claude is unavailable but scrape data is useful.",
+      "`POST /api/analyze-website` refactored to the same pipeline — editor and guided demo UI behavior unchanged.",
+      "Contract documented in `docs/design-intake-api.md`; `vercel.json` allows 60s for the extract route on Vercel.",
+      "Safe for integration: no API keys, secrets, raw HTML, or full-page text blobs in public JSON.",
+      "Logo, typography, and Claude-inferred fields are signals only — human review and production assets still required before print.",
+    ],
+  },
+  {
+    id: 21,
+    title: "API docs and browser tester",
+    status: "Complete",
+    dateLine: "Completed: 2026-05-20",
+    summary:
+      "Local tooling to exercise the Phase 1 extract API without hand-writing curl every time: `/api-docs` explains the contract with copyable commands, `/api-test` runs the API from the browser, and a shell/npm helper supports terminal smoke tests. Deployed Vercel endpoint verified successfully — prototype tooling only, not a public developer portal.",
+    accomplishments: [
+      "`/api-docs` — plain-language Phase 1 overview, form-driven copyable `curl` (uses current page origin on Vercel) and `npm run api:test`, links to `/`, `/demo`, `/progress`.",
+      "`/api-test` — enter website URL and optional intake settings, run `POST /api/design-intake/extract`, summary panel (ok, business name, logos, services/products, Claude status, warnings), pretty JSON with Copy/Clear.",
+      "`scripts/test-design-intake-api.sh` + `npm run api:test -- <url> [category] [style]` for local terminal testing against `http://localhost:3000`.",
+      "Editor header links: API docs, API test — same ranking/scrape behavior as analyze; no change to Fabric exports.",
+      "Smoke-tested on deployed Vercel (`main`): extract responses return expected normalized sections.",
+    ],
+  },
+  {
+    id: 22,
+    title: "Bullet-list services/products on canvas",
+    status: "Complete",
+    dateLine: "Completed: 2026-05-20",
+    summary:
+      "When selected services or products split into enough clean items, generated concepts can show readable bullet lines (•) in the supporting area instead of one long ` · ` line — especially on trade-show surfaces, back wall, and side wall. Canopy tent can still use the simpler one-line layout when appropriate. Prototype layout rules only — not a full template system.",
+    accomplishments: [
+      "`createDesignSpecFromIntake` chooses `bullet-list` vs `supporting-line` from item count, product category, and active design surface (trade show booth prefers bullets; back/side wall with 2+ items; 3+ items generally).",
+      "Up to four bullets in a multiline Fabric `Textbox` with readable font size; `metadata.contentLayout` on DesignSpec records the choice for inspection.",
+      "One-line supporting copy remains the fallback for canopy tent and tight vertical space; bullets are kept above the website/contact footer band.",
+      "Applies to `/` and `/demo` through the shared DesignSpec → Fabric path; exports and editability unchanged.",
     ],
   },
 ];
@@ -348,8 +381,9 @@ export default function ProgressPage() {
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
             is a structured design-intake extraction API for ExpoPrint’s system — not only a
-            canvas demo. See Stage 20 (`POST /api/design-intake/extract`); the editor and guided
-            demo remain visual test harnesses. A written
+            canvas demo. Stages 20–22 cover the extract API contract, `/api-docs` / `/api-test`
+            tooling, and canvas bullet layout; the editor and guided demo remain visual test
+            harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
@@ -410,6 +444,12 @@ export default function ProgressPage() {
                   POST /api/design-intake/extract
                 </code>{" "}
                 (Phase 1 integration contract)
+              </li>
+              <li>
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/api-docs</code>{" "}
+                and{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/api-test</code>{" "}
+                for local and deployed API smoke tests
               </li>
             </ul>
           </div>

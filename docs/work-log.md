@@ -121,7 +121,7 @@ Home layout grouping, collapsed export JSON, mobile spacing; no generation logic
 Homepage plus up to three same-domain pages; capped text budget for Claude.
 
 **Logo candidate extraction, ranking, and review (Stage 16)**  
-Structured `logoCandidatesList` (score + transparency metadata), ranked for SVG/transparent preference; `LogoCandidatesReview` on `/` and `/demo`.
+Structured `logoCandidatesList` (score + transparency metadata); ranking prioritizes header/nav wordmarks and brand-matched logo images over small favicons (transparency is a minor bonus, not the primary signal). `LogoCandidatesReview` on `/` and `/demo`.
 
 **Selected logo rendering via safe proxy (Stage 17)**  
 `GET /api/proxy-image`, DesignSpec `image` layer, async Fabric load with placeholder fallback.
@@ -134,10 +134,19 @@ Structured `logoCandidatesList` (score + transparency metadata), ranked for SVG/
 `vercel-deploy` branch, `vercel.json`, deploy badge on `/`, `docs/vercel-deploy.md`; Railway on `main` (since superseded — see below).
 
 **Typography/font signal extraction (Stage 19)**  
-Server parses font-family hints from HTML/CSS/Google Fonts links (no font file downloads). `websiteFetch.typography` exposes safe name lists + style guess; intake stores `typographySignals` for Fabric mapping via `typographyMapping.ts` (system/geometric/serif fallbacks). Claude context includes typography when available. Compact row in Review identity on `/` and `/demo`. Not exact production font matching.
+Server parses font-family hints from HTML/CSS/Google Fonts links (no font file downloads). `websiteFetch.typography` exposes safe name lists + style guess; intake stores `typographySignals` for Fabric mapping via `typographyMapping.ts` (system/geometric/serif fallbacks). Claude context includes typography when available. Compact row in Review identity on `/` and `/demo`. Later polish: `typographyFontCleanup.ts` drops non-font tokens (`normal`, `400`, `700`, `1.0`, lengths); metadata counts match cleaned lists. Not exact production font matching.
 
-**Design-intake extraction API contract — Phase 1 deliverable (Stage 20, in progress)**  
-Client direction reframes Phase 1 as a structured API — not only a visual prototype. Added `POST /api/design-intake/extract` returning stable normalized JSON: business identity, brand (colors, typography, logo candidates), content (services, products, contact), design-intake recommendations (`recommendedHeadline`, `recommendedSupportingText`, `missingAssets`, `confidenceNotes`, `needsHumanReview`), and metadata (`websiteFetch`, Claude status, warnings). Reuses `runClaudeWebsiteAnalyze` (bounded scrape + Claude); `/api/analyze-website` unchanged for `/` and `/demo` test harnesses. Docs: `docs/design-intake-api.md`. Partial `ok: true` with `scraper_only` when Claude fails but scrape has useful data. Not production-final; no raw HTML or full scraped text; human review required.
+**Design-intake extraction API contract — Phase 1 deliverable (Stage 20)**  
+Client direction reframes Phase 1 as a structured API — not only a visual prototype. Implemented `POST /api/design-intake/extract`: accepts `websiteUrl` plus optional `productCategory`, `components`, `stylePreference`, and `customerInstructions`; returns normalized JSON sections `business`, `brand`, `content`, `designIntake`, and `metadata` (logo candidates, typography, services/products, contact, recommendations, scrape/Claude status, warnings). Reuses `runClaudeWebsiteAnalyze` (bounded multi-page scrape + Claude). No raw HTML or full scraped text in responses. `/` and `/demo` remain visual consumers via `POST /api/analyze-website`. Docs: `docs/design-intake-api.md`. Partial `ok: true` with `scraper_only` when Claude fails but scrape data exists. Not production-final; human review required.
+
+**API docs and browser tester (Stage 21)**  
+`/api-docs` explains the Phase 1 contract with a form-driven command builder (copyable `curl` using current origin on Vercel; `npm run api:test` for local dev). `/api-test` runs extract from the browser with summary + copyable JSON. `scripts/test-design-intake-api.sh` and `npm run api:test`. Verified on deployed Vercel. Prototype tooling only.
+
+**Logo ranking polish — wordmarks over favicons (Stage 16 follow-up)**  
+Updated `logoCandidateRanking.ts`: header/nav and brand-matched images rank above small square favicons; transparency bonus capped so an EX favicon does not beat a full ExpoPrint header SVG. Reason strings mention header/nav, wordmark proportions, favicon fallback, and small-icon penalties. Verified on `expoprint.io` and `google.com`.
+
+**Bullet-list services/products on canvas (Stage 22)**  
+`createDesignSpecFromIntake` can render selected services/products as up to four `•` lines in a multiline Textbox when layout rules allow (trade show booth, back/side wall, 3+ items); one-line ` · ` copy remains the fallback (e.g. canopy tent). `DesignSpec.metadata.contentLayout` records `bullet-list` vs `supporting-line`. Not a full template system.
 
 **Earlier Phase 1 target shape (sketch — largely reflected in v1 extract API):**
 
@@ -185,10 +194,10 @@ Client direction reframes Phase 1 as a structured API — not only a visual prot
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (ranked, transparency-aware); selected logo on canvas via proxy; typography signals + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/demo` guided view; `/progress` current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test`; `/demo` guided view; `/progress` current.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–18 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, and Vercel on `main`. **Stage 19** — typography signals. **Stage 20 (in progress)** — `POST /api/design-intake/extract` integration contract (`docs/design-intake-api.md`); `/` and `/demo` stay visual harnesses; not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–22 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, and canvas bullet-list layout. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.

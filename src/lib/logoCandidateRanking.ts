@@ -209,26 +209,89 @@ function looksLikeWordmarkDimensions(candidate: LogoCandidate): boolean {
   return ratio >= 1.6 && ratio <= 6.5;
 }
 
+function maxSidePx(candidate: LogoCandidate): number | undefined {
+  const { width, height } = candidate;
+  if (typeof width === "number" && typeof height === "number") {
+    return Math.max(width, height);
+  }
+  if (typeof width === "number") return width;
+  if (typeof height === "number") return height;
+  return undefined;
+}
+
+function isFaviconSource(source: LogoCandidateSource): boolean {
+  return source === "icon" || source === "apple-touch-icon";
+}
+
+function urlHintsSmallIcon(url: string): boolean {
+  return /fav[_-]?icon|favicon|icon[_-]?\d|\/32x32|\/64x64|width=32\b|height=32\b|width=64\b|height=64\b/i.test(
+    url,
+  );
+}
+
+/** Very small square marks (16–64px) — poor for print layout vs. header wordmarks. */
+function isVerySmallLogoIcon(candidate: LogoCandidate): boolean {
+  const max = maxSidePx(candidate);
+  if (max !== undefined && max <= 64) return true;
+  if (isFaviconSource(candidate.source) && urlHintsSmallIcon(candidate.url)) {
+    return true;
+  }
+  const { width, height } = candidate;
+  if (
+    typeof width === "number" &&
+    typeof height === "number" &&
+    width <= 64 &&
+    height <= 64
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isSquareIcon(candidate: LogoCandidate): boolean {
+  const { width, height } = candidate;
+  if (typeof width !== "number" || typeof height !== "number") return false;
+  const ratio = width / height;
+  return ratio >= 0.88 && ratio <= 1.12;
+}
+
+/** Larger non-square artwork that may carry the brand mark outside header/nav. */
+function looksLikeLargeLogoGraphic(candidate: LogoCandidate): boolean {
+  const { width, height } = candidate;
+  if (typeof width !== "number" || typeof height !== "number") return false;
+  const max = Math.max(width, height);
+  const min = Math.min(width, height);
+  if (max < 96 || min < 28) return false;
+  if (isSquareIcon(candidate) && max <= 128) return false;
+  const ratio = width / height;
+  return ratio >= 0.55 && ratio <= 4.5;
+}
+
 function baseScoreForSource(
   source: LogoCandidateSource,
   candidate: LogoCandidate,
   ctx: LogoRankingContext,
 ): { points: number; label: string } {
   switch (source) {
-    case "img-logo":
-      return { points: 72, label: "logo-tagged image" };
     case "header-image":
-      return { points: 80, label: "header/nav image" };
+      return { points: 94, label: "header/nav image" };
+    case "img-logo":
+      return {
+        points: hasBrandNameEvidence(candidate, ctx) ? 78 : 68,
+        label: hasBrandNameEvidence(candidate, ctx)
+          ? "logo-tagged image (brand match)"
+          : "logo-tagged image",
+      };
     case "og:image":
       return ogImageLooksLogoLike(candidate, ctx)
-        ? { points: 38, label: "og:image (logo-like)" }
-        : { points: 10, label: "og:image (generic)" };
+        ? { points: 32, label: "og:image (logo-like)" }
+        : { points: 6, label: "og:image (generic)" };
     case "apple-touch-icon":
-      return { points: 28, label: "apple-touch-icon (fallback)" };
+      return { points: 22, label: "apple-touch-icon (fallback)" };
     case "icon":
-      return { points: 18, label: "favicon/icon (fallback)" };
+      return { points: 8, label: "favicon/icon (fallback)" };
     default:
-      return { points: 6, label: "image" };
+      return { points: 4, label: "image" };
   }
 }
 
@@ -297,13 +360,50 @@ export function scoreLogoCandidate(
   }
 
   if (looksLikeWordmarkDimensions(candidate)) {
-    score += 14;
+    score += 18;
     reasons.push("wordmark proportions");
   }
 
+  if (
+    candidate.source === "header-image" &&
+    hasBrandNameEvidence(candidate, ctx)
+  ) {
+    score += 10;
+    reasons.push("header wordmark with brand match");
+  }
+
+  if (
+    looksLikeLargeLogoGraphic(candidate) &&
+    (urlLooksLogoish(candidate.url) || hasBrandNameEvidence(candidate, ctx))
+  ) {
+    score += 12;
+    reasons.push("larger logo-like graphic");
+  }
+
+  const maxSide = maxSidePx(candidate);
+  if (typeof maxSide === "number" && maxSide >= 120 && !isSquareIcon(candidate)) {
+    score += 8;
+    reasons.push("larger usable dimensions");
+  }
+
   if (looksLikeProductAppIcon(candidate)) {
-    score -= 55;
+    score -= 58;
     reasons.push("penalized: product/app icon");
+  }
+
+  if (isFaviconSource(candidate.source)) {
+    score -= 36;
+    reasons.push("favicon fallback");
+  }
+
+  if (isVerySmallLogoIcon(candidate)) {
+    score -= 48;
+    reasons.push("small icon penalty");
+  }
+
+  if (isFaviconSource(candidate.source) && isSquareIcon(candidate)) {
+    score -= 28;
+    reasons.push("square favicon/app icon");
   }
 
   const { width, height } = candidate;
@@ -352,15 +452,21 @@ export function applyTransparencyBonus(
 ): ScoredLogoCandidate {
   let score = candidate.score;
   const reasons = candidate.reason ? [candidate.reason] : [];
+  const smallFavicon =
+    isFaviconSource(candidate.source) && isVerySmallLogoIcon(candidate);
+
   if (candidate.transparency === "likely_transparent") {
-    score += 4;
-    if (SVG_EXT_RE.test(candidate.url)) {
+    const bonus = smallFavicon ? 1 : 3;
+    score += bonus;
+    if (SVG_EXT_RE.test(candidate.url) && !smallFavicon) {
       reasons.push("likely transparent SVG");
+    } else if (smallFavicon) {
+      reasons.push("transparent favicon (minor bonus)");
     } else {
       reasons.push("likely transparent");
     }
   } else if (candidate.transparency === "likely_opaque") {
-    score -= 4;
+    score -= 3;
   }
   return {
     ...candidate,
