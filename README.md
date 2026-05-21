@@ -39,11 +39,11 @@ The home editor (`/`) and guided demo (`/demo`) are **visual consumers and test 
 **Verify extract API (local):**
 
 ```bash
-curl -sS -X POST "http://localhost:3000/api/design-intake/extract" \
-  -H "Content-Type: application/json" \
-  -d '{"websiteUrl":"https://expoprint.io","productCategory":"Outdoor tent"}' \
-  | jq '.ok, .metadata.source, .metadata.warnings | length'
+npm run api:test -- https://expoprint.io
+npm run api:test -- https://stripe.com "Trade show booth" "Conservative"
 ```
+
+See [`docs/design-intake-api.md`](docs/design-intake-api.md) for the full contract. **Local docs page:** [http://localhost:3000/api-docs](http://localhost:3000/api-docs) (copyable curl and `npm run api:test` commands).
 
 **Verify Analyze / Claude (manual):**
 

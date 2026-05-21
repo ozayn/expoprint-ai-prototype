@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
+import { syncWebsiteTypographyMetaCounts } from "@/lib/typographySignals";
 import {
   buildExtractedFromPlainValues,
   type ExtractedKey,
@@ -226,6 +227,15 @@ Typography (when the website block includes a typography section):
 - Infer cautious brand typography tone only; do not invent exact unavailable font names in extracted strings; do not add new JSON fields for fonts.`;
 }
 
+function normalizeWebsiteFetchMeta(meta: WebsiteFetchMeta): WebsiteFetchMeta {
+  const typography = meta.typography;
+  if (!typography) return meta;
+  return {
+    ...meta,
+    typography: syncWebsiteTypographyMetaCounts(typography),
+  };
+}
+
 /**
  * Bounded website scrape + optional Claude structured extraction.
  * Shared by the UI analyze route and the integration extract API.
@@ -238,7 +248,7 @@ export async function runClaudeWebsiteAnalyze(
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
   const extraction = await extractWebsiteContent(input.websiteUrl);
-  const websiteFetch = extraction.meta;
+  const websiteFetch = normalizeWebsiteFetchMeta(extraction.meta);
 
   if (!apiKey) {
     return {

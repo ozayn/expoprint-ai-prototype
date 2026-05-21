@@ -49,23 +49,44 @@ export type WebsiteTypographyMeta = {
   googleFontCount: number;
 };
 
-export function toWebsiteTypographyMeta(
-  signals: TypographySignals,
+/** Caps and count fields aligned with API `websiteFetch.typography` payloads. */
+export function buildWebsiteTypographyMeta(
+  clean: TypographySignals,
 ): WebsiteTypographyMeta | undefined {
-  const clean = sanitizeTypographySignals(signals);
   if (
     clean.fontFamilies.length === 0 &&
     clean.googleFontFamilies.length === 0
   ) {
     return undefined;
   }
+  const fontFamilies = clean.fontFamilies.slice(0, 8);
+  const headingFontCandidates = clean.headingFontCandidates.slice(0, 4);
+  const bodyFontCandidates = clean.bodyFontCandidates.slice(0, 4);
+  const googleFontFamilies = clean.googleFontFamilies.slice(0, 6);
   return {
-    fontFamilies: clean.fontFamilies.slice(0, 8),
-    headingFontCandidates: clean.headingFontCandidates.slice(0, 4),
-    bodyFontCandidates: clean.bodyFontCandidates.slice(0, 4),
-    googleFontFamilies: clean.googleFontFamilies.slice(0, 6),
+    fontFamilies,
+    headingFontCandidates,
+    bodyFontCandidates,
+    googleFontFamilies,
     styleGuess: clean.styleGuess,
-    fontFamilyCount: clean.fontFamilies.length,
-    googleFontCount: clean.googleFontFamilies.length,
+    fontFamilyCount: fontFamilies.length,
+    googleFontCount: googleFontFamilies.length,
+  };
+}
+
+export function toWebsiteTypographyMeta(
+  signals: TypographySignals,
+): WebsiteTypographyMeta | undefined {
+  return buildWebsiteTypographyMeta(sanitizeTypographySignals(signals));
+}
+
+/** Re-sync counts with returned font lists (defense when metadata is passed through). */
+export function syncWebsiteTypographyMetaCounts(
+  meta: WebsiteTypographyMeta,
+): WebsiteTypographyMeta {
+  return {
+    ...meta,
+    fontFamilyCount: meta.fontFamilies.length,
+    googleFontCount: meta.googleFontFamilies.length,
   };
 }

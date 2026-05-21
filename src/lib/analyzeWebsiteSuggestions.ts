@@ -187,10 +187,8 @@ export function readTypographyFromAnalyzePayload(
       bodyFontCandidates: strList("bodyFontCandidates", 4),
       googleFontFamilies: strList("googleFontFamilies", 6),
       styleGuess,
-      fontFamilyCount:
-        typeof o.fontFamilyCount === "number" ? o.fontFamilyCount : 0,
-      googleFontCount:
-        typeof o.googleFontCount === "number" ? o.googleFontCount : 0,
+      fontFamilyCount: 0,
+      googleFontCount: 0,
     }),
   );
   if (

@@ -11,7 +11,8 @@
     "build": "next build",
     "build:railway": "bash scripts/railway-build.sh",
     "start": "node .next/standalone/server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "api:test": "bash scripts/test-design-intake-api.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

@@ -141,6 +141,25 @@ HTTP **400** for invalid JSON or missing `websiteUrl`. HTTP **200** with `ok: fa
 - `needsHumanReview` is always `true` in v1.
 - Missing `ANTHROPIC_API_KEY` → Claude skipped; response may be `ok: true` with `metadata.source: "scraper_only"` when scrape data exists.
 
+## Local test script
+
+With the dev server running (`npm run dev`):
+
+```bash
+npm run api:test -- https://expoprint.io
+npm run api:test -- https://stripe.com "Trade show booth" "Conservative"
+```
+
+Or run the script directly:
+
+```bash
+./scripts/test-design-intake-api.sh https://expoprint.io
+```
+
+Arguments: `websiteUrl` (required), `productCategory` (default `Outdoor tent`), `stylePreference` (default `Modern`). Sends `components: ["Canopy tent"]`. Pretty-prints with `jq` when installed; otherwise prints raw JSON.
+
+Override the endpoint with `DESIGN_INTAKE_API_URL` (optional).
+
 ## Example: curl
 
 ```bash
