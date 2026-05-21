@@ -1,8 +1,10 @@
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
 import { enrichLogoCandidatesTransparency } from "@/lib/server/enrichLogoCandidateTransparency";
 import {
+  filterLogoCandidatesForDesignUi,
   sortLogoCandidatesByScore,
   type LogoRankingContext,
+  type ScoredLogoCandidate,
 } from "@/lib/logoCandidateRanking";
 
 /**
@@ -15,6 +17,11 @@ export async function prepareLogoCandidatesForUi(
 ): Promise<LogoCandidate[]> {
   if (candidates.length === 0) return [];
   const sorted = sortLogoCandidatesByScore(candidates, ctx);
-  const enriched = await enrichLogoCandidatesTransparency(sorted, maxForUi);
-  return enriched.slice(0, maxForUi);
+  const enriched = await enrichLogoCandidatesTransparency(sorted, maxForUi * 2);
+  const filtered = filterLogoCandidatesForDesignUi(
+    enriched as ScoredLogoCandidate[],
+    ctx,
+    maxForUi,
+  );
+  return filtered;
 }

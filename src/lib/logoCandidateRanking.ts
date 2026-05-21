@@ -171,9 +171,16 @@ export function ogImageLooksLogoLike(
   return false;
 }
 
+const PRODUCT_ALT_LOGO_RE =
+  /\b(google play|play store|app store|chrome|chromium|google docs|google sheets|google slides|google maps|youtube|gmail|android|gemini|drive|calendar|photos|wallet|assistant)\b/i;
+
 function looksLikeProductAppIcon(candidate: LogoCandidate): boolean {
   const blob = candidateTextBlob(candidate);
-  if (PRODUCT_APP_HINT_RE.test(blob) || PRODUCT_PATH_RE.test(candidate.url)) {
+  if (
+    PRODUCT_APP_HINT_RE.test(blob) ||
+    PRODUCT_ALT_LOGO_RE.test(blob) ||
+    PRODUCT_PATH_RE.test(candidate.url)
+  ) {
     return true;
   }
   const { width, height } = candidate;
@@ -479,4 +486,125 @@ export function resortScoredCandidates(
   candidates: ScoredLogoCandidate[],
 ): ScoredLogoCandidate[] {
   return [...candidates].sort((a, b) => b.score - a.score);
+}
+
+/** Strong enough for primary design review (wordmark / header / large brand logo). */
+export function isStrongDesignLogoCandidate(
+  candidate: LogoCandidate,
+  ctx: LogoRankingContext = { brandTokens: [] },
+): boolean {
+  const scored =
+    typeof candidate.score === "number"
+      ? (candidate as ScoredLogoCandidate)
+      : scoreLogoCandidate(candidate, ctx);
+
+  if (looksLikeProductAppIcon(scored)) return false;
+  if (scored.score >= 120) return true;
+  if (
+    scored.source === "header-image" &&
+    (hasBrandNameEvidence(scored, ctx) || looksLikeWordmarkDimensions(scored))
+  ) {
+    return true;
+  }
+  if (
+    scored.source === "img-logo" &&
+    hasBrandNameEvidence(scored, ctx) &&
+    (looksLikeWordmarkDimensions(scored) || (scored.score ?? 0) >= 85)
+  ) {
+    return true;
+  }
+  if (looksLikeWordmarkDimensions(scored) && hasBrandNameEvidence(scored, ctx)) {
+    return true;
+  }
+  return false;
+}
+
+/** Weak rows to drop from the main grid when at least one strong candidate exists. */
+function shouldHideWhenStrongCandidatesExist(
+  candidate: ScoredLogoCandidate,
+  ctx: LogoRankingContext,
+  hasHeaderWordmark: boolean,
+): boolean {
+  if (isStrongDesignLogoCandidate(candidate, ctx)) return false;
+  if (looksLikeProductAppIcon(candidate)) return true;
+  if (hasHeaderWordmark && isFaviconSource(candidate.source)) return true;
+  if (hasHeaderWordmark && candidate.source === "og:image") return true;
+  if (isFaviconSource(candidate.source) && isVerySmallLogoIcon(candidate)) {
+    return true;
+  }
+  if (isFaviconSource(candidate.source) && candidate.score < 45) return true;
+  if (candidate.source === "og:image" && !ogImageLooksLogoLike(candidate, ctx)) {
+    return true;
+  }
+  if (
+    candidate.source === "og:image" &&
+    ogImageLooksLogoLike(candidate, ctx) &&
+    candidate.score < 55
+  ) {
+    return true;
+  }
+  if (candidate.source === "apple-touch-icon" && isVerySmallLogoIcon(candidate)) {
+    return true;
+  }
+  if (candidate.score < 20) return true;
+  return false;
+}
+
+/**
+ * Final UI-facing list: ranked for design usefulness, favicons/product icons
+ * hidden when a stronger header/wordmark exists; falls back to full sorted list
+ * if filtering would leave nothing.
+ */
+export function filterLogoCandidatesForDesignUi(
+  candidates: ScoredLogoCandidate[],
+  ctx: LogoRankingContext = { brandTokens: [] },
+  max = 6,
+): ScoredLogoCandidate[] {
+  const sorted = resortScoredCandidates(candidates);
+  const strongList = sorted.filter((c) => isStrongDesignLogoCandidate(c, ctx));
+  const hasStrong = strongList.length > 0;
+  const hasHeaderWordmark = strongList.some(
+    (c) =>
+      c.source === "header-image" ||
+      (c.source === "img-logo" &&
+        (looksLikeWordmarkDimensions(c) || hasBrandNameEvidence(c, ctx))),
+  );
+
+  let pool = sorted;
+  if (hasStrong) {
+    const filtered = sorted.filter(
+      (c) => !shouldHideWhenStrongCandidatesExist(c, ctx, hasHeaderWordmark),
+    );
+    if (filtered.length > 0) pool = filtered;
+  }
+
+  return pool.slice(0, max);
+}
+
+/** Compact label for review cards (index 0 is always Best match when shown). */
+export function logoDesignLabel(
+  candidate: LogoCandidate,
+  index: number,
+): string | null {
+  if (index === 0) return "Best match";
+  if (candidate.source === "header-image") return "Header logo";
+  if (
+    candidate.source === "icon" ||
+    candidate.source === "apple-touch-icon"
+  ) {
+    return "Fallback icon";
+  }
+  if (/penalized:\s*product\/app icon/i.test(candidate.reason ?? "")) {
+    return "Less likely logo";
+  }
+  if (candidate.transparency === "likely_transparent") {
+    return "Transparent likely";
+  }
+  return null;
+}
+
+export function isFallbackIconCandidate(candidate: LogoCandidate): boolean {
+  return (
+    candidate.source === "icon" || candidate.source === "apple-touch-icon"
+  );
 }

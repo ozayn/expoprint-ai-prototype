@@ -601,6 +601,7 @@ export function GuidedIntakeDemo() {
                 extractionSource={intake.extractionSource}
               />
               <LogoCandidatesReview
+                key={intake.logoCandidates.map((c) => c.url).join("|")}
                 candidates={intake.logoCandidates}
                 selectedUrl={intake.selectedLogoCandidateUrl}
                 onSelect={(url) =>

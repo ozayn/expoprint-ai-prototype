@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   LogoCandidate,
   LogoCandidateSource,
 } from "@/lib/analyzeWebsiteResponse";
+import {
+  isFallbackIconCandidate,
+  isStrongDesignLogoCandidate,
+  logoDesignLabel,
+} from "@/lib/logoCandidateRanking";
 
 const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
   icon: "favicon",
@@ -16,7 +21,7 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
 };
 
 const HELPER_COPY =
-  "Ranked for design use. Designers should confirm or upload a production-quality logo.";
+  "Ranked for design use — header wordmarks and larger logos first. Designers should confirm or upload a production-quality logo.";
 
 export type LogoCandidatesReviewProps = {
   candidates: LogoCandidate[];
@@ -27,8 +32,8 @@ export type LogoCandidatesReviewProps = {
 };
 
 /**
- * Compact review grid for logo candidates (server-ranked). First card is the best
- * match; designers pick one manually — no auto-select.
+ * Compact review grid for logo candidates (server-ranked + filtered). First visible
+ * card is the best match; designers pick one manually — no auto-select.
  */
 export function LogoCandidatesReview({
   candidates,
@@ -37,9 +42,45 @@ export function LogoCandidatesReview({
   variant = "compact",
 }: LogoCandidatesReviewProps) {
   const previewHeight = variant === "wide" ? "h-28" : "h-24";
-  const countLabel = `${candidates.length} logo candidate${
-    candidates.length === 1 ? "" : "s"
-  } found`;
+  const [failedPreviewUrls, setFailedPreviewUrls] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const markPreviewFailed = useCallback((url: string) => {
+    setFailedPreviewUrls((prev) => {
+      if (prev.has(url)) return prev;
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  }, []);
+
+  const displayCandidates = useMemo(() => {
+    const hasNonFailed = candidates.some((c) => !failedPreviewUrls.has(c.url));
+    const hasStrongLoaded = candidates.some(
+      (c) =>
+        !failedPreviewUrls.has(c.url) && isStrongDesignLogoCandidate(c),
+    );
+
+    if (!hasNonFailed) {
+      return candidates;
+    }
+
+    return candidates.filter((c) => {
+      if (!failedPreviewUrls.has(c.url)) return true;
+      if (!hasStrongLoaded) return true;
+      if (isStrongDesignLogoCandidate(c)) return true;
+      return false;
+    });
+  }, [candidates, failedPreviewUrls]);
+
+  const hiddenCount = candidates.length - displayCandidates.length;
+  const countLabel =
+    displayCandidates.length === 0
+      ? "No logo candidates to show"
+      : `${displayCandidates.length} logo candidate${
+          displayCandidates.length === 1 ? "" : "s"
+        } for review`;
 
   return (
     <div className="space-y-3">
@@ -65,18 +106,40 @@ export function LogoCandidatesReview({
             Designers should request or upload a production-quality logo file.
           </p>
         </div>
+      ) : displayCandidates.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-3 py-3 text-xs leading-snug text-zinc-600">
+          <p className="font-medium text-zinc-700">
+            Logo previews could not be loaded.
+          </p>
+          <p className="mt-1 text-zinc-500">
+            Try Analyze Website again or upload a production-quality logo file.
+          </p>
+        </div>
       ) : (
         <>
           <p className="text-xs leading-snug text-zinc-500">{HELPER_COPY}</p>
+          {hiddenCount > 0 ? (
+            <p className="text-[11px] text-zinc-400">
+              {hiddenCount} lower-priority or failed-preview candidate
+              {hiddenCount === 1 ? "" : "s"} hidden — stronger logos shown first.
+            </p>
+          ) : null}
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {candidates.map((c, index) => (
+            {displayCandidates.map((c, index) => (
               <LogoCandidateCard
                 key={c.url}
                 candidate={c}
                 selected={c.url === selectedUrl}
                 onSelect={onSelect}
                 previewHeightClass={previewHeight}
+                designLabel={logoDesignLabel(c, index)}
                 isBestMatch={index === 0}
+                isDeemphasized={
+                  index > 0 &&
+                  (isFallbackIconCandidate(c) ||
+                    isProductAppIconPenalty(c.reason))
+                }
+                onPreviewFailed={markPreviewFailed}
               />
             ))}
           </ul>
@@ -117,7 +180,10 @@ type LogoCandidateCardProps = {
   selected: boolean;
   onSelect: (url: string) => void;
   previewHeightClass: string;
+  designLabel: string | null;
   isBestMatch: boolean;
+  isDeemphasized: boolean;
+  onPreviewFailed: (url: string) => void;
 };
 
 function LogoCandidateCard({
@@ -125,7 +191,10 @@ function LogoCandidateCard({
   selected,
   onSelect,
   previewHeightClass,
+  designLabel,
   isBestMatch,
+  isDeemphasized,
+  onPreviewFailed,
 }: LogoCandidateCardProps) {
   const [loadFailed, setLoadFailed] = useState(false);
   const sourceLabel = SOURCE_LABEL[candidate.source] ?? "image";
@@ -134,9 +203,16 @@ function LogoCandidateCard({
     candidate.width && candidate.height
       ? `${candidate.width}×${candidate.height}`
       : "";
-  const penalized = isProductAppIconPenalty(candidate.reason);
+
   const showTransparentBadge =
-    candidate.transparency === "likely_transparent" && !penalized;
+    candidate.transparency === "likely_transparent" &&
+    designLabel !== "Transparent likely" &&
+    !isProductAppIconPenalty(candidate.reason);
+
+  const handlePreviewError = () => {
+    setLoadFailed(true);
+    onPreviewFailed(candidate.url);
+  };
 
   return (
     <li className="min-w-0">
@@ -150,8 +226,8 @@ function LogoCandidateCard({
             ? "border-zinc-900 ring-1 ring-zinc-900/10"
             : isBestMatch
               ? "border-zinc-400 hover:border-zinc-500"
-              : penalized
-                ? "border-zinc-100 bg-zinc-50/40 hover:border-zinc-200"
+              : isDeemphasized
+                ? "border-zinc-100 bg-zinc-50/50 opacity-90 hover:border-zinc-200"
                 : "border-zinc-200 hover:border-zinc-300"
         }`}
       >
@@ -160,8 +236,8 @@ function LogoCandidateCard({
           aria-hidden
         >
           {loadFailed ? (
-            <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-              N/A
+            <span className="px-2 text-center text-[10px] font-medium leading-snug text-zinc-400">
+              Preview unavailable
             </span>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
@@ -171,7 +247,7 @@ function LogoCandidateCard({
               loading="lazy"
               referrerPolicy="no-referrer"
               className="max-h-full max-w-full object-contain p-1"
-              onError={() => setLoadFailed(true)}
+              onError={handlePreviewError}
             />
           )}
         </div>
@@ -192,9 +268,19 @@ function LogoCandidateCard({
         ) : null}
 
         <div className="mt-1.5 flex min-h-[20px] w-full flex-wrap items-center justify-center gap-1 px-0.5">
-          {isBestMatch ? (
-            <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-white">
-              Best match
+          {designLabel ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                isBestMatch
+                  ? "bg-zinc-900 text-white"
+                  : designLabel === "Fallback icon"
+                    ? "border border-zinc-200 bg-zinc-50 text-zinc-500"
+                    : designLabel === "Preview unavailable"
+                      ? "border border-zinc-200 text-zinc-400"
+                      : "border border-zinc-200 bg-white text-zinc-600"
+              }`}
+            >
+              {designLabel}
             </span>
           ) : null}
           {showTransparentBadge ? (
@@ -202,7 +288,9 @@ function LogoCandidateCard({
               Transparent likely
             </span>
           ) : null}
-          {penalized ? (
+          {designLabel === "Less likely logo" ? null : isProductAppIconPenalty(
+              candidate.reason,
+            ) ? (
             <span className="text-[10px] text-zinc-400">Less likely logo</span>
           ) : null}
         </div>
