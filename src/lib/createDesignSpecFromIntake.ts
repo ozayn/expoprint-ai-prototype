@@ -444,6 +444,8 @@ function buildSocialFooterLayers(
       type: "socialFooterItem",
       id: `social-footer-${i}`,
       platform: entry.platform,
+      platformMark: entry.platformMark,
+      labelText: entry.labelText,
       displayText: entry.displayText,
       left: x,
       top,

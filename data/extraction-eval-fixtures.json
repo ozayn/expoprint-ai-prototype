@@ -269,15 +269,15 @@
           "severity": "nice_to_have"
         },
         {
-          "type": "arrayIncludes",
-          "path": "content.products",
-          "substring": "payment",
+          "type": "anyArrayIncludes",
+          "paths": ["content.services", "content.products"],
+          "substrings": ["payment", "checkout"],
           "severity": "nice_to_have"
         },
         {
-          "type": "arrayIncludes",
-          "path": "content.services",
-          "substring": "pos",
+          "type": "anyArrayIncludes",
+          "paths": ["content.services", "content.products"],
+          "substrings": ["pos", "point of sale"],
           "severity": "nice_to_have"
         },
         {
@@ -338,15 +338,9 @@
           "severity": "nice_to_have"
         },
         {
-          "type": "arrayIncludes",
-          "path": "content.products",
-          "substring": "automation",
-          "severity": "nice_to_have"
-        },
-        {
-          "type": "arrayIncludes",
-          "path": "content.services",
-          "substring": "campaign",
+          "type": "anyArrayIncludes",
+          "paths": ["content.services", "content.products"],
+          "substrings": ["automation", "automations"],
           "severity": "nice_to_have"
         },
         {
@@ -394,27 +388,9 @@
           "severity": "required"
         },
         {
-          "type": "arrayIncludes",
-          "path": "content.products",
-          "substring": "apparel",
-          "severity": "nice_to_have"
-        },
-        {
-          "type": "arrayIncludes",
-          "path": "content.products",
-          "substring": "outdoor",
-          "severity": "nice_to_have"
-        },
-        {
-          "type": "arrayIncludes",
-          "path": "content.services",
-          "substring": "gear",
-          "severity": "nice_to_have"
-        },
-        {
-          "type": "arrayIncludes",
-          "path": "content.products",
-          "substring": "jacket",
+          "type": "anyArrayIncludes",
+          "paths": ["content.products", "content.services"],
+          "substrings": ["outdoor", "clothing", "gear", "apparel"],
           "severity": "nice_to_have"
         },
         {
@@ -486,8 +462,8 @@
           "severity": "nice_to_have"
         },
         {
-          "type": "arrayIncludes",
-          "path": "content.products",
+          "type": "anyArrayIncludes",
+          "paths": ["content.services", "content.products"],
           "substring": "minuteclinic",
           "severity": "nice_to_have"
         },

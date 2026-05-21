@@ -7,7 +7,13 @@ export type SocialPlatformId =
 
 export type ParsedSocialLink = {
   platform: SocialPlatformId;
-  /** e.g. `YouTube /googleads` */
+  /** Badge mark, e.g. `▶`, `f`, `in` */
+  platformMark: string;
+  /** Platform name without mark, e.g. `YouTube` */
+  platformLabel: string;
+  /** Text after the mark: platform + path, e.g. `YouTube /googleads` */
+  labelText: string;
+  /** Full footer token for width fitting, e.g. `▶ YouTube /googleads` */
   displayText: string;
   /** Path/handle suffix only, e.g. `/googleads` */
   pathSuffix: string;
@@ -21,17 +27,13 @@ const PLATFORM_LABELS: Record<SocialPlatformId, string> = {
   youtube: "YouTube",
 };
 
-/** 24×24 viewBox paths — rendered via Fabric `Path` (no remote assets). */
-export const SOCIAL_ICON_PATHS: Record<SocialPlatformId, string> = {
-  youtube:
-    "M 6 6 H 18 A 2 2 0 0 1 20 8 V 16 A 2 2 0 0 1 18 18 H 6 A 2 2 0 0 1 4 16 V 8 A 2 2 0 0 1 6 6 Z M 10 9 L 16 12 L 10 15 Z",
-  x: "M 7 7 L 17 17 M 17 7 L 7 17",
-  facebook:
-    "M 13 7 H 11 A 2 2 0 0 0 9 9 V 11 H 7 V 15 H 9 V 19 H 13 V 15 H 15 V 11 H 13 Z",
-  linkedin:
-    "M 6 8 H 10 V 18 H 6 Z M 8 6 A 2 2 0 1 0 8 10 A 2 2 0 1 0 8 6 Z M 12 8 H 16 V 18 H 12 V 13 A 2 2 0 0 1 16 11 V 8",
-  instagram:
-    "M 7 7 H 17 A 2 2 0 0 1 19 9 V 15 A 2 2 0 0 1 17 17 H 7 A 2 2 0 0 1 5 15 V 9 A 2 2 0 0 1 7 7 Z M 12 10 A 2 2 0 1 0 12 14 A 2 2 0 1 0 12 10 Z M 16.2 8 H 16.25",
+/** Compact platform marks rendered as Fabric text inside a small badge (export-safe). */
+export const SOCIAL_PLATFORM_MARKS: Record<SocialPlatformId, string> = {
+  youtube: "▶",
+  instagram: "◎",
+  facebook: "f",
+  linkedin: "in",
+  x: "X",
 };
 
 const HOST_PLATFORM: Array<{ re: RegExp; platform: SocialPlatformId }> = [
@@ -71,14 +73,16 @@ function pathSuffixFromUrl(url: URL, platform: SocialPlatformId): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-function formatDisplayText(
+function formatSocialFooterStrings(
   platform: SocialPlatformId,
   pathSuffix: string,
-): string {
+): { labelText: string; displayText: string } | null {
+  const mark = SOCIAL_PLATFORM_MARKS[platform];
   const label = PLATFORM_LABELS[platform];
-  const text = pathSuffix ? `${label} ${pathSuffix}` : label;
-  if (text.length > DISPLAY_TEXT_MAX) return "";
-  return text;
+  const labelText = pathSuffix ? `${label} ${pathSuffix}` : label;
+  const displayText = `${mark} ${labelText}`;
+  if (displayText.length > DISPLAY_TEXT_MAX) return null;
+  return { labelText, displayText };
 }
 
 /**
@@ -103,10 +107,17 @@ export function parseSocialLinkToken(rawToken: string): ParsedSocialLink | null 
   if (!platform) return null;
 
   const pathSuffix = pathSuffixFromUrl(url, platform);
-  const displayText = formatDisplayText(platform, pathSuffix);
-  if (!displayText) return null;
+  const formatted = formatSocialFooterStrings(platform, pathSuffix);
+  if (!formatted) return null;
 
-  return { platform, displayText, pathSuffix };
+  return {
+    platform,
+    platformMark: SOCIAL_PLATFORM_MARKS[platform],
+    platformLabel: PLATFORM_LABELS[platform],
+    pathSuffix,
+    labelText: formatted.labelText,
+    displayText: formatted.displayText,
+  };
 }
 
 /** Split a selected social field into deduped platform entries (order preserved). */

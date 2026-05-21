@@ -12,7 +12,7 @@ import type {
   SpecOriginY,
   TextLayer,
 } from "./designSpec";
-import { SOCIAL_ICON_PATHS } from "./socialPlatformDisplay";
+import { SOCIAL_PLATFORM_MARKS } from "./socialPlatformDisplay";
 
 export type FabricModule = typeof import("fabric");
 
@@ -153,24 +153,60 @@ function renderText(fabric: FabricModule, layer: TextLayer) {
   return text;
 }
 
+function hexFillWithAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return `rgba(255,255,255,${alpha})`;
+  const n = parseInt(m[1]!, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function renderSocialFooterItem(fabric: FabricModule, layer: SocialFooterItemLayer) {
-  const { Group, IText, Path } = fabric;
+  const { Group, IText, Rect } = fabric;
   const iconSize = layer.iconSize ?? 14;
   const fontSize = layer.fontSize ?? 14;
-  const scale = iconSize / 24;
-  const pathData = SOCIAL_ICON_PATHS[layer.platform];
-  const icon = new Path(pathData, {
+  const gap = 6;
+  const mark =
+    layer.platformMark?.trim() ||
+    SOCIAL_PLATFORM_MARKS[layer.platform] ||
+    "?";
+  const labelContent =
+    layer.labelText?.trim() ||
+    layer.displayText.replace(/^\S+\s+/, "").trim() ||
+    layer.displayText;
+
+  const badge = new Rect({
     left: 0,
     top: 0,
-    scaleX: scale,
-    scaleY: scale,
-    fill: layer.fill,
-    strokeWidth: 0,
+    width: iconSize,
+    height: iconSize,
+    rx: Math.max(2, Math.round(iconSize * 0.22)),
+    ry: Math.max(2, Math.round(iconSize * 0.22)),
+    fill: hexFillWithAlpha(layer.fill, 0.14),
+    stroke: layer.fill,
+    strokeWidth: 0.75,
     originX: "left",
     originY: "top",
   });
-  const label = new IText(layer.displayText, {
-    left: iconSize + 6,
+
+  const markFontSize =
+    mark.length > 1 ? Math.max(9, fontSize * 0.72) : Math.max(10, fontSize * 0.82);
+  const markText = new IText(mark, {
+    left: iconSize / 2,
+    top: iconSize / 2,
+    fontSize: markFontSize,
+    fontFamily: layer.fontFamily,
+    fill: layer.fill,
+    fontWeight: "700",
+    textAlign: "center",
+    originX: "center",
+    originY: "center",
+  });
+
+  const label = new IText(labelContent, {
+    left: iconSize + gap,
     top: Math.max(0, (iconSize - fontSize) / 2),
     fontSize,
     fontFamily: layer.fontFamily,
@@ -179,7 +215,8 @@ function renderSocialFooterItem(fabric: FabricModule, layer: SocialFooterItemLay
     originX: "left",
     originY: "top",
   });
-  const group = new Group([icon, label], {
+
+  const group = new Group([badge, markText, label], {
     left: layer.left,
     top: layer.top,
     originX: "left",

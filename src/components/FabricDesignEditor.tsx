@@ -28,6 +28,7 @@ import {
   type DesignIntakeState,
 } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
+import { buildConceptExportFilename } from "@/lib/exportConceptFilename";
 import {
   exportFabricCanvasPng,
   triggerDownload,
@@ -328,10 +329,21 @@ export function FabricDesignEditor() {
     setStatus("JSON updated in the panel below.");
   };
 
+  const conceptExportFilename = useCallback(
+    (extension: "png" | "svg" | "json") =>
+      buildConceptExportFilename({
+        businessName: intakeRef.current.businessName,
+        surfaceLabel: displaySurfaceRef.current,
+        productCategory: intakeRef.current.category,
+        extension,
+      }),
+    [],
+  );
+
   const exportPng = () => {
     const c = fabricRef.current;
     if (!c) return;
-    exportFabricCanvasPng(c);
+    exportFabricCanvasPng(c, conceptExportFilename("png"));
     setStatus("PNG download started.");
   };
 
@@ -341,7 +353,7 @@ export function FabricDesignEditor() {
     const svg = c.toSVG();
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    triggerDownload(url, "expoprint-concept.svg", "image/svg+xml");
+    triggerDownload(url, conceptExportFilename("svg"), "image/svg+xml");
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     setStatus("SVG download started.");
   };

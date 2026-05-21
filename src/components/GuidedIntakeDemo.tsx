@@ -32,6 +32,7 @@ import {
 } from "@/lib/designIntakeState";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { ExportPngButton } from "@/components/ExportPngButton";
+import { buildConceptExportFilename } from "@/lib/exportConceptFilename";
 import { exportFabricCanvasPng } from "@/lib/fabricCanvasExport";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
@@ -258,7 +259,15 @@ export function GuidedIntakeDemo() {
   const exportPng = () => {
     const c = fabricRef.current;
     if (!c) return;
-    exportFabricCanvasPng(c);
+    exportFabricCanvasPng(
+      c,
+      buildConceptExportFilename({
+        businessName: intakeRef.current.businessName,
+        surfaceLabel: displaySurfaceRef.current,
+        productCategory: intakeRef.current.category,
+        extension: "png",
+      }),
+    );
   };
 
   useLayoutEffect(() => {

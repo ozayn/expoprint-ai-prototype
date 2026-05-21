@@ -31,8 +31,18 @@ const VERBOSE = process.argv.includes("--verbose");
  * @property {CheckSeverity} [severity]
  * @property {unknown} [expected]
  * @property {string} [substring]
+ * @property {string[]} [substrings]
+ * @property {string[]} [paths]
  * @property {number} [min]
  */
+
+/** @param {ExpectedCheck} check */
+function checkPathLabel(check) {
+  if (Array.isArray(check.paths) && check.paths.length > 0) {
+    return check.paths.join(" | ");
+  }
+  return check.path ?? "(no path)";
+}
 
 /**
  * @typedef {object} Fixture
@@ -91,8 +101,11 @@ function valuesEqual(a, b) {
  * @param {ExpectedCheck} check
  */
 function runCheck(response, check) {
-  const actual = getByPath(response, check.path);
   const severity = check.severity === "nice_to_have" ? "nice_to_have" : "required";
+  const actual =
+    typeof check.path === "string" && check.path.length > 0
+      ? getByPath(response, check.path)
+      : undefined;
 
   switch (check.type) {
     case "exact": {
@@ -137,6 +150,47 @@ function runCheck(response, check) {
         severity,
         actual,
         expected: sub,
+      };
+    }
+    case "anyArrayIncludes": {
+      const paths = Array.isArray(check.paths) ? check.paths : [];
+      const needles = [
+        ...(check.substring ? [check.substring] : []),
+        ...(Array.isArray(check.substrings) ? check.substrings : []),
+      ];
+      let matchedPath = "";
+      let matchedNeedle = "";
+      let pass = false;
+      for (const p of paths) {
+        const value = getByPath(response, p);
+        const arr = Array.isArray(value) ? value : [];
+        for (const sub of needles) {
+          if (
+            arr.some((item) => {
+              const s = typeof item === "string" ? item : JSON.stringify(item);
+              return s.toLowerCase().includes(sub.toLowerCase());
+            })
+          ) {
+            pass = true;
+            matchedPath = p;
+            matchedNeedle = sub;
+            break;
+          }
+        }
+        if (pass) break;
+      }
+      const expectedLabel =
+        needles.length === 1
+          ? needles[0]
+          : `any of ${needles.map((n) => JSON.stringify(n)).join(", ")}`;
+      return {
+        pass,
+        message: pass
+          ? `${matchedPath} includes ${JSON.stringify(matchedNeedle)}`
+          : `expected ${paths.join(" or ")} to include ${expectedLabel}, none matched`,
+        severity,
+        actual: pass ? matchedNeedle : undefined,
+        expected: needles,
       };
     }
     case "exists": {
@@ -344,7 +398,7 @@ function printRunConsistency(report) {
       const tag =
         row.check.severity === "nice_to_have" ? "nice_to_have" : "required";
       console.log(
-        `    flaky [${tag}] ${row.check.type} ${row.check.path}: ${row.passCount}/${RUN_COUNT} runs passed`,
+        `    flaky [${tag}] ${row.check.type} ${checkPathLabel(row.check)}: ${row.passCount}/${RUN_COUNT} runs passed`,
       );
     }
   }
@@ -395,7 +449,7 @@ async function main() {
       const runNote =
         RUN_COUNT > 1 ? ` (${row.passCount}/${RUN_COUNT} runs)` : "";
       console.log(
-        `  ${icon} [${tag}] ${row.check.type} ${row.check.path} — ${lastRun.message}${runNote}`,
+        `  ${icon} [${tag}] ${row.check.type} ${checkPathLabel(row.check)} — ${lastRun.message}${runNote}`,
       );
       if (
         RUN_COUNT === 1 &&

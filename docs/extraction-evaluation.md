@@ -79,6 +79,7 @@ Each entry in `fixtures`:
 | `exact` | `path`, `expected` | Value at `path` equals `expected` (strict / JSON for objects) |
 | `pathIncludes` | `path`, `substring` | String at `path` contains `substring` (case-insensitive) |
 | `arrayIncludes` | `path`, `substring` | Some array element string contains `substring` |
+| `anyArrayIncludes` | `paths`, `substring` and/or `substrings` | On any listed path, some array element contains `substring` or any entry in `substrings` (case-insensitive) |
 | `exists` | `path` | Value is non-null and non-empty string |
 | `countGte` | `path`, `min` | Array length or numeric value ≥ `min` |
 | `logoCandidateSource` | `path`, `expected` | Exact match (e.g. `header-image`, `icon`) |
@@ -118,3 +119,5 @@ See also [`test-sites.md`](./test-sites.md) for manual QA URLs and checklist.
 | `cvs-large-site-partial` | https://www.cvs.com | Partial HTML (`body_truncated`) |
 
 Newer fixtures intentionally avoid exact logo URLs and Claude-specific copy in **required** checks. Use **nice_to_have** for service/product phrases, typography, and warning codes.
+
+For terms that may appear in either `content.services` or `content.products` (or under synonyms like “automations” vs “automation”), prefer `anyArrayIncludes` with multiple `substrings` rather than many narrow `arrayIncludes` checks.
