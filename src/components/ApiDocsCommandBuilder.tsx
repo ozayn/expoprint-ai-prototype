@@ -1,9 +1,25 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { CopyCommandBlock } from "@/components/CopyCommandBlock";
 
-const EXTRACT_URL = "http://localhost:3000/api/design-intake/extract";
+const LOCAL_ORIGIN = "http://localhost:3000";
+
+function extractApiUrl(origin: string): string {
+  return `${origin}/api/design-intake/extract`;
+}
+
+function subscribePageOrigin() {
+  return () => {};
+}
+
+function getPageOriginSnapshot(): string {
+  return window.location.origin;
+}
+
+function getPageOriginServerSnapshot(): string {
+  return LOCAL_ORIGIN;
+}
 
 const PRODUCT_CATEGORIES = ["Outdoor tent", "Trade show booth"] as const;
 type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
@@ -51,10 +67,10 @@ function buildExtractPayload(
   return payload;
 }
 
-function buildCurlCommand(payload: ExtractPayload): string {
+function buildCurlCommand(payload: ExtractPayload, extractUrl: string): string {
   const json = JSON.stringify(payload, null, 2);
   const escaped = escapeForBashSingleQuoted(json);
-  return `curl -sS -X POST "${EXTRACT_URL}" \\
+  return `curl -sS -X POST "${extractUrl}" \\
   -H "Content-Type: application/json" \\
   -d '${escaped}' | jq`;
 }
@@ -82,6 +98,11 @@ const inputClass =
 const labelClass = "text-xs font-medium text-zinc-600";
 
 export function ApiDocsCommandBuilder() {
+  const apiOrigin = useSyncExternalStore(
+    subscribePageOrigin,
+    getPageOriginSnapshot,
+    getPageOriginServerSnapshot,
+  );
   const [websiteUrl, setWebsiteUrl] = useState("https://expoprint.io");
   const [productCategory, setProductCategory] =
     useState<ProductCategory>("Outdoor tent");
@@ -90,6 +111,8 @@ export function ApiDocsCommandBuilder() {
     ...DEFAULT_COMPONENTS["Outdoor tent"],
   ]);
   const [customerInstructions, setCustomerInstructions] = useState("");
+
+  const extractUrl = useMemo(() => extractApiUrl(apiOrigin), [apiOrigin]);
 
   const onCategoryChange = useCallback((next: ProductCategory) => {
     setProductCategory(next);
@@ -118,7 +141,10 @@ export function ApiDocsCommandBuilder() {
     [websiteUrl, productCategory, components, stylePreference, customerInstructions],
   );
 
-  const curlCommand = useMemo(() => buildCurlCommand(payload), [payload]);
+  const curlCommand = useMemo(
+    () => buildCurlCommand(payload, extractUrl),
+    [payload, extractUrl],
+  );
   const npmCommand = useMemo(
     () => buildNpmCommand(websiteUrl, productCategory, stylePreference),
     [websiteUrl, productCategory, stylePreference],
@@ -237,6 +263,10 @@ export function ApiDocsCommandBuilder() {
       <div className="mt-5 flex flex-col gap-4">
         <CopyCommandBlock label="curl" command={curlCommand} />
         <CopyCommandBlock label="npm script" command={npmCommand} />
+        <p className="text-xs leading-relaxed text-zinc-500">
+          The npm script is for local development. The curl command above uses the
+          current page&apos;s domain ({apiOrigin}).
+        </p>
       </div>
 
       {npmLimited ? (
