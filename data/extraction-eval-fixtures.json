@@ -480,6 +480,51 @@
           "severity": "nice_to_have"
         }
       ]
+    },
+    {
+      "name": "warby-parker-blocked-fetch",
+      "websiteUrl": "https://www.warbyparker.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "pathIn",
+          "path": "metadata.websiteFetch.status",
+          "expected": ["failed"],
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "metadata.warnings",
+          "substring": "site_blocked_static_fetch",
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "metadata.warnings",
+          "substring": "Website blocked static extraction",
+          "severity": "required"
+        },
+        {
+          "type": "exact",
+          "path": "metadata.quality.overall",
+          "expected": "low",
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "designIntake.missingAssets",
+          "substring": "Customer-provided logo/brand assets recommended",
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "designIntake.missingAssets",
+          "substring": "Manual services/products confirmation recommended",
+          "severity": "required"
+        }
+      ]
     }
   ]
 }

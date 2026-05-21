@@ -117,6 +117,7 @@ See also [`test-sites.md`](./test-sites.md) for manual QA URLs and checklist.
 | `mailchimp-marketing-saas` | https://mailchimp.com | Marketing brand, playful SaaS |
 | `patagonia-consumer-brand` | https://www.patagonia.com | Consumer brand, bot-wall / logo stress |
 | `cvs-large-site-partial` | https://www.cvs.com | Partial HTML (`body_truncated`) |
+| `warby-parker-blocked-fetch` | https://www.warbyparker.com | Static fetch blocked (`http_403`), low quality |
 
 Newer fixtures intentionally avoid exact logo URLs and Claude-specific copy in **required** checks. Use **nice_to_have** for service/product phrases, typography, and warning codes.
 

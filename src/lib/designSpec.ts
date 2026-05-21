@@ -152,8 +152,13 @@ export interface ImageLayer {
   top: number;
   width: number;
   height: number;
-  /** Inset within the bounding box before scaling, per side. Default 8. */
+  /** Inset within the bounding box before scaling, per side. Default 15 (12–18). */
   padding?: number;
+  /**
+   * Fit strategy inside the logo box (object-contain; never crops).
+   * `wordmark` — wide logos; `icon` — compact marks capped so they do not dominate the box.
+   */
+  fitHint?: "contain" | "wordmark" | "icon";
   /** Layer ids removed from the canvas only when the image actually loads. */
   replacePlaceholderIds?: string[];
   opacity?: number;

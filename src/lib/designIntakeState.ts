@@ -91,6 +91,10 @@ export interface DesignIntakeState {
    */
   typographySignals: TypographySignals | null;
   designBrief: string;
+  /** Canonical URL from the last successful Analyze Website run. */
+  lastAnalyzedWebsiteUrl: string;
+  /** Hostname from the last successful Analyze Website run (www-stripped, lowercase). */
+  lastAnalyzedDomain: string;
 }
 
 const MOCK_EXTRACTED: Record<ExtractedKey, string> = {
@@ -325,6 +329,8 @@ export function defaultDesignIntake(): DesignIntakeState {
     selectedLogoCandidateUrl: "",
     typographySignals: null,
     designBrief: "",
+    lastAnalyzedWebsiteUrl: "",
+    lastAnalyzedDomain: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };
 }

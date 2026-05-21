@@ -1,6 +1,10 @@
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
 import { logoCandidatesAreFaviconOnly } from "@/lib/logoCandidateQuality";
 import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
+import {
+  isStaticFetchBlocked,
+  SITE_BLOCKED_STATIC_FETCH_CODE,
+} from "@/lib/websiteFetchBlocked";
 import type {
   DesignIntakeApiContent,
   DesignIntakeApiMetadata,
@@ -20,7 +24,16 @@ export const RELIABILITY_WARNING_CODES = {
   businessNameFromDomain: "business_name_inferred_from_domain",
   largeSitePartialExtraction: "large_site_partial_extraction",
   faviconOnlyLogo: "favicon_only_logo_candidate",
+  siteBlockedStaticFetch: SITE_BLOCKED_STATIC_FETCH_CODE,
 } as const;
+
+export {
+  CUSTOMER_PROVIDED_LOGO_ASSET,
+  MANUAL_SERVICES_CONFIRM_ASSET,
+  SITE_BLOCKED_STATIC_FETCH_CODE,
+  SITE_BLOCKED_STATIC_FETCH_MESSAGE,
+} from "@/lib/websiteFetchBlocked";
+export { isStaticFetchBlocked } from "@/lib/websiteFetchBlocked";
 
 function websiteFetchUsable(meta: WebsiteFetchMeta): boolean {
   return meta.status === "success" || meta.status === "partial";
@@ -71,11 +84,26 @@ function servicesProductsQuality(content: DesignIntakeApiContent): ExtractionQua
   return "low";
 }
 
+function hasUsefulExtractedContent(
+  websiteFetch: WebsiteFetchMeta | undefined,
+  logoCandidates: LogoCandidate[],
+  content: DesignIntakeApiContent,
+): boolean {
+  if (websiteFetch && websiteFetchUsable(websiteFetch)) {
+    if (logoCandidates.length > 0) return true;
+    if (content.services.length > 0 || content.products.length > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function assessExtractionQuality(params: {
   businessName: string;
   businessNameSource: BusinessNameSource;
   logoCandidates: LogoCandidate[];
   content: DesignIntakeApiContent;
+  websiteFetch?: WebsiteFetchMeta;
 }): ExtractionQualitySummary {
   const businessName = businessNameQuality(
     params.businessName,
@@ -84,11 +112,24 @@ export function assessExtractionQuality(params: {
   const logo = logoQuality(params.logoCandidates);
   const servicesProducts = servicesProductsQuality(params.content);
 
+  let overall = minLevel(businessName, logo, servicesProducts);
+  if (
+    params.websiteFetch &&
+    isStaticFetchBlocked(params.websiteFetch) &&
+    !hasUsefulExtractedContent(
+      params.websiteFetch,
+      params.logoCandidates,
+      params.content,
+    )
+  ) {
+    overall = "low";
+  }
+
   return {
     businessName,
     logo,
     servicesProducts,
-    overall: minLevel(businessName, logo, servicesProducts),
+    overall,
   };
 }
 
@@ -106,6 +147,10 @@ export function collectReliabilityWarningCodes(params: {
 }): string[] {
   const codes: string[] = [];
   const { result, websiteFetch, content } = params;
+
+  if (isStaticFetchBlocked(websiteFetch)) {
+    codes.push(RELIABILITY_WARNING_CODES.siteBlockedStaticFetch);
+  }
 
   if (!websiteFetchUsable(websiteFetch)) {
     codes.push(RELIABILITY_WARNING_CODES.websiteFetchFailed);

@@ -18,8 +18,13 @@ import {
   assessExtractionQuality,
   attachQualityToMetadata,
   collectReliabilityWarningCodes,
+  CUSTOMER_PROVIDED_LOGO_ASSET,
+  isStaticFetchBlocked,
+  MANUAL_SERVICES_CONFIRM_ASSET,
   mergeWarnings,
+  SITE_BLOCKED_STATIC_FETCH_MESSAGE,
 } from "@/lib/extractionQuality";
+import type { ExtractionQualitySummary } from "@/lib/designIntakeApiSchema";
 import {
   logoCandidatesAreFaviconOnly,
   PRODUCTION_LOGO_UPLOAD_ASSET,
@@ -166,6 +171,8 @@ function buildDesignIntakeSection(
   business: DesignIntakeApiBusiness,
   warnings: string[],
   logoCandidates: LogoCandidate[],
+  websiteFetch: WebsiteFetchMeta,
+  quality: ExtractionQualitySummary,
   businessNameSourceNote?: string,
 ): DesignIntakeApiDesignIntake {
   const services = rowValue(rows, "services");
@@ -185,6 +192,15 @@ function buildDesignIntakeSection(
   }
   if (parseBrandColors(rowValue(rows, "brandColors")).length === 0) {
     missingAssets.push("Brand color palette confirmation");
+  }
+  const blockedLowQuality =
+    isStaticFetchBlocked(websiteFetch) &&
+    quality.overall === "low" &&
+    services.length === 0 &&
+    products.length === 0;
+  if (blockedLowQuality) {
+    missingAssets.push(CUSTOMER_PROVIDED_LOGO_ASSET);
+    missingAssets.push(MANUAL_SERVICES_CONFIRM_ASSET);
   }
   if (missingAssets.length === 0) {
     missingAssets.push("Production-quality logo upload still recommended");
@@ -287,7 +303,9 @@ function humanReadableWarnings(result: ClaudeWebsiteAnalyzeResult): string[] {
   const warnings: string[] = [];
   const { websiteFetch, extraction } = result;
 
-  if (websiteFetch.status === "failed") {
+  if (isStaticFetchBlocked(websiteFetch)) {
+    warnings.push(SITE_BLOCKED_STATIC_FETCH_MESSAGE);
+  } else if (websiteFetch.status === "failed") {
     warnings.push(`Website fetch failed (${websiteFetch.reason ?? "unknown"}).`);
   } else if (websiteFetch.status === "skipped") {
     warnings.push(`Website fetch skipped (${websiteFetch.reason ?? "unknown"}).`);
@@ -373,6 +391,7 @@ function assembleResponseParts(
     businessNameSource: resolved.source,
     logoCandidates: logoList,
     content,
+    websiteFetch,
   });
 
   const designIntake = buildDesignIntakeSection(
@@ -381,6 +400,8 @@ function assembleResponseParts(
     business,
     humanWarnings,
     logoList,
+    websiteFetch,
+    quality,
     businessNameSourceNote,
   );
 

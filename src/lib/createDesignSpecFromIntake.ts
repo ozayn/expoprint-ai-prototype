@@ -501,6 +501,16 @@ function buildSelectedLogoImageLayer(
       ? intake.selectedLogoCandidateUrl.trim()
       : "";
   if (!remote || !/^https?:\/\//i.test(remote)) return [];
+
+  const selected = intake.logoCandidates.find((c) => c.url === remote);
+  const role = selected?.logoRole;
+  const fitHint =
+    role === "icon_mark" || role === "fallback_icon"
+      ? "icon"
+      : role === "wordmark"
+        ? "wordmark"
+        : "contain";
+
   return [
     {
       type: "image",
@@ -510,7 +520,8 @@ function buildSelectedLogoImageLayer(
       top: 72,
       width: 132,
       height: 132,
-      padding: 10,
+      padding: 15,
+      fitHint,
       replacePlaceholderIds: ["logo-box", "logo-label", "logo-label-sub"],
     },
   ];

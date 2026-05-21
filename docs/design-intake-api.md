@@ -175,6 +175,20 @@ Homepage HTML is capped at **800 KB** per GET (unchanged). When `Content-Length`
 
 Warning code: `large_site_partial_extraction` (also a human-readable line in `metadata.warnings`). Useful for heavy retail sites (e.g. `cvs.com`) where the full homepage is multi‑MB but head metadata is still in the first chunk. Partial pages may still yield `cvs-logo.svg` from JSON-LD/OG in the truncated head; favicon-only sites emit `favicon_only_logo_candidate` and `Production-quality logo upload recommended` in `missingAssets`.
 
+### Blocked static fetch (bot protection / 403)
+
+Some sites deny the prototype’s static HTTP client (e.g. `warbyparker.com` → `websiteFetch.status: "failed"`, `reason: "http_403"`). The API does **not** bypass WAFs or run a headless browser.
+
+| Signal | Meaning |
+| --- | --- |
+| `metadata.websiteFetch.reason` | `http_403`, `http_401`, `http_429`, or similar |
+| Warning code | `site_blocked_static_fetch` |
+| Human line | `Website blocked static extraction; manual review or customer-provided assets may be needed.` |
+| `metadata.quality.overall` | Stays **`low`** when the fetch is blocked and no useful logos/services/products were extracted |
+| `designIntake.missingAssets` | May include `Customer-provided logo/brand assets recommended` and `Manual services/products confirmation recommended` |
+
+Claude may still run on minimal context, but **services/products are not invented** from general knowledge when scrape data is empty. Treat `ok: false` or low-quality `ok: true` responses as **manual review** — request customer logos, brand guides, and confirmed service lists.
+
 **Editor vs extract:** both routes call the same pipeline. The UI sends the placeholder business name (`Example Brand Co.`); the server ignores Claude echoes of that placeholder and resolves the public name from title/OG/domain like the integration API. Use `npm run api:compare -- cvs.com` to verify matching fetch metadata.
 
 ## Compare UI vs integration routes (same pipeline)

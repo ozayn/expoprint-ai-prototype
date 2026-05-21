@@ -27,6 +27,7 @@ import {
   getSelectedProductComponents,
   type DesignIntakeState,
 } from "@/lib/designIntakeState";
+import { mergeIntakePatch } from "@/lib/websiteIntakeReset";
 import { sampleDesignSpec } from "@/lib/designSpec";
 import { buildConceptExportFilename } from "@/lib/exportConceptFilename";
 import {
@@ -61,6 +62,8 @@ export function FabricDesignEditor() {
   const displaySurfaceRef = useRef<string | null>(null);
   const generateSampleRunIdRef = useRef(0);
   const analyzeRequestSeqRef = useRef(0);
+  const businessNamePreservedForDomainRef = useRef<string | null>(null);
+  const generateSampleConceptRef = useRef<(() => void) | null>(null);
 
   const [canvasPhase, setCanvasPhase] = useState<CanvasPhase>("initializing");
   const [canvasErrorDetail, setCanvasErrorDetail] = useState<string | null>(null);
@@ -71,6 +74,7 @@ export function FabricDesignEditor() {
   const [analyzeInProgress, setAnalyzeInProgress] = useState(false);
   const [analyzeStatusLine, setAnalyzeStatusLine] = useState("");
   const [analyzeBusinessNameNote, setAnalyzeBusinessNameNote] = useState("");
+  const [websiteChangeNote, setWebsiteChangeNote] = useState("");
 
   const selectedSurfaces = useMemo(
     () => getSelectedProductComponents(intake),
@@ -95,12 +99,22 @@ export function FabricDesignEditor() {
       setAnalyzeBusinessNameNote("");
     }
     setIntake((prev) => {
-      const next = { ...prev, ...patch };
-      const patchKeys = Object.keys(patch) as (keyof DesignIntakeState)[];
-      const onlyBriefEdited =
-        patchKeys.length === 1 && patchKeys[0] === "designBrief";
-      if (onlyBriefEdited) return next;
-      return { ...next, designBrief: computeDesignBriefText(next) };
+      const result = mergeIntakePatch(prev, patch, {
+        businessNamePreservedForDomain: businessNamePreservedForDomainRef.current,
+        setBusinessNamePreservedForDomain: (domain) => {
+          businessNamePreservedForDomainRef.current = domain;
+        },
+      });
+      if (result.websiteChangedNote) {
+        setWebsiteChangeNote(result.websiteChangedNote);
+        setAnalyzeStatusLine("");
+        setAnalyzeBusinessNameNote("");
+        setStatus(null);
+        if (result.didClearStaleWebsiteData) {
+          queueMicrotask(() => generateSampleConceptRef.current?.());
+        }
+      }
+      return result.next;
     });
   }, []);
 
@@ -117,11 +131,14 @@ export function FabricDesignEditor() {
     setAnalyzeBusinessNameNote("");
     try {
       const snap = intakeRef.current;
+      const submittedWebsiteUrl = normalizeWebsiteUrlForAnalyzeInput(
+        snap.websiteUrl,
+      );
       const res = await fetch("/api/analyze-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          websiteUrl: normalizeWebsiteUrlForAnalyzeInput(snap.websiteUrl),
+          websiteUrl: submittedWebsiteUrl,
           businessName: snap.businessName,
           productCategory: snap.category,
           style: snap.style,
@@ -131,17 +148,24 @@ export function FabricDesignEditor() {
       if (requestSeq !== analyzeRequestSeqRef.current) return;
 
       const data: unknown = await res.json().catch(() => null);
-      const outcome = processAnalyzeWebsiteApiResponse(snap, data);
+      const outcome = processAnalyzeWebsiteApiResponse(
+        snap,
+        data,
+        submittedWebsiteUrl,
+      );
       if (requestSeq !== analyzeRequestSeqRef.current) return;
 
       setAnalyzeStatusLine(outcome.statusLine);
       setAnalyzeBusinessNameNote(outcome.businessNameNote);
+      setWebsiteChangeNote("");
       setIntake(outcome.next);
     } catch {
       if (requestSeq !== analyzeRequestSeqRef.current) return;
+      const snap = intakeRef.current;
       const outcome = processAnalyzeWebsiteApiResponse(
-        intakeRef.current,
+        snap,
         null,
+        normalizeWebsiteUrlForAnalyzeInput(snap.websiteUrl),
       );
       setAnalyzeStatusLine(outcome.statusLine);
       setAnalyzeBusinessNameNote("");
@@ -227,6 +251,10 @@ export function FabricDesignEditor() {
         );
       });
   }, [syncCanvasPreviewCss]);
+
+  useLayoutEffect(() => {
+    generateSampleConceptRef.current = generateSampleConcept;
+  }, [generateSampleConcept]);
 
   useEffect(() => {
     const el = canvasElRef.current;
@@ -440,7 +468,9 @@ export function FabricDesignEditor() {
           analyzeInProgress={analyzeInProgress}
           onAnalyzeWebsite={handleAnalyzeWebsite}
           analyzeStatusLine={analyzeStatusLine}
-          analyzeAuxiliaryNote={analyzeBusinessNameNote}
+          analyzeAuxiliaryNote={
+            websiteChangeNote || analyzeBusinessNameNote || undefined
+          }
         />
 
         <details className="group rounded-lg border border-zinc-200 bg-zinc-50/80">

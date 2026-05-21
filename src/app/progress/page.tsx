@@ -406,7 +406,7 @@ const stages: Stage[] = [
       "Improves extract API debuggability without changing the overall contract: deterministic business-name fallbacks (Claude → title/og:title → domain), structured `metadata.warnings` codes, `metadata.quality` summary, and multi-run fixture evaluation (`npm run api:evaluate -- --runs N`). Current fixtures pass all required checks locally — prototype reliability only, not a full production QA suite.",
     accomplishments: [
       "`resolveBusinessName` — prefers Claude `suggestedBusinessName`, then brand-like title/og:title, then cautious domain label (e.g. google.com → Google); adds `business_name_inferred_from_domain` when domain fallback is used.",
-      "Reliability warning codes in `metadata.warnings`: `missing_business_name`, `missing_logo_candidates`, `missing_services_products`, `low_content_extracted`, `website_fetch_failed`, `claude_failed_or_skipped`, `large_site_partial_extraction`, `favicon_only_logo_candidate` (additive alongside human-readable lines).",
+      "Reliability warning codes in `metadata.warnings`: `missing_business_name`, `missing_logo_candidates`, `missing_services_products`, `low_content_extracted`, `website_fetch_failed`, `site_blocked_static_fetch`, `claude_failed_or_skipped`, `large_site_partial_extraction`, `favicon_only_logo_candidate` (additive alongside human-readable lines).",
       "`metadata.quality` — `high` / `medium` / `low` for business name, logo, services/products, and overall (logo quality `low` when only favicon/icon candidates exist).",
       "`data/extraction-eval-fixtures.json` + `npm run api:evaluate` — required vs nice-to-have severities; required failures exit nonzero; current fixtures (expoprint.io, google.com, stripe.com) pass stable required checks.",
       "`evaluate-design-intake-api.mjs` supports `--runs N` with per-check pass rates and flaky detection.",
@@ -430,6 +430,14 @@ const stages: Stage[] = [
       "Safer head-only logo discovery (JSON-LD logo/image, `og:logo`, header/nav images before generic `img-logo` scan) without increasing crawl scope or returning raw HTML.",
       "Shared pipeline documented: both `POST /api/analyze-website` and `POST /api/design-intake/extract` call `runClaudeWebsiteAnalyze` — prototype-grade; human review still required.",
     ],
+  },
+  {
+    id: 26,
+    title: "Browser-rendered extraction fallback",
+    status: "Planned",
+    summary:
+      "Future stage: optional headless or browser-rendered fetch for sites that block static HTTP (403/WAF), without bypassing bot protection. Not started — static scrape + clear blocked-site warnings remain the v1 behavior.",
+    accomplishments: [],
   },
 ];
 

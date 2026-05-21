@@ -4,15 +4,12 @@ import {
 } from "@/lib/analyzeWebsiteResponse";
 import {
   applyClaudeAnalyzeSuccessToIntake,
+  applyMockAnalyzeFallbackToIntake,
   applyPartialScrapeAnalyzeToIntake,
   readAnalyzeSuggestionFields,
 } from "@/lib/analyzeWebsiteSuggestions";
 import { isValidExtractedRowsPayload } from "@/lib/claudeExtractedContent";
-import {
-  buildMockExtracted,
-  computeDesignBriefText,
-  type DesignIntakeState,
-} from "@/lib/designIntakeState";
+import type { DesignIntakeState } from "@/lib/designIntakeState";
 
 /** Normalize bare domains for analyze requests (e.g. `google.com` → `https://google.com`). */
 export function normalizeWebsiteUrlForAnalyzeInput(raw: string): string {
@@ -51,12 +48,14 @@ function partialScrapeStatusLine(rec: Record<string, unknown>): string {
 export function processAnalyzeWebsiteApiResponse(
   prev: DesignIntakeState,
   data: unknown,
+  submittedWebsiteUrl = prev.websiteUrl,
 ): AnalyzeWebsiteClientOutcome {
+  const submitted = normalizeWebsiteUrlForAnalyzeInput(submittedWebsiteUrl);
   const rec =
     data && typeof data === "object" ? (data as Record<string, unknown>) : null;
 
   if (!rec) {
-    const next = applyMockFallback(prev);
+    const next = applyMockAnalyzeFallbackToIntake(prev, submitted);
     return {
       statusLine: "Using mocked extraction for prototype.",
       businessNameNote: "",
@@ -73,6 +72,7 @@ export function processAnalyzeWebsiteApiResponse(
       prev,
       extractedUnknown,
       rec,
+      submitted,
     );
     return {
       statusLine: formatClaudeSuccessStatusLine(rec),
@@ -82,7 +82,7 @@ export function processAnalyzeWebsiteApiResponse(
   }
 
   if (apiClaimsClaude) {
-    const next = applyMockFallback(prev);
+    const next = applyMockAnalyzeFallbackToIntake(prev, submitted);
     return {
       statusLine: "Using mocked extraction: invalid Claude response.",
       businessNameNote: "",
@@ -104,6 +104,7 @@ export function processAnalyzeWebsiteApiResponse(
       const { next, businessNameNote } = applyPartialScrapeAnalyzeToIntake(
         prev,
         rec,
+        submitted,
       );
       return {
         statusLine: partialScrapeStatusLine(rec),
@@ -114,23 +115,10 @@ export function processAnalyzeWebsiteApiResponse(
   }
 
   const { line } = analyzeStatusLineFromApiPayload(rec);
-  const next = applyMockFallback(prev);
+  const next = applyMockAnalyzeFallbackToIntake(prev, submitted);
   return {
     statusLine: line,
     businessNameNote: "",
     next,
   };
-}
-
-function applyMockFallback(prev: DesignIntakeState): DesignIntakeState {
-  const next: DesignIntakeState = {
-    ...prev,
-    extracted: buildMockExtracted(),
-    showExtracted: true,
-    extractionSource: "mock_fallback",
-    logoCandidates: [],
-    selectedLogoCandidateUrl: "",
-    typographySignals: null,
-  };
-  return { ...next, designBrief: computeDesignBriefText(next) };
 }

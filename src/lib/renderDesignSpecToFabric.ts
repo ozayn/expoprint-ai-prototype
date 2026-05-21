@@ -269,12 +269,75 @@ function fabricObjectForLayer(
   }
 }
 
+const DEFAULT_LOGO_BOX_PADDING = 15;
+
+type FabricImageLike = FabricObject & {
+  getOriginalSize?: () => { width: number; height: number };
+  width?: number;
+  height?: number;
+  setCoords?: () => void;
+};
+
+/**
+ * Object-contain fit: full image visible inside the logo box with padding, centered.
+ * Uses natural pixel dimensions so wide SVG wordmarks are not over-scaled/cropped.
+ */
+function fitImageContainInLayerBox(img: FabricImageLike, layer: ImageLayer): boolean {
+  const padding = Math.min(
+    18,
+    Math.max(12, typeof layer.padding === "number" ? layer.padding : DEFAULT_LOGO_BOX_PADDING),
+  );
+  const boxW = Math.max(1, layer.width - padding * 2);
+  const boxH = Math.max(1, layer.height - padding * 2);
+
+  const natural =
+    typeof img.getOriginalSize === "function"
+      ? img.getOriginalSize()
+      : { width: img.width ?? 0, height: img.height ?? 0 };
+  const natW = natural.width;
+  const natH = natural.height;
+  if (!Number.isFinite(natW) || !Number.isFinite(natH) || natW <= 0 || natH <= 0) {
+    return false;
+  }
+
+  let scale = Math.min(boxW / natW, boxH / natH);
+  const fitHint = layer.fitHint ?? "contain";
+
+  if (fitHint === "wordmark" || natW / natH > 2.4) {
+    /** Wide marks: never exceed inner width (height may letterbox). */
+    scale = Math.min(scale, boxW / natW);
+  }
+
+  if (fitHint === "icon") {
+    /** Compact icon/favicon marks: stay centered without filling the whole box. */
+    const maxIconDim = Math.min(boxW, boxH) * 0.88;
+    const maxScale = maxIconDim / Math.max(natW, natH);
+    scale = Math.min(scale, maxScale);
+  }
+
+  const centerX = layer.left + layer.width / 2;
+  const centerY = layer.top + layer.height / 2;
+
+  img.set({
+    cropX: 0,
+    cropY: 0,
+    originX: "center",
+    originY: "center",
+    left: centerX,
+    top: centerY,
+    scaleX: scale,
+    scaleY: scale,
+    ...(typeof layer.opacity === "number" ? { opacity: layer.opacity } : {}),
+  });
+  img.setCoords?.();
+  return true;
+}
+
 /**
  * Loads an image asynchronously via `FabricImage.fromURL` with `crossOrigin: "anonymous"`
  * (paired with the `/api/proxy-image` route's permissive CORS so PNG export stays untainted).
- * On success: scales the image into `[layer.left..layer.left+width, layer.top..layer.top+height]`
- * preserving aspect ratio, removes any sibling layers listed in `replacePlaceholderIds`, and adds
- * the image to the canvas. On error: leaves placeholders in place — caller already added them.
+ * On success: scales the image into the logo box with object-contain (no crop), centered with
+ * padding, removes placeholder layers on load, and adds the image to the canvas.
  *
  * Tagged with the canvas render generation so a stale image cannot leak into a newer spec.
  */
@@ -284,10 +347,6 @@ function scheduleImageLoad(
   layer: ImageLayer,
   generation: number,
 ): void {
-  const padding = typeof layer.padding === "number" ? layer.padding : 8;
-  const boxW = Math.max(1, layer.width - padding * 2);
-  const boxH = Math.max(1, layer.height - padding * 2);
-
   /**
    * `FabricImage.fromURL` returns a Promise. Errors here include CORS-tainted
    * loads (the canvas would refuse to export PNG) or 4xx from the proxy.
@@ -295,23 +354,9 @@ function scheduleImageLoad(
   fabric.FabricImage.fromURL(layer.src, { crossOrigin: "anonymous" })
     .then((img) => {
       if (currentRenderGen(canvas) !== generation) return;
-      const w = img.width ?? 0;
-      const h = img.height ?? 0;
-      if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+      if (!fitImageContainInLayerBox(img, layer)) {
         return;
       }
-      const scale = Math.min(boxW / w, boxH / h);
-      const drawnW = w * scale;
-      const drawnH = h * scale;
-      img.set({
-        left: layer.left + (layer.width - drawnW) / 2,
-        top: layer.top + (layer.height - drawnH) / 2,
-        scaleX: scale,
-        scaleY: scale,
-        originX: "left",
-        originY: "top",
-        ...(typeof layer.opacity === "number" ? { opacity: layer.opacity } : {}),
-      });
       applyLayerId(img, layer.id);
 
       /** Remove placeholder + any label layers only on confirmed load. */

@@ -35,6 +35,7 @@ import { ExportPngButton } from "@/components/ExportPngButton";
 import { buildConceptExportFilename } from "@/lib/exportConceptFilename";
 import { exportFabricCanvasPng } from "@/lib/fabricCanvasExport";
 import { renderDesignSpecToFabric } from "@/lib/renderDesignSpecToFabric";
+import { mergeIntakePatch } from "@/lib/websiteIntakeReset";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
 import { TypographySignalsRow } from "@/components/TypographySignalsRow";
 
@@ -93,6 +94,8 @@ function blankIntake(): DesignIntakeState {
     selectedLogoCandidateUrl: "",
     typographySignals: null,
     designBrief: "",
+    lastAnalyzedWebsiteUrl: "",
+    lastAnalyzedDomain: "",
   };
   return { ...base, designBrief: computeDesignBriefText(base) };
 }
@@ -112,6 +115,8 @@ export function GuidedIntakeDemo() {
   const [analyzeInProgress, setAnalyzeInProgress] = useState(false);
   const [analyzeStatusLine, setAnalyzeStatusLine] = useState("");
   const [analyzeBusinessNameNote, setAnalyzeBusinessNameNote] = useState("");
+  const [websiteChangeNote, setWebsiteChangeNote] = useState("");
+  const businessNamePreservedForDomainRef = useRef<string | null>(null);
 
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<Canvas | null>(null);
@@ -145,19 +150,6 @@ export function GuidedIntakeDemo() {
     intakeRef.current = intake;
     displaySurfaceRef.current = displaySurface;
   }, [intake, displaySurface]);
-
-  const patchIntake = useCallback((patch: Partial<DesignIntakeState>) => {
-    if ("businessName" in patch) {
-      setAnalyzeBusinessNameNote("");
-    }
-    setIntake((prev) => {
-      const next = { ...prev, ...patch };
-      const keys = Object.keys(patch) as (keyof DesignIntakeState)[];
-      const onlyBrief = keys.length === 1 && keys[0] === "designBrief";
-      if (onlyBrief) return next;
-      return { ...next, designBrief: computeDesignBriefText(next) };
-    });
-  }, []);
 
   const syncCanvasPreviewCss = useCallback(() => {
     const canvas = fabricRef.current;
@@ -205,6 +197,35 @@ export function GuidedIntakeDemo() {
       queueMicrotask(() => syncCanvasPreviewCss());
     });
   }, [syncCanvasPreviewCss]);
+
+  const runGenerateRef = useRef<() => void>(() => {});
+
+  useLayoutEffect(() => {
+    runGenerateRef.current = runGenerate;
+  }, [runGenerate]);
+
+  const patchIntake = useCallback((patch: Partial<DesignIntakeState>) => {
+    if ("businessName" in patch) {
+      setAnalyzeBusinessNameNote("");
+    }
+    setIntake((prev) => {
+      const result = mergeIntakePatch(prev, patch, {
+        businessNamePreservedForDomain: businessNamePreservedForDomainRef.current,
+        setBusinessNamePreservedForDomain: (domain) => {
+          businessNamePreservedForDomainRef.current = domain;
+        },
+      });
+      if (result.websiteChangedNote) {
+        setWebsiteChangeNote(result.websiteChangedNote);
+        setAnalyzeStatusLine("");
+        setAnalyzeBusinessNameNote("");
+        if (result.didClearStaleWebsiteData && step === 7) {
+          queueMicrotask(() => runGenerateRef.current());
+        }
+      }
+      return result.next;
+    });
+  }, [step]);
 
   useEffect(() => {
     if (step !== 7) return;
@@ -291,11 +312,14 @@ export function GuidedIntakeDemo() {
     setAnalyzeBusinessNameNote("");
     try {
       const snap = intakeRef.current;
+      const submittedWebsiteUrl = normalizeWebsiteUrlForAnalyzeInput(
+        snap.websiteUrl,
+      );
       const res = await fetch("/api/analyze-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          websiteUrl: normalizeWebsiteUrlForAnalyzeInput(snap.websiteUrl),
+          websiteUrl: submittedWebsiteUrl,
           businessName: snap.businessName,
           productCategory: snap.category,
           style: snap.style,
@@ -305,18 +329,25 @@ export function GuidedIntakeDemo() {
       if (requestSeq !== analyzeRequestSeqRef.current) return;
 
       const data: unknown = await res.json().catch(() => null);
-      const outcome = processAnalyzeWebsiteApiResponse(snap, data);
+      const outcome = processAnalyzeWebsiteApiResponse(
+        snap,
+        data,
+        submittedWebsiteUrl,
+      );
       if (requestSeq !== analyzeRequestSeqRef.current) return;
 
       setAnalyzeStatusLine(outcome.statusLine);
       setAnalyzeBusinessNameNote(outcome.businessNameNote);
+      setWebsiteChangeNote("");
       setIntake(outcome.next);
       setStep(6);
     } catch {
       if (requestSeq !== analyzeRequestSeqRef.current) return;
+      const snap = intakeRef.current;
       const outcome = processAnalyzeWebsiteApiResponse(
-        intakeRef.current,
+        snap,
         null,
+        normalizeWebsiteUrlForAnalyzeInput(snap.websiteUrl),
       );
       setAnalyzeStatusLine(outcome.statusLine);
       setAnalyzeBusinessNameNote("");
@@ -407,6 +438,11 @@ export function GuidedIntakeDemo() {
             <label htmlFor="demo-url" className="sr-only">
               Website URL
             </label>
+            {websiteChangeNote ? (
+              <p className="text-[11px] leading-snug text-zinc-500" aria-live="polite">
+                {websiteChangeNote}
+              </p>
+            ) : null}
             <input
               id="demo-url"
               type="url"
@@ -551,9 +587,9 @@ export function GuidedIntakeDemo() {
                 {analyzeStatusLine}
               </p>
             ) : null}
-            {analyzeBusinessNameNote ? (
+            {websiteChangeNote || analyzeBusinessNameNote ? (
               <p className="text-[11px] leading-snug text-zinc-500" aria-live="polite">
-                {analyzeBusinessNameNote}
+                {websiteChangeNote || analyzeBusinessNameNote}
               </p>
             ) : null}
             <div className="space-y-2 border-b border-zinc-100 pb-4">

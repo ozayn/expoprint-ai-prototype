@@ -1,10 +1,17 @@
 import type { LogoCandidate } from "./analyzeWebsiteResponse";
-import type { DesignIntakeState } from "./designIntakeState";
+import {
+  isNewAnalyzedWebsite,
+  normalizeDomainForComparison,
+} from "./analyzeWebsiteDomain";
+import type { DesignIntakeState, ExtractedKey, ExtractedRow } from "./designIntakeState";
 import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import type { TypographySignals, WebsiteTypographyMeta } from "./typographySignals";
 import {
+  buildMockExtracted,
   computeDesignBriefText,
   DEFAULT_DEMO_BUSINESS_NAME,
+  emptyExtracted,
+  type ExtractionSource,
 } from "./designIntakeState";
 
 /**
@@ -16,17 +23,6 @@ import {
 export function businessNameIsAutoFillable(current: string): boolean {
   const t = current.trim();
   return t.length === 0 || t === DEFAULT_DEMO_BUSINESS_NAME;
-}
-
-function normalizedHostKey(url: string): string | null {
-  const raw = url.trim();
-  if (!raw) return null;
-  try {
-    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    return new URL(withScheme).hostname.replace(/^www\./i, "").toLowerCase();
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -41,8 +37,8 @@ export function shouldApplyCanonicalWebsiteUrl(
   if (!sug) return false;
   const cur = currentUrl.trim();
   if (!cur) return true;
-  const hCur = normalizedHostKey(cur);
-  const hSug = normalizedHostKey(sug);
+  const hCur = normalizeDomainForComparison(cur);
+  const hSug = normalizeDomainForComparison(sug);
   if (hCur && hSug && hCur === hSug) return true;
   return false;
 }
@@ -69,6 +65,118 @@ export function readAnalyzeSuggestionFields(rec: Record<string, unknown>): {
 
 export const BUSINESS_NAME_AUTO_UPDATE_NOTE =
   "Business name updated from website analysis.";
+
+export const NEW_WEBSITE_ANALYZE_NOTE =
+  "Updated intake from new website analysis.";
+
+type ExtractedMerge =
+  | { mode: "replace"; extracted: Record<ExtractedKey, ExtractedRow> }
+  | { mode: "keep" }
+  | { mode: "clear" };
+
+function websiteChangedForSubmission(
+  prev: DesignIntakeState,
+  submittedWebsiteUrl: string,
+): boolean {
+  const previous =
+    prev.lastAnalyzedDomain.trim() || prev.lastAnalyzedWebsiteUrl.trim();
+  return isNewAnalyzedWebsite(previous, submittedWebsiteUrl);
+}
+
+function resolveLastAnalyzedTracking(
+  nextWebsiteUrl: string,
+  submittedWebsiteUrl: string,
+  rec: Record<string, unknown>,
+): { lastAnalyzedWebsiteUrl: string; lastAnalyzedDomain: string } {
+  const hints = readAnalyzeSuggestionFields(rec);
+  const url =
+    hints.suggestedCanonicalWebsiteUrl.trim() ||
+    nextWebsiteUrl.trim() ||
+    submittedWebsiteUrl.trim();
+  const domain =
+    normalizeDomainForComparison(url) ||
+    normalizeDomainForComparison(hints.suggestedWebsiteDomain) ||
+    normalizeDomainForComparison(submittedWebsiteUrl) ||
+    "";
+  return { lastAnalyzedWebsiteUrl: url, lastAnalyzedDomain: domain };
+}
+
+function mergeAnalyzeIntoIntake(
+  prev: DesignIntakeState,
+  rec: Record<string, unknown>,
+  submittedWebsiteUrl: string,
+  extractionSource: ExtractionSource,
+  extractedMerge: ExtractedMerge,
+): { next: DesignIntakeState; businessNameNote: string } {
+  const websiteChanged = websiteChangedForSubmission(prev, submittedWebsiteUrl);
+  const { suggestedBusinessName, suggestedCanonicalWebsiteUrl } =
+    readAnalyzeSuggestionFields(rec);
+  const trimmedName = suggestedBusinessName.trim();
+  const nameOk = businessNameIsAutoFillable(prev.businessName);
+
+  let nextName = prev.businessName;
+  if (trimmedName) {
+    if (websiteChanged || nameOk) {
+      nextName = trimmedName;
+    }
+  }
+
+  const urlOk = shouldApplyCanonicalWebsiteUrl(
+    prev.websiteUrl,
+    suggestedCanonicalWebsiteUrl,
+  );
+  const nextUrl = urlOk
+    ? suggestedCanonicalWebsiteUrl.trim()
+    : prev.websiteUrl;
+
+  const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
+  const typographySignals = readTypographyFromAnalyzePayload(rec);
+  const stillValidSelection =
+    !websiteChanged &&
+    logoCandidates.some((c) => c.url === prev.selectedLogoCandidateUrl);
+  const selectedLogoCandidateUrl = stillValidSelection
+    ? prev.selectedLogoCandidateUrl
+    : "";
+
+  let nextExtracted = prev.extracted;
+  if (extractedMerge.mode === "replace") {
+    nextExtracted = extractedMerge.extracted;
+  } else if (extractedMerge.mode === "clear") {
+    nextExtracted = emptyExtracted();
+  }
+
+  const tracking = resolveLastAnalyzedTracking(
+    nextUrl,
+    submittedWebsiteUrl,
+    rec,
+  );
+
+  const next: DesignIntakeState = {
+    ...prev,
+    businessName: nextName,
+    websiteUrl: nextUrl,
+    extracted: nextExtracted,
+    showExtracted: true,
+    extractionSource,
+    logoCandidates,
+    selectedLogoCandidateUrl,
+    typographySignals,
+    lastAnalyzedWebsiteUrl: tracking.lastAnalyzedWebsiteUrl,
+    lastAnalyzedDomain: tracking.lastAnalyzedDomain,
+  };
+
+  let businessNameNote = "";
+  if (websiteChanged) {
+    businessNameNote = NEW_WEBSITE_ANALYZE_NOTE;
+  } else if (nameOk && trimmedName) {
+    businessNameNote = BUSINESS_NAME_AUTO_UPDATE_NOTE;
+  }
+
+  return {
+    next: { ...next, designBrief: computeDesignBriefText(next) },
+    businessNameNote,
+  };
+}
 
 /**
  * Pulls a small, sanitized list of logo candidates from the analyze API response
@@ -205,99 +313,66 @@ export function readTypographyFromAnalyzePayload(
 
 /**
  * Merges validated Claude `extracted` plus optional `suggestedBusinessName` / canonical URL hints.
- * `businessName` is updated only when {@link businessNameIsAutoFillable} (blank or {@link DEFAULT_DEMO_BUSINESS_NAME}).
+ * When the submitted URL targets a new domain, replaces business identity and extracted rows.
  */
 export function applyClaudeAnalyzeSuccessToIntake(
   prev: DesignIntakeState,
   extracted: DesignIntakeState["extracted"],
   rec: Record<string, unknown>,
+  submittedWebsiteUrl: string,
 ): { next: DesignIntakeState; businessNameNote: string } {
-  const { suggestedBusinessName, suggestedCanonicalWebsiteUrl } =
-    readAnalyzeSuggestionFields(rec);
-  const trimmedName = suggestedBusinessName.trim();
-  const nameOk = businessNameIsAutoFillable(prev.businessName);
-  const nextName =
-    nameOk && trimmedName ? trimmedName : prev.businessName;
-  const urlOk = shouldApplyCanonicalWebsiteUrl(
-    prev.websiteUrl,
-    suggestedCanonicalWebsiteUrl,
+  return mergeAnalyzeIntoIntake(
+    prev,
+    rec,
+    submittedWebsiteUrl,
+    "claude",
+    { mode: "replace", extracted },
   );
-  const nextUrl = urlOk
-    ? suggestedCanonicalWebsiteUrl.trim()
-    : prev.websiteUrl;
-
-  const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
-  const typographySignals = readTypographyFromAnalyzePayload(rec);
-  /** Drop a previously selected URL if it is no longer in the new candidate list. */
-  const stillValidSelection = logoCandidates.some(
-    (c) => c.url === prev.selectedLogoCandidateUrl,
-  );
-  const selectedLogoCandidateUrl = stillValidSelection
-    ? prev.selectedLogoCandidateUrl
-    : "";
-
-  const next: DesignIntakeState = {
-    ...prev,
-    businessName: nextName,
-    websiteUrl: nextUrl,
-    extracted,
-    showExtracted: true,
-    extractionSource: "claude",
-    logoCandidates,
-    selectedLogoCandidateUrl,
-    typographySignals,
-  };
-  return {
-    next: { ...next, designBrief: computeDesignBriefText(next) },
-    businessNameNote:
-      nameOk && trimmedName ? BUSINESS_NAME_AUTO_UPDATE_NOTE : "",
-  };
 }
 
 /**
  * When Claude failed but static scrape succeeded — apply logos, typography, and
- * resolved business name / URL without overwriting custom business names or Claude rows.
+ * resolved business name / URL. Replaces extracted rows when the analyzed domain changed.
  */
 export function applyPartialScrapeAnalyzeToIntake(
   prev: DesignIntakeState,
   rec: Record<string, unknown>,
+  submittedWebsiteUrl: string,
 ): { next: DesignIntakeState; businessNameNote: string } {
-  const { suggestedBusinessName, suggestedCanonicalWebsiteUrl } =
-    readAnalyzeSuggestionFields(rec);
-  const trimmedName = suggestedBusinessName.trim();
-  const nameOk = businessNameIsAutoFillable(prev.businessName);
-  const nextName =
-    nameOk && trimmedName ? trimmedName : prev.businessName;
-  const urlOk = shouldApplyCanonicalWebsiteUrl(
-    prev.websiteUrl,
-    suggestedCanonicalWebsiteUrl,
+  const extractedMerge: ExtractedMerge = websiteChangedForSubmission(
+    prev,
+    submittedWebsiteUrl,
+  )
+    ? { mode: "clear" }
+    : { mode: "keep" };
+  return mergeAnalyzeIntoIntake(
+    prev,
+    rec,
+    submittedWebsiteUrl,
+    "scraper_only",
+    extractedMerge,
   );
-  const nextUrl = urlOk
-    ? suggestedCanonicalWebsiteUrl.trim()
-    : prev.websiteUrl;
+}
 
-  const logoCandidates = readLogoCandidatesFromAnalyzePayload(rec);
-  const typographySignals = readTypographyFromAnalyzePayload(rec);
-  const stillValidSelection = logoCandidates.some(
-    (c) => c.url === prev.selectedLogoCandidateUrl,
-  );
-  const selectedLogoCandidateUrl = stillValidSelection
-    ? prev.selectedLogoCandidateUrl
-    : "";
-
+/**
+ * Last-resort mock extraction after analyze failure.
+ */
+export function applyMockAnalyzeFallbackToIntake(
+  prev: DesignIntakeState,
+  submittedWebsiteUrl: string,
+): DesignIntakeState {
+  const websiteChanged = websiteChangedForSubmission(prev, submittedWebsiteUrl);
   const next: DesignIntakeState = {
     ...prev,
-    businessName: nextName,
-    websiteUrl: nextUrl,
+    extracted: websiteChanged ? emptyExtracted() : buildMockExtracted(),
     showExtracted: true,
-    extractionSource: "scraper_only",
-    logoCandidates,
-    selectedLogoCandidateUrl,
-    typographySignals,
+    extractionSource: "mock_fallback",
+    logoCandidates: websiteChanged ? [] : prev.logoCandidates,
+    selectedLogoCandidateUrl: websiteChanged ? "" : prev.selectedLogoCandidateUrl,
+    typographySignals: websiteChanged ? null : prev.typographySignals,
+    lastAnalyzedWebsiteUrl: submittedWebsiteUrl.trim(),
+    lastAnalyzedDomain:
+      normalizeDomainForComparison(submittedWebsiteUrl) ?? "",
   };
-  return {
-    next: { ...next, designBrief: computeDesignBriefText(next) },
-    businessNameNote:
-      nameOk && trimmedName ? BUSINESS_NAME_AUTO_UPDATE_NOTE : "",
-  };
+  return { ...next, designBrief: computeDesignBriefText(next) };
 }
