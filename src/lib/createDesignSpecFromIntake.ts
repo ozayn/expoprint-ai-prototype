@@ -1,4 +1,8 @@
-import type { DesignSpec, TextLayer } from "./designSpec";
+import type {
+  DesignSpec,
+  SupportingContentLayout,
+  TextLayer,
+} from "./designSpec";
 import type { DesignIntakeState, ExtractedKey, StylePreference } from "./designIntakeState";
 import {
   BOOTH_COMPONENTS,
@@ -63,6 +67,21 @@ const MAX_SUPPORTING_FONT = 24;
 const SUPPORTING_LINE_HEIGHT_FACTOR = 1.28;
 const SUPPORTING_CHAR_WIDTH_FACTOR = 0.52;
 
+const MAX_BULLET_ITEMS = 4;
+const MAX_BULLET_ITEM_CHARS = 44;
+const MIN_BULLET_FONT = 20;
+const MAX_BULLET_FONT = 22;
+const BULLET_LINE_HEIGHT = 1.38;
+const MIN_BULLET_BLOCK_HEIGHT = 72;
+
+const OUTDOOR_BULLET_SURFACES = new Set(["Back wall", "Side wall"]);
+const BOOTH_BULLET_SURFACES = new Set([
+  "Backdrop",
+  "Counter",
+  "Header",
+  "Product/service panels",
+]);
+
 /**
  * Split long service/product blobs (commas, semicolons, bullets) into short segments
  * for a calmer ExpoPrint-style supporting line.
@@ -90,6 +109,78 @@ function compactSupportingSegments(raw: string): string[] {
   return parts
     .slice(0, MAX_SUPPORTING_INITIAL_SEGMENTS)
     .map((p) => truncate(p.replace(/\s+/g, " "), MAX_SUPPORTING_SEGMENT_CHARS));
+}
+
+/** Short list items from selected services/products for bullet layout. */
+function cleanSupportingItems(raw: string): string[] {
+  return compactSupportingSegments(raw).filter((item) => item.trim().length >= 3);
+}
+
+function supportingItemsFromIntake(intake: DesignIntakeState): string[] {
+  const services = selectedExtractedValue(intake, "services");
+  if (services) return cleanSupportingItems(services);
+  const products = selectedExtractedValue(intake, "products");
+  if (products) return cleanSupportingItems(products);
+  return [];
+}
+
+function resolveContentLayout(
+  intake: DesignIntakeState,
+  surfaceLabel: string | null,
+  items: string[],
+  maxHeightPx: number,
+): SupportingContentLayout {
+  const n = items.length;
+  if (n === 0) return "supporting-line";
+  if (maxHeightPx < MIN_BULLET_BLOCK_HEIGHT) return "supporting-line";
+
+  if (intake.category === "Trade show booth") return "bullet-list";
+
+  if (surfaceLabel && OUTDOOR_BULLET_SURFACES.has(surfaceLabel) && n >= 2) {
+    return "bullet-list";
+  }
+  if (surfaceLabel && BOOTH_BULLET_SURFACES.has(surfaceLabel) && n >= 2) {
+    return "bullet-list";
+  }
+
+  if (n >= 3) return "bullet-list";
+
+  return "supporting-line";
+}
+
+/**
+ * Multiline bullet copy (• prefix per line) sized to stay above the website/footer band.
+ */
+function finalizeBulletsForConcept(
+  items: string[],
+  maxHeightPx: number,
+): { content: string; fontSize: number; lineHeight: number; itemCount: number } {
+  const safeHeight = Math.max(
+    MIN_BULLET_FONT * BULLET_LINE_HEIGHT,
+    maxHeightPx,
+  );
+
+  let lines = items
+    .slice(0, MAX_BULLET_ITEMS)
+    .map((item) => `• ${truncate(item.replace(/\s+/g, " "), MAX_BULLET_ITEM_CHARS)}`);
+
+  const fits = (count: number, fs: number) =>
+    count * fs * BULLET_LINE_HEIGHT <= safeHeight;
+
+  let fontSize = MAX_BULLET_FONT;
+  while (fontSize > MIN_BULLET_FONT && !fits(lines.length, fontSize)) {
+    fontSize -= 1;
+  }
+  while (lines.length > 1 && !fits(lines.length, fontSize)) {
+    lines = lines.slice(0, -1);
+  }
+
+  return {
+    content: lines.join("\n"),
+    fontSize,
+    lineHeight: BULLET_LINE_HEIGHT,
+    itemCount: lines.length,
+  };
 }
 
 /**
@@ -613,11 +704,39 @@ export function createDesignSpecFromIntake(
     websiteTop - supportingBlock.top - 14,
   );
   const supportingWidth = supportingBlock.width ?? 640;
-  const supportingFit = finalizeSupportingForConcept(
-    supportingRaw,
-    supportingWidth,
+  const supportingItems = supportingItemsFromIntake(intake);
+  const contentLayout = resolveContentLayout(
+    intake,
+    surfaceLabel,
+    supportingItems,
     supportingMaxHeight,
   );
+
+  let supportingContent: string;
+  let supportingFontSize: number;
+  let supportingLineHeight: number | undefined;
+  let supportingItemCount: number;
+
+  if (contentLayout === "bullet-list" && supportingItems.length > 0) {
+    const bullets = finalizeBulletsForConcept(
+      supportingItems,
+      supportingMaxHeight,
+    );
+    supportingContent = bullets.content;
+    supportingFontSize = bullets.fontSize;
+    supportingLineHeight = bullets.lineHeight;
+    supportingItemCount = bullets.itemCount;
+  } else {
+    const line = finalizeSupportingForConcept(
+      supportingRaw,
+      supportingWidth,
+      supportingMaxHeight,
+    );
+    supportingContent = line.content;
+    supportingFontSize = line.fontSize;
+    supportingLineHeight = undefined;
+    supportingItemCount = compactSupportingSegments(supportingRaw).length;
+  }
 
   const baseLogoStrokeWidth = polyScale < 0.68 ? 4 : 3;
   const logoDash: [number, number] = polyScale < 0.68 ? [14, 11] : [12, 10];
@@ -743,15 +862,18 @@ export function createDesignSpecFromIntake(
     {
       type: "text",
       id: "supporting",
-      content: supportingFit.content,
+      content: supportingContent,
       left: supportingBlock.left,
       top: supportingBlock.top,
       fill: plan.supportingText,
-      fontSize: supportingFit.fontSize,
+      fontSize: supportingFontSize,
       ...textBase,
       width: supportingWidth,
       textAlign: supportingBlock.textAlign,
       textLayout: "textbox",
+      ...(supportingLineHeight !== undefined
+        ? { lineHeight: supportingLineHeight }
+        : {}),
     },
     {
       type: "text",
@@ -793,6 +915,11 @@ export function createDesignSpecFromIntake(
     templateId,
     brandColors: plan.brandColors,
     layers,
+    metadata: {
+      contentLayout,
+      ...(surfaceLabel ? { activeSurface: surfaceLabel } : {}),
+      supportingItemCount,
+    },
   };
 }
 

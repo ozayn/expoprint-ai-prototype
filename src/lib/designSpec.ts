@@ -6,12 +6,22 @@ export interface BrandColors {
   [key: string]: string;
 }
 
+export type SupportingContentLayout = "supporting-line" | "bullet-list";
+
+/** Prototype debug hints for how intake copy was laid out on the artboard. */
+export interface DesignSpecMetadata {
+  contentLayout?: SupportingContentLayout;
+  activeSurface?: string;
+  supportingItemCount?: number;
+}
+
 export interface DesignSpec {
   canvas: { width: number; height: number };
   productType: string;
   templateId: string;
   brandColors: BrandColors;
   layers: DesignLayer[];
+  metadata?: DesignSpecMetadata;
 }
 
 /** Fabric object origin; spec coordinates are top-left unless overridden. */
@@ -77,6 +87,8 @@ export interface TextLayer {
    * Prototype: intake supporting copy uses textbox so long lists stay inside the column.
    */
   textLayout?: "itext" | "textbox";
+  /** Fabric `Textbox` line height multiplier (e.g. bullet lists). */
+  lineHeight?: number;
 }
 
 export interface ImagePlaceholderLayer {

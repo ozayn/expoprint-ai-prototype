@@ -141,6 +141,7 @@ function renderText(fabric: FabricModule, layer: TextLayer) {
     ...(width !== undefined ? { width } : {}),
     ...(layer.opacity !== undefined ? { opacity: layer.opacity } : {}),
     ...(layer.textAlign !== undefined ? { textAlign: layer.textAlign } : {}),
+    ...(layer.lineHeight !== undefined ? { lineHeight: layer.lineHeight } : {}),
   };
 
   const text = useTextbox
