@@ -1,26 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CopyCommandBlock } from "@/components/CopyCommandBlock";
+import { ApiDocsCommandBuilder } from "@/components/ApiDocsCommandBuilder";
 
 export const metadata: Metadata = {
   title: "Design-intake API — local docs",
   description:
     "Phase 1 POST /api/design-intake/extract — usage and local test commands.",
 };
-
-const CURL_EXAMPLE = `curl -sS -X POST "http://localhost:3000/api/design-intake/extract" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "websiteUrl": "https://expoprint.io",
-    "productCategory": "Outdoor tent",
-    "components": ["Canopy tent"],
-    "stylePreference": "Modern"
-  }' | jq`;
-
-const NPM_EXAMPLE = "npm run api:test -- https://expoprint.io";
-
-const NPM_VARIANT =
-  'npm run api:test -- https://stripe.com "Trade show booth" "Conservative"';
 
 const linkClass =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400";
@@ -123,7 +109,11 @@ export default function ApiDocsPage() {
               </li>
               <li>
                 <strong className="font-medium text-zinc-800">metadata</strong> — source,
-                pages inspected, <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">websiteFetch</code>, Claude status, warnings
+                pages inspected,{" "}
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                  websiteFetch
+                </code>
+                , Claude status, warnings
               </li>
             </ul>
           </section>
@@ -133,13 +123,25 @@ export default function ApiDocsPage() {
               Visual test harnesses
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-              The home editor (<Link href="/" className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500">/</Link>
+              The home editor (
+              <Link
+                href="/"
+                className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500"
+              >
+                /
+              </Link>
               ) and{" "}
-              <Link href="/demo" className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500">
+              <Link
+                href="/demo"
+                className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500"
+              >
                 guided demo
               </Link>{" "}
-              use <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">POST /api/analyze-website</code> to
-              fill intake and drive Fabric previews. They share the same scrape + Claude
+              use{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                POST /api/analyze-website
+              </code>{" "}
+              to fill intake and drive Fabric previews. They share the same scrape + Claude
               pipeline but return UI-oriented payloads. This page documents the
               integration-facing extract contract.
             </p>
@@ -152,37 +154,7 @@ export default function ApiDocsPage() {
             </p>
           </section>
 
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-zinc-900">Try it locally</h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-              Start the dev server first:{" "}
-              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
-                npm run dev
-              </code>{" "}
-              or{" "}
-              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
-                npm run dev:local
-              </code>
-              . Then run one of the commands below (requires{" "}
-              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">jq</code>{" "}
-              for pretty-print when using curl).
-            </p>
-
-            <div className="mt-4 flex flex-col gap-4">
-              <CopyCommandBlock label="curl" command={CURL_EXAMPLE} />
-              <CopyCommandBlock label="npm script" command={NPM_EXAMPLE} />
-              <CopyCommandBlock label="npm script (custom category & style)" command={NPM_VARIANT} />
-            </div>
-
-            <p className="mt-4 text-xs leading-relaxed text-zinc-500">
-              Shell script:{" "}
-              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px]">
-                ./scripts/test-design-intake-api.sh &lt;url&gt; [category] [style]
-              </code>
-              . Defaults: category &quot;Outdoor tent&quot;, components
-              [&quot;Canopy tent&quot;], style &quot;Modern&quot;.
-            </p>
-          </section>
+          <ApiDocsCommandBuilder />
         </div>
       </main>
     </div>
