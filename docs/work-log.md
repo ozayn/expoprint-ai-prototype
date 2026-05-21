@@ -225,6 +225,18 @@ Extract API: deterministic business-name fallbacks (`resolveBusinessName`), `met
 **Large-site partial extraction and editor/API alignment (Stage 25)**  
 When homepage HTML exceeds the ~800 KB cap, the server parses a truncated prefix instead of failing completely: `websiteFetch.status: partial`, `reason: body_truncated`, warning `large_site_partial_extraction`. Example `cvs.com` can still return business name, typography, services/products, and head-derived logo candidates — not guaranteed for every large site. Editor `/` and `/demo` share `runClaudeWebsiteAnalyze` with `POST /api/design-intake/extract`; demo placeholder business name treated as unset in Claude prompts; partial fetch treated as valid extraction (not mock fallback). Favicon-only logos warned in API/UI/brief; safer head-only logo heuristics (JSON-LD, `og:logo`, header before generic `img-logo`). `npm run api:compare` for route smoke checks. No headless browser; human review still required; not production-final extraction reliability.
 
+**Stale website intake reset (Stage 27)**  
+`websiteIntakeReset.ts` clears website-specific fields when the typed URL domain differs from `lastAnalyzedDomain` (normalized hosts). Clears business name, extracted rows, logos, selected logo, typography, brief, and analyze notes; keeps category, components, style, and instructions. Works on `/` and `/demo` before the next Analyze. Analyze merge still updates identity on a new domain; partial responses can still set business name. Prototype UX — not production intake rules.
+
+**Logo canvas fitting and candidate roles (Stage 28)**  
+Object-contain logo fit in Fabric with padding (`fitImageContainInLayerBox`); role classification and ranking favor wordmarks over favicons when available; failover/bot-wall logo URLs deprioritized; `previewFetch` probes weak candidates. Favicons/icon marks remain optional with human review; production logo upload still recommended. Not print-ready validation.
+
+**Social footer and export filenames (Stage 29)**  
+Canvas social footer uses compact platform marks + short labels (`socialFooterItem`); export PNG/SVG names include business and surface slugs (`exportConceptFilename.ts`). No remote social icon assets.
+
+**Expanded evaluation and blocked-site signals (Stage 30)**  
+More fixtures (Shopify, Mailchimp, Patagonia, CVS partial, Warby Parker blocked); `anyArrayIncludes` for flexible services/products checks; `site_blocked_static_fetch` + missing-asset hints when static fetch is denied. Required checks pass on current fixture set; nice-to-have warnings only. No browser automation; API does not invent services/products when scrape is empty.
+
 ---
 
 ## Deployment — Vercel on `main` (current)
@@ -234,10 +246,10 @@ When homepage HTML exceeds the ~800 KB cap, the server parses a truncated prefix
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test` (bare-domain URL normalization); `npm run api:evaluate` (local fixtures, required checks passing); partial large-page extraction smoke (e.g. cvs.com); `/demo` guided view; `/progress` current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, role-aware); selected logo on canvas via proxy with contain-fit; typography signals (cleaned) + canvas font mapping; stale intake reset on URL domain change; social footer marks when selected; slugified export PNG names; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test` (bare-domain URL normalization); `npm run api:evaluate` (expanded fixtures, required checks passing); partial large-page extraction smoke (e.g. cvs.com); blocked-site warnings on honest failures (e.g. Warby Parker — prototype only); `/demo` guided view; `/progress` current. Human review and production logo validation still required; no full browser automation.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–25 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, fixture-based `npm run api:evaluate`, extract reliability/quality metadata, large-site partial extraction, and editor/analyze alignment with the extract API. Not production-final. Future: versioned API, auth, full-site extraction / browser automation, production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–30 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, and blocked-site warnings. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

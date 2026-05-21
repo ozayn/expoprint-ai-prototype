@@ -439,6 +439,65 @@ const stages: Stage[] = [
       "Future stage: optional headless or browser-rendered fetch for sites that block static HTTP (403/WAF), without bypassing bot protection. Not started — static scrape + clear blocked-site warnings remain the v1 behavior.",
     accomplishments: [],
   },
+  {
+    id: 27,
+    title: "Stale website intake reset",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "When the user changes the website URL to a different domain, website-specific analysis results clear immediately so prior business identity, logos, extracted rows, typography, and brief do not linger in the editor or guided demo. Product category, components, style, and special instructions are preserved. A new Analyze run still replaces identity/content for the new domain; partial extraction can update business name when the API returns it. Prototype UX only — not production-final intake validation.",
+    accomplishments: [
+      "`websiteIntakeReset.ts` + `analyzeWebsiteDomain.ts` — compare typed URL to `lastAnalyzedDomain` with normalized hosts (www, scheme, trailing slash ignored).",
+      "Clears on domain change: business name (blank until Analyze or user entry), extracted rows, `showExtracted`, `extractionSource`, logo candidates, selected logo URL, typography signals, design brief; analyze status/notes reset.",
+      "Preserves: product category, checked components, style preference, special instructions.",
+      "Note when cleared: “Website changed — previous analysis cleared.” Editor regenerates canvas preview when applicable.",
+      "Analyze merge (`analyzeWebsiteSuggestions.ts`) still replaces identity when the analyzed domain changes; same-domain re-analyze does not overwrite a custom edited business name.",
+      "Works on `/` (`FabricDesignEditor`) and `/demo` (guided URL step and review).",
+    ],
+  },
+  {
+    id: 28,
+    title: "Logo canvas fitting and candidate roles",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Selected logo images fit inside the Fabric logo box with object-contain padding (no intentional crop). Logo candidates carry role hints (wordmark, icon mark, favicon/social preview) so ranking and UI can prefer header wordmarks over weak favicons when available. Favicons and compact icon marks may still be useful but need human review; production-quality logo upload remains recommended. Not print-ready asset validation.",
+    accomplishments: [
+      "`renderDesignSpecToFabric` — `fitImageContainInLayerBox`: natural dimensions via `getOriginalSize`, scale = min of width/height fit, ~12–18px padding, centered; `fitHint` for wordmarks vs icon marks.",
+      "`logoRoleClassification.ts` + ranking penalties (e.g. failover HTML logo paths, favicon-only sets) — wordmarks/header logos rank above low-quality favicons when present.",
+      "`LogoCandidatesReview` — role badges and cautious copy; “Best match” only on top candidate after re-rank.",
+      "`prepareLogoCandidatesForUi` + optional `previewFetch` probe — deprioritize URLs that return HTML instead of image bytes.",
+      "Proxied load unchanged (`/api/proxy-image`); placeholder remains on failure. PNG/SVG export behavior preserved.",
+    ],
+  },
+  {
+    id: 29,
+    title: "Social footer and export filenames",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Footer social links can render as compact platform marks with short labels on the canvas when selected (no remote icon assets). Exported PNG filenames can include business name and active design surface. Prototype polish only — not production file naming or brand guidelines.",
+    accomplishments: [
+      "`socialPlatformDisplay.ts` + `socialFooterItem` layers — badge glyphs (e.g. ▶, f, in) beside platform/path text; max 1–3 items with whole-item drop (no mid-handle truncation).",
+      "`exportConceptFilename.ts` — slugified names such as `expoprint-canopy-tent-concept.png`; used by editor Export PNG/SVG and demo step-7 PNG.",
+      "Contact line vs social rows split in `createDesignSpecFromIntake` — phone/email/address in text line; social as separate footer items.",
+    ],
+  },
+  {
+    id: 30,
+    title: "Expanded evaluation and blocked-site signals",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Ground-truth evaluation covers more public sites (ecommerce, marketing, consumer brand, large partial, blocked fetch). Flexible `anyArrayIncludes` checks tolerate services/products synonyms and field placement. Required checks pass on the current fixture set; nice-to-have warnings flag softer gaps (e.g. typography) without failing the script. Blocked static HTTP (e.g. 403) surfaces honest warnings, low quality, and manual-review missing assets — no browser automation and no invented services/products.",
+    accomplishments: [
+      "Fixtures added/updated: Shopify, Mailchimp, Patagonia, CVS (partial), Warby Parker (blocked `http_403`) in `data/extraction-eval-fixtures.json`.",
+      "`anyArrayIncludes` check type in `evaluate-design-intake-api.mjs` — search `content.services` and/or `content.products` for synonym substrings.",
+      "`websiteFetchBlocked.ts` — `site_blocked_static_fetch` warning, human line for manual/customer assets, `missingAssets` hints when blocked and content is low.",
+      "`metadata.quality.overall` stays `low` when fetch is blocked and no useful logos/services/products were extracted.",
+      "Documented in `docs/extraction-evaluation.md` and `docs/design-intake-api.md`. `npm run api:evaluate` — required checks passing across current fixtures; nice-to-have may warn without blocking.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -474,10 +533,11 @@ export default function ProgressPage() {
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
             is a structured design-intake extraction API for ExpoPrint’s system — not only a
-            canvas demo. Stages 20–25 cover the extract API contract, `/api-docs` / `/api-test`
-            tooling, canvas bullet layout, fixture-based evaluation, reliability/quality
-            metadata, large-site partial extraction, and editor/API alignment; the editor and
-            guided demo remain visual test harnesses. A written
+            canvas demo. Stages 20–30 cover the extract API contract, `/api-docs` / `/api-test`,
+            canvas bullet layout, fixture-based evaluation, reliability/quality metadata,
+            large-site partial extraction, stale intake reset on URL change, logo contain-fit
+            and role-aware ranking, social footer/export polish, and blocked-site warnings; the
+            editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
@@ -560,6 +620,10 @@ export default function ProgressPage() {
               <li>
                 Partial large-page extraction (e.g. cvs.com) and editor/analyze alignment with
                 the extract API — prototype only, not full browser automation
+              </li>
+              <li>
+                Stale intake clears when website domain changes; logo contain-fit on canvas;
+                expanded `npm run api:evaluate` fixtures — prototype only, human review required
               </li>
             </ul>
           </div>
