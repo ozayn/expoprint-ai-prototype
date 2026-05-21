@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import {
+  API_TEST_WEBSITE_URL_EMPTY_MESSAGE,
+  API_TEST_WEBSITE_URL_HELPER,
+  normalizeApiTestWebsiteUrl,
+} from "@/lib/apiTestWebsiteUrl";
 import type { DesignIntakeExtractResponse } from "@/lib/designIntakeApiSchema";
 
 const PRODUCT_CATEGORIES = ["Outdoor tent", "Trade show booth"] as const;
@@ -28,14 +33,14 @@ type RequestBody = {
 };
 
 function buildRequestBody(
-  websiteUrl: string,
+  normalizedWebsiteUrl: string,
   productCategory: ProductCategory,
   components: string[],
   stylePreference: StylePreference,
   customerInstructions: string,
 ): RequestBody {
   const body: RequestBody = {
-    websiteUrl: websiteUrl.trim() || "https://expoprint.io",
+    websiteUrl: normalizedWebsiteUrl,
     productCategory,
     components: components.length > 0 ? components : DEFAULT_COMPONENTS[productCategory],
     stylePreference,
@@ -92,6 +97,7 @@ export function DesignIntakeApiTester() {
     ...DEFAULT_COMPONENTS["Outdoor tent"],
   ]);
   const [customerInstructions, setCustomerInstructions] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,13 +129,32 @@ export function DesignIntakeApiTester() {
     [response],
   );
 
+  const normalizeWebsiteUrlField = useCallback(
+    (options?: { rejectEmpty?: boolean }) => {
+      const normalized = normalizeApiTestWebsiteUrl(websiteUrl);
+      if (!normalized) {
+        if (options?.rejectEmpty) {
+          setUrlError(API_TEST_WEBSITE_URL_EMPTY_MESSAGE);
+        }
+        return null;
+      }
+      setUrlError(null);
+      if (normalized !== websiteUrl) setWebsiteUrl(normalized);
+      return normalized;
+    },
+    [websiteUrl],
+  );
+
   const runExtraction = useCallback(async () => {
+    const normalizedUrl = normalizeWebsiteUrlField({ rejectEmpty: true });
+    if (!normalizedUrl) return;
+
     setLoading(true);
     setError(null);
     setCopied(false);
 
     const body = buildRequestBody(
-      websiteUrl,
+      normalizedUrl,
       productCategory,
       components,
       stylePreference,
@@ -170,7 +195,13 @@ export function DesignIntakeApiTester() {
     } finally {
       setLoading(false);
     }
-  }, [websiteUrl, productCategory, components, stylePreference, customerInstructions]);
+  }, [
+    normalizeWebsiteUrlField,
+    productCategory,
+    components,
+    stylePreference,
+    customerInstructions,
+  ]);
 
   const onCopyJson = useCallback(async () => {
     if (!formattedJson) return;
@@ -216,14 +247,31 @@ export function DesignIntakeApiTester() {
             </label>
             <input
               id="api-test-url"
-              type="url"
+              type="text"
+              inputMode="url"
               value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="https://expoprint.io"
+              onChange={(e) => {
+                setWebsiteUrl(e.target.value);
+                if (urlError) setUrlError(null);
+              }}
+              onBlur={() => {
+                normalizeWebsiteUrlField();
+              }}
+              placeholder="expoprint.io or https://expoprint.io"
               className={inputClass}
               autoComplete="url"
               disabled={loading}
+              aria-invalid={urlError ? true : undefined}
+              aria-describedby="api-test-url-hint"
             />
+            <p id="api-test-url-hint" className="mt-1.5 text-xs leading-snug text-zinc-500">
+              {API_TEST_WEBSITE_URL_HELPER}
+            </p>
+            {urlError ? (
+              <p className="mt-1.5 text-xs text-red-700" role="alert">
+                {urlError}
+              </p>
+            ) : null}
           </div>
 
           <div>

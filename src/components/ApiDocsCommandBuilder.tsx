@@ -2,6 +2,10 @@
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { CopyCommandBlock } from "@/components/CopyCommandBlock";
+import {
+  API_TEST_WEBSITE_URL_HELPER,
+  normalizeApiTestWebsiteUrl,
+} from "@/lib/apiTestWebsiteUrl";
 
 const LOCAL_ORIGIN = "http://localhost:3000";
 
@@ -57,7 +61,8 @@ function buildExtractPayload(
   customerInstructions: string,
 ): ExtractPayload {
   const payload: ExtractPayload = {
-    websiteUrl: websiteUrl.trim() || "https://expoprint.io",
+    websiteUrl:
+      normalizeApiTestWebsiteUrl(websiteUrl) ?? "https://expoprint.io",
     productCategory,
     components: components.length > 0 ? components : DEFAULT_COMPONENTS[productCategory],
     stylePreference,
@@ -80,7 +85,8 @@ function buildNpmCommand(
   productCategory: ProductCategory,
   stylePreference: StylePreference,
 ): string {
-  const url = websiteUrl.trim() || "https://expoprint.io";
+  const url =
+    normalizeApiTestWebsiteUrl(websiteUrl) ?? "https://expoprint.io";
   return `npm run api:test -- ${url} "${productCategory}" "${stylePreference}"`;
 }
 
@@ -128,6 +134,11 @@ export function ApiDocsCommandBuilder() {
       return [...prev, name];
     });
   }, []);
+
+  const normalizeWebsiteUrlField = useCallback(() => {
+    const normalized = normalizeApiTestWebsiteUrl(websiteUrl);
+    if (normalized && normalized !== websiteUrl) setWebsiteUrl(normalized);
+  }, [websiteUrl]);
 
   const payload = useMemo(
     () =>
@@ -180,13 +191,19 @@ export function ApiDocsCommandBuilder() {
           </label>
           <input
             id="api-docs-url"
-            type="url"
+            type="text"
+            inputMode="url"
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
-            placeholder="https://expoprint.io"
+            onBlur={normalizeWebsiteUrlField}
+            placeholder="expoprint.io or https://expoprint.io"
             className={inputClass}
             autoComplete="url"
+            aria-describedby="api-docs-url-hint"
           />
+          <p id="api-docs-url-hint" className="mt-1.5 text-xs leading-snug text-zinc-500">
+            {API_TEST_WEBSITE_URL_HELPER}
+          </p>
         </div>
 
         <div>

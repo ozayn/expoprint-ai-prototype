@@ -189,6 +189,9 @@ Updated `logoCandidateRanking.ts`: header/nav and brand-matched images rank abov
 
 ## 2026-05-21
 
+**API testing and extraction reliability (Stages 21–25 summary)**  
+Browser `/api-test` runs `POST /api/design-intake/extract` on the current host with summary + copyable JSON. `/api-docs` form builds curl (page origin on Vercel) and local `npm run api:test`. Typography metadata uses cleaned font lists (non-font tokens filtered). `npm run api:evaluate` runs fixture required/nice-to-have checks (expoprint.io, google.com, stripe.com — required checks passing). Large sites can return partial head extraction (`status: partial`, `body_truncated`). Bare domains normalize to `https://` in API test/docs forms. Prototype-only — human review required; no full browser automation.
+
 **Progress dates — Completed vs Last updated**  
 `/progress` stages now show `Completed` and `Last updated` separately so first-ship dates stay visible when a stage is refined later.
 
@@ -216,6 +219,12 @@ Ground-truth fixture checks for `POST /api/design-intake/extract`: `data/extract
 **Extraction reliability and evaluation checks (Stage 24)**  
 Extract API: deterministic business-name fallbacks (`resolveBusinessName`), `metadata.quality` summary, structured warning codes (`missing_business_name`, `website_fetch_failed`, etc.). `npm run api:evaluate -- --runs N` for cross-run consistency. Lightweight prototype harness — not full production QA.
 
+**API docs and browser tester — URL normalization (Stage 21 follow-up)**  
+`/api-test` and `/api-docs` URL fields accept bare domains (`cvs.com`, `google.com`); `normalizeApiTestWebsiteUrl` prepends `https://` on blur/submit for POST payloads and generated curl/npm commands. Switched inputs from `type=url` to text so browsers do not block domain-only values. Helper copy under the field. Backend scrape validation unchanged. Prototype tooling only.
+
+**Large-site partial extraction and editor/API alignment (Stage 25)**  
+When homepage HTML exceeds the ~800 KB cap, the server parses a truncated prefix instead of failing completely: `websiteFetch.status: partial`, `reason: body_truncated`, warning `large_site_partial_extraction`. Example `cvs.com` can still return business name, typography, services/products, and head-derived logo candidates — not guaranteed for every large site. Editor `/` and `/demo` share `runClaudeWebsiteAnalyze` with `POST /api/design-intake/extract`; demo placeholder business name treated as unset in Claude prompts; partial fetch treated as valid extraction (not mock fallback). Favicon-only logos warned in API/UI/brief; safer head-only logo heuristics (JSON-LD, `og:logo`, header before generic `img-logo`). `npm run api:compare` for route smoke checks. No headless browser; human review still required; not production-final extraction reliability.
+
 ---
 
 ## Deployment — Vercel on `main` (current)
@@ -225,10 +234,10 @@ Extract API: deterministic business-name fallbacks (`resolveBusinessName`), `met
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test`; `npm run api:evaluate` (local fixtures); `/demo` guided view; `/progress` current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test` (bare-domain URL normalization); `npm run api:evaluate` (local fixtures, required checks passing); partial large-page extraction smoke (e.g. cvs.com); `/demo` guided view; `/progress` current.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–24 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, fixture-based `npm run api:evaluate`, and extract reliability/quality metadata. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–25 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, fixture-based `npm run api:evaluate`, extract reliability/quality metadata, large-site partial extraction, and editor/analyze alignment with the extract API. Not production-final. Future: versioned API, auth, full-site extraction / browser automation, production-ready brief workflow, AI-generated DesignSpec, full template system.

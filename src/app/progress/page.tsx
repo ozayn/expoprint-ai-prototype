@@ -352,13 +352,16 @@ const stages: Stage[] = [
     title: "API docs and browser tester",
     status: "Complete",
     completed: "2026-05-21",
+    lastUpdated: "2026-05-21",
     summary:
-      "Local tooling to exercise the Phase 1 extract API without hand-writing curl every time: `/api-docs` explains the contract with copyable commands, `/api-test` runs the API from the browser, and a shell/npm helper supports terminal smoke tests. Deployed Vercel endpoint verified successfully — prototype tooling only, not a public developer portal.",
+      "Local tooling to exercise the Phase 1 extract API without hand-writing curl every time: `/api-docs` explains the contract with copyable commands, `/api-test` runs the API from the browser, and a shell/npm helper supports terminal smoke tests. Uses the current host origin so the same UI works locally and on Vercel. Prototype tooling only — not a public developer portal; human review still required on extraction output.",
     accomplishments: [
-      "`/api-docs` — plain-language Phase 1 overview, form-driven copyable `curl` (uses current page origin on Vercel) and `npm run api:test`, links to `/`, `/demo`, `/progress`.",
-      "`/api-test` — enter website URL and optional intake settings, run `POST /api/design-intake/extract`, summary panel (ok, business name, logos, services/products, Claude status, warnings), pretty JSON with Copy/Clear.",
-      "`scripts/test-design-intake-api.sh` + `npm run api:test -- <url> [category] [style]` for local terminal testing against `http://localhost:3000`.",
-      "Editor header links: API docs, API test — same ranking/scrape behavior as analyze; no change to Fabric exports.",
+      "`/api-test` — browser UI to run `POST /api/design-intake/extract` against the current host (local or Vercel); summary panel (ok, business name, logos, services/products, Claude status, warnings) plus full copyable JSON with Copy/Clear.",
+      "`/api-docs` — plain-language Phase 1 overview; form-driven command builder updates copyable `curl` from inputs (deployed curl uses the page origin, not hardcoded localhost).",
+      "`npm run api:test` and `scripts/test-design-intake-api.sh` remain the local terminal helpers (`http://localhost:3000`).",
+      "Website URL fields on `/api-test` and `/api-docs` accept bare domains (`cvs.com`, `google.com`); UI prepends `https://` on blur/submit before calling the API or generating curl/npm commands (backend validation unchanged).",
+      "Helper copy under the URL field: domains default to https; empty submit shows an inline message.",
+      "Editor header links to API docs and API test — no change to Fabric exports or scrape/Claude pipeline behavior.",
       "Smoke-tested on deployed Vercel (`main`): extract responses return expected normalized sections.",
     ],
   },
@@ -398,14 +401,34 @@ const stages: Stage[] = [
     title: "Extraction reliability and evaluation checks",
     status: "Complete",
     completed: "2026-05-21",
+    lastUpdated: "2026-05-21",
     summary:
-      "Improves extract API debuggability without changing the overall contract: deterministic business-name fallbacks (Claude → title/og:title → domain), structured `metadata.warnings` codes, `metadata.quality` summary, and multi-run fixture evaluation (`npm run api:evaluate -- --runs N`). Prototype reliability only — not a full production QA suite.",
+      "Improves extract API debuggability without changing the overall contract: deterministic business-name fallbacks (Claude → title/og:title → domain), structured `metadata.warnings` codes, `metadata.quality` summary, and multi-run fixture evaluation (`npm run api:evaluate -- --runs N`). Current fixtures pass all required checks locally — prototype reliability only, not a full production QA suite.",
     accomplishments: [
       "`resolveBusinessName` — prefers Claude `suggestedBusinessName`, then brand-like title/og:title, then cautious domain label (e.g. google.com → Google); adds `business_name_inferred_from_domain` when domain fallback is used.",
-      "Reliability warning codes in `metadata.warnings`: `missing_business_name`, `missing_logo_candidates`, `missing_services_products`, `low_content_extracted`, `website_fetch_failed`, `claude_failed_or_skipped` (additive alongside human-readable lines).",
-      "`metadata.quality` — `high` / `medium` / `low` for business name, logo, services/products, and overall.",
-      "`evaluate-design-intake-api.mjs` supports `--runs N` with per-check pass rates and flaky detection; fixtures require stable business name, domain, logos, and pages inspected for expoprint.io, google.com, stripe.com.",
-      "Documented in `docs/extraction-evaluation.md`; `/api-docs` mentions `--runs` and quality fields. No Fabric/export/scrape pipeline behavior change.",
+      "Reliability warning codes in `metadata.warnings`: `missing_business_name`, `missing_logo_candidates`, `missing_services_products`, `low_content_extracted`, `website_fetch_failed`, `claude_failed_or_skipped`, `large_site_partial_extraction`, `favicon_only_logo_candidate` (additive alongside human-readable lines).",
+      "`metadata.quality` — `high` / `medium` / `low` for business name, logo, services/products, and overall (logo quality `low` when only favicon/icon candidates exist).",
+      "`data/extraction-eval-fixtures.json` + `npm run api:evaluate` — required vs nice-to-have severities; required failures exit nonzero; current fixtures (expoprint.io, google.com, stripe.com) pass stable required checks.",
+      "`evaluate-design-intake-api.mjs` supports `--runs N` with per-check pass rates and flaky detection.",
+      "`npm run api:compare` — smoke-compare `POST /api/analyze-website` vs `POST /api/design-intake/extract` for the same URL.",
+      "Documented in `docs/extraction-evaluation.md` and `docs/design-intake-api.md`. No Fabric/export behavior change.",
+    ],
+  },
+  {
+    id: 25,
+    title: "Large-site partial extraction and editor/API alignment",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Heavy homepages that exceed the HTML byte cap can still yield useful head metadata from a truncated prefix instead of failing completely. Editor `/` and guided `/demo` align with the integration extract API for business name, partial fetch status, and logo warnings — same shared scrape + Claude pipeline, not production-final extraction. No headless browser or full-site crawl.",
+    accomplishments: [
+      "Oversized homepage HTML (~800 KB cap): parse the first chunk when `Content-Length` or body size exceeds the cap; `websiteFetch.status: partial`, `reason: body_truncated`, warning `large_site_partial_extraction`.",
+      "Example `cvs.com`: partial extraction still returns business name, typography, services/products, ranked logo candidates (e.g. `cvs-logo.svg` from JSON-LD/OG in the truncated head), and human-readable warnings — not a guarantee for every large site.",
+      "Demo placeholder business name (`Example Brand Co.`) is treated as unset in Claude prompts so analyze-website and extract resolve the public name consistently (e.g. CVS Pharmacy); custom user-entered names are not overwritten.",
+      "Partial `success` / `partial` fetch responses are valid Claude/scraper output in the editor and demo — status copy mentions large page partially inspected; not mock fallback.",
+      "Favicon-only logo candidates: ranked as fallback, UI/API warn that production-quality logo upload is recommended; `missingAssets` and brief text reflect low logo quality — favicon is not presented as a strong production wordmark.",
+      "Safer head-only logo discovery (JSON-LD logo/image, `og:logo`, header/nav images before generic `img-logo` scan) without increasing crawl scope or returning raw HTML.",
+      "Shared pipeline documented: both `POST /api/analyze-website` and `POST /api/design-intake/extract` call `runClaudeWebsiteAnalyze` — prototype-grade; human review still required.",
     ],
   },
 ];
@@ -443,9 +466,10 @@ export default function ProgressPage() {
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
             is a structured design-intake extraction API for ExpoPrint’s system — not only a
-            canvas demo. Stages 20–24 cover the extract API contract, `/api-docs` / `/api-test`
-            tooling, canvas bullet layout, fixture-based evaluation, and reliability/quality
-            metadata; the editor and guided demo remain visual test harnesses. A written
+            canvas demo. Stages 20–25 cover the extract API contract, `/api-docs` / `/api-test`
+            tooling, canvas bullet layout, fixture-based evaluation, reliability/quality
+            metadata, large-site partial extraction, and editor/API alignment; the editor and
+            guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
@@ -523,7 +547,11 @@ export default function ProgressPage() {
                 <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
                   npm run api:evaluate
                 </code>{" "}
-                — ground-truth fixture checks (local dev server)
+                — ground-truth fixture checks (local dev server; required checks passing)
+              </li>
+              <li>
+                Partial large-page extraction (e.g. cvs.com) and editor/analyze alignment with
+                the extract API — prototype only, not full browser automation
               </li>
             </ul>
           </div>
