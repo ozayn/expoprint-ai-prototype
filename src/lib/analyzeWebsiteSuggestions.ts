@@ -7,7 +7,10 @@ import {
   DEFAULT_DEMO_BUSINESS_NAME,
 } from "./designIntakeState";
 
-/** Intake merge helpers after `POST /api/analyze-website` — used by `/` and `/demo`. */
+/**
+ * Intake merge helpers after `POST /api/analyze-website` — used by `/` and `/demo`.
+ * Analyze responses come from the same `runClaudeWebsiteAnalyze` pipeline as `/api/design-intake/extract`.
+ */
 
 /** True when Analyze may replace the main business name field with Claude output. */
 export function businessNameIsAutoFillable(current: string): boolean {

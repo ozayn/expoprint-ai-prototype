@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # POST /api/design-intake/extract against local dev (http://localhost:3000).
+# Same scrape + Claude pipeline as POST /api/analyze-website; integration JSON shape only.
 set -euo pipefail
 
 usage() {

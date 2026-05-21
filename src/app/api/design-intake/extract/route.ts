@@ -68,6 +68,7 @@ export async function POST(req: Request) {
 
   const { body } = parsed;
 
+  // Shared scrape + Claude pipeline; this route only maps to integration JSON.
   const pipeline = await runClaudeWebsiteAnalyze({
     websiteUrl: body.websiteUrl,
     productCategory: body.productCategory,

@@ -102,6 +102,7 @@ export async function POST(req: Request) {
     return NextResponse.json(errBody, { status: 400 });
   }
 
+  // Shared scrape + Claude pipeline; this route only maps to UI-oriented analyze JSON.
   const result = await runClaudeWebsiteAnalyze({
     websiteUrl: asTrimmedString(body.websiteUrl),
     businessName: asTrimmedString(body.businessName),

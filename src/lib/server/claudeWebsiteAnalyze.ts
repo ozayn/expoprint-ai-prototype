@@ -1,3 +1,18 @@
+/**
+ * Single extraction pipeline used by both API routes:
+ *
+ * - `POST /api/analyze-website` — UI-oriented `extracted` rows for `/` and `/demo`
+ * - `POST /api/design-intake/extract` — normalized integration JSON via `buildDesignIntakeExtractResponse`
+ *
+ * Stages (same for every caller):
+ * 1. `extractWebsiteContent` — multi-page scrape, logo candidates (rank/filter), typography signals
+ * 2. Optional Claude structured extraction from bounded page context
+ * 3. Route-specific response mapping only (no second scrape or Claude pass)
+ *
+ * Downstream cleanup (business name, quality/warnings, services/products lists) runs in
+ * `buildDesignIntakeExtractResponse` for the integration route; the UI route returns Claude rows
+ * and merges them client-side via `analyzeWebsiteSuggestions`.
+ */
 import Anthropic from "@anthropic-ai/sdk";
 import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
 import { syncWebsiteTypographyMetaCounts } from "@/lib/typographySignals";
@@ -236,10 +251,7 @@ function normalizeWebsiteFetchMeta(meta: WebsiteFetchMeta): WebsiteFetchMeta {
   };
 }
 
-/**
- * Bounded website scrape + optional Claude structured extraction.
- * Shared by the UI analyze route and the integration extract API.
- */
+/** Bounded website scrape + optional Claude structured extraction (see module doc above). */
 export async function runClaudeWebsiteAnalyze(
   input: ClaudeWebsiteAnalyzeInput,
 ): Promise<ClaudeWebsiteAnalyzeResult> {

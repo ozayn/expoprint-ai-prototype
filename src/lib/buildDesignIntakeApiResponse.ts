@@ -383,7 +383,8 @@ function assembleResponseParts(
 }
 
 /**
- * Maps pipeline output to the integration API response contract.
+ * Maps `runClaudeWebsiteAnalyze` output to the integration API contract only.
+ * Does not run scrape or Claude — used exclusively by `POST /api/design-intake/extract`.
  */
 export function buildDesignIntakeExtractResponse(
   request: DesignIntakeExtractRequest,

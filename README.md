@@ -31,8 +31,10 @@ Per client feedback, **Phase 1** is framed as a **structured API deliverable** f
 
 | Route | Role |
 |-------|------|
-| **`POST /api/design-intake/extract`** | Integration API — stable normalized JSON (`business`, `brand`, `content`, `designIntake`, `metadata`). See [`docs/design-intake-api.md`](docs/design-intake-api.md). |
-| **`POST /api/analyze-website`** | UI-oriented analyze for the editor and guided demo (unchanged). |
+| **`POST /api/design-intake/extract`** | Integration API — stable normalized JSON (`business`, `brand`, `content`, `designIntake`, `metadata`). Used by `npm run api:test`, `npm run api:evaluate`, and `/api-test`. See [`docs/design-intake-api.md`](docs/design-intake-api.md). |
+| **`POST /api/analyze-website`** | UI-oriented analyze for the editor (`/`) and guided demo (`/demo`). Same underlying pipeline (`runClaudeWebsiteAnalyze`), different response shape. |
+
+Both routes share one server extraction pipeline in `src/lib/server/claudeWebsiteAnalyze.ts` (scrape → logo/typography → Claude). Mapping to integration JSON vs. UI intake happens only after that shared step.
 
 The home editor (`/`) and guided demo (`/demo`) are **visual consumers and test harnesses** for the same scrape + Claude pipeline. Responses do **not** include raw HTML or full scraped text. Logo candidates, typography, and Claude-inferred fields require **human review**; the contract is a **first stable v1**, not production-final.
 

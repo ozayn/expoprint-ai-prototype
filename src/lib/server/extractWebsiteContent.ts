@@ -1,3 +1,7 @@
+/**
+ * Bounded multi-page website scrape (homepage + up to 3 same-origin links).
+ * Invoked only from `runClaudeWebsiteAnalyze` in `claudeWebsiteAnalyze.ts` — not a separate API path.
+ */
 import { load } from "cheerio";
 import type {
   LogoCandidate,

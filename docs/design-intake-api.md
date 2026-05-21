@@ -4,7 +4,26 @@
 
 Stable integration-style endpoint for ExpoPrint’s downstream systems. The existing **`POST /api/analyze-website`** route remains for the editor (`/`) and guided demo (`/demo`) as **visual consumers and test harnesses**; this contract is normalized for machine consumption.
 
+Both routes call the **same server pipeline** (`runClaudeWebsiteAnalyze` in `src/lib/server/claudeWebsiteAnalyze.ts`), which runs bounded multi-page scraping (`extractWebsiteContent`), logo candidate ranking, typography extraction, and optional Claude interpretation. Only the **response shape** differs: integration JSON here vs. UI-oriented `extracted` rows on `/api/analyze-website`.
+
 **Status:** First stable contract — **not** production-final. Human review is still required. No raw HTML or full scraped text is returned.
+
+## Shared extraction pipeline
+
+| Stage | Module | Used by both routes? |
+|-------|--------|----------------------|
+| Multi-page scrape, logo URLs, typography from HTML/CSS | `src/lib/server/extractWebsiteContent.ts` | Yes |
+| Logo rank/filter for UI list | `src/lib/logoCandidateRanking.ts`, `prepareLogoCandidatesForUi.ts` | Yes (in scrape) |
+| Claude structured fields | `src/lib/server/claudeWebsiteAnalyze.ts` | Yes |
+| Integration JSON (`business`, `brand`, `content`, …) | `src/lib/buildDesignIntakeApiResponse.ts` | **`/api/design-intake/extract` only** |
+| UI intake merge | `src/lib/analyzeWebsiteSuggestions.ts` (client) | **`/api/analyze-website` only** |
+
+**Test surfaces**
+
+| Surface | Route |
+|---------|--------|
+| `npm run api:test`, `npm run api:evaluate`, `/api-test` | `POST /api/design-intake/extract` |
+| Home editor `/`, guided `/demo` | `POST /api/analyze-website` |
 
 ## Endpoint
 
@@ -178,8 +197,9 @@ curl -sS -X POST "http://localhost:3000/api/design-intake/extract" \
 
 | Route | Purpose |
 |-------|---------|
-| `POST /api/analyze-website` | UI-oriented analyze (fills editor/demo intake) |
-| `GET /api/proxy-image` | Safe logo preview for Fabric canvas (demo only) |
+| `POST /api/design-intake/extract` | Integration API — normalized JSON (this document) |
+| `POST /api/analyze-website` | UI/demo analyze — same pipeline, `extracted` rows + `websiteFetch` metadata |
+| `GET /api/proxy-image` | Safe logo preview for Fabric canvas (not part of extraction) |
 
 ## Implementation files
 
