@@ -46,7 +46,7 @@ POST /api/design-intake/extract
 | `brand` | `colors[]`, `typography` (font families, style guess), `logoCandidates[]` |
 | `content` | `services[]`, `products[]`, `contact` (phone, email, address, social[]) |
 | `designIntake` | `productCategory`, `components`, `stylePreference`, `recommendedHeadline`, `recommendedSupportingText`, `missingAssets`, `confidenceNotes`, `needsHumanReview` |
-| `metadata` | `source`, `pagesInspected`, `durationMs`, `websiteFetch`, `claude`, `warnings[]` |
+| `metadata` | `source`, `pagesInspected`, `durationMs`, `websiteFetch`, `claude`, `warnings[]`, optional `quality` |
 
 ## Response (success)
 

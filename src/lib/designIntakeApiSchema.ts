@@ -63,6 +63,15 @@ export type DesignIntakeApiClaudeMeta = {
   reason?: string;
 };
 
+export type ExtractionQualityLevel = "high" | "medium" | "low";
+
+export type ExtractionQualitySummary = {
+  businessName: ExtractionQualityLevel;
+  logo: ExtractionQualityLevel;
+  servicesProducts: ExtractionQualityLevel;
+  overall: ExtractionQualityLevel;
+};
+
 export type DesignIntakeApiMetadata = {
   source: "scraper_plus_claude" | "scraper_only" | "scraper_plus_mock";
   pagesInspected: number;
@@ -70,6 +79,8 @@ export type DesignIntakeApiMetadata = {
   websiteFetch: WebsiteFetchMeta;
   claude: DesignIntakeApiClaudeMeta;
   warnings: string[];
+  /** Prototype quality signals for integration/debugging (additive field). */
+  quality?: ExtractionQualitySummary;
 };
 
 export type DesignIntakeExtractSuccess = {

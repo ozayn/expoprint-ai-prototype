@@ -393,6 +393,21 @@ const stages: Stage[] = [
       "Does not change scraping, Claude, Fabric, editor, demo, or export behavior — validation tooling only.",
     ],
   },
+  {
+    id: 24,
+    title: "Extraction reliability and evaluation checks",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Improves extract API debuggability without changing the overall contract: deterministic business-name fallbacks (Claude → title/og:title → domain), structured `metadata.warnings` codes, `metadata.quality` summary, and multi-run fixture evaluation (`npm run api:evaluate -- --runs N`). Prototype reliability only — not a full production QA suite.",
+    accomplishments: [
+      "`resolveBusinessName` — prefers Claude `suggestedBusinessName`, then brand-like title/og:title, then cautious domain label (e.g. google.com → Google); adds `business_name_inferred_from_domain` when domain fallback is used.",
+      "Reliability warning codes in `metadata.warnings`: `missing_business_name`, `missing_logo_candidates`, `missing_services_products`, `low_content_extracted`, `website_fetch_failed`, `claude_failed_or_skipped` (additive alongside human-readable lines).",
+      "`metadata.quality` — `high` / `medium` / `low` for business name, logo, services/products, and overall.",
+      "`evaluate-design-intake-api.mjs` supports `--runs N` with per-check pass rates and flaky detection; fixtures require stable business name, domain, logos, and pages inspected for expoprint.io, google.com, stripe.com.",
+      "Documented in `docs/extraction-evaluation.md`; `/api-docs` mentions `--runs` and quality fields. No Fabric/export/scrape pipeline behavior change.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -428,9 +443,9 @@ export default function ProgressPage() {
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
             is a structured design-intake extraction API for ExpoPrint’s system — not only a
-            canvas demo. Stages 20–23 cover the extract API contract, `/api-docs` / `/api-test`
-            tooling, canvas bullet layout, and fixture-based extraction evaluation; the editor
-            and guided demo remain visual test harnesses. A written
+            canvas demo. Stages 20–24 cover the extract API contract, `/api-docs` / `/api-test`
+            tooling, canvas bullet layout, fixture-based evaluation, and reliability/quality
+            metadata; the editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md

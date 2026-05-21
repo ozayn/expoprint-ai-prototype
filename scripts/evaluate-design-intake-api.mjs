@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Ground-truth evaluation for POST /api/design-intake/extract.
- * Usage: npm run api:evaluate [-- --verbose]
+ * Usage:
+ *   npm run api:evaluate
+ *   npm run api:evaluate -- --verbose
+ *   npm run api:evaluate -- --runs 3
  * Requires local dev server (default http://localhost:3000).
  */
 
@@ -41,6 +44,17 @@ const VERBOSE = process.argv.includes("--verbose");
  * @property {string} [customerInstructions]
  * @property {ExpectedCheck[]} expectedChecks
  */
+
+function parseRuns(argv) {
+  const idx = argv.indexOf("--runs");
+  if (idx === -1) return 1;
+  const raw = argv[idx + 1];
+  const n = parseInt(raw ?? "1", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 10);
+}
+
+const RUN_COUNT = parseRuns(process.argv);
 
 function getByPath(obj, path) {
   const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
@@ -183,7 +197,7 @@ function runCheck(response, check) {
 /**
  * @param {Fixture} fixture
  */
-async function evaluateFixture(fixture) {
+async function fetchFixtureOnce(fixture) {
   const body = {
     websiteUrl: fixture.websiteUrl,
   };
@@ -211,37 +225,73 @@ async function evaluateFixture(fixture) {
     response = { ok: false, reason: fetchError };
   }
 
-  /** @type {{ check: ExpectedCheck, result: ReturnType<typeof runCheck> }[]} */
-  const results = (fixture.expectedChecks ?? []).map((check) => ({
-    check,
-    result: runCheck(response, check),
-  }));
+  return { response, httpStatus, fetchError };
+}
 
-  const requiredFails = results.filter(
-    (r) => !r.result.pass && r.result.severity === "required",
+/**
+ * @param {Fixture} fixture
+ */
+async function evaluateFixture(fixture) {
+  /** @type {Awaited<ReturnType<typeof fetchFixtureOnce>>[]} */
+  const runs = [];
+
+  for (let i = 0; i < RUN_COUNT; i += 1) {
+    runs.push(await fetchFixtureOnce(fixture));
+  }
+
+  const first = runs[0];
+  const checks = fixture.expectedChecks ?? [];
+
+  /** @type {{ check: ExpectedCheck, runResults: ReturnType<typeof runCheck>[], passCount: number }[]} */
+  const aggregated = checks.map((check) => {
+    const runResults = runs.map((r) => runCheck(r.response, check));
+    const passCount = runResults.filter((rr) => rr.pass).length;
+    return { check, runResults, passCount };
+  });
+
+  const requiredFails = aggregated.filter(
+    (a) => a.check.severity !== "nice_to_have" && a.passCount === 0,
   );
-  const niceFails = results.filter(
-    (r) => !r.result.pass && r.result.severity === "nice_to_have",
+  const requiredFlaky = aggregated.filter(
+    (a) =>
+      a.check.severity !== "nice_to_have" &&
+      a.passCount > 0 &&
+      a.passCount < RUN_COUNT,
   );
-  const requiredPass = results.filter(
-    (r) => r.result.pass && r.result.severity === "required",
+  const niceFails = aggregated.filter(
+    (a) =>
+      a.check.severity === "nice_to_have" &&
+      a.passCount < RUN_COUNT,
+  );
+
+  const requiredTotal = aggregated.filter(
+    (a) => a.check.severity !== "nice_to_have",
   ).length;
-  const requiredTotal = results.filter(
-    (r) => r.result.severity === "required",
+  const requiredPassAllRuns = aggregated.filter(
+    (a) =>
+      a.check.severity !== "nice_to_have" && a.passCount === RUN_COUNT,
   ).length;
+
+  const anyFetchError = runs.some((r) => r.fetchError);
+  const allHttpOk = runs.every((r) => r.httpStatus === 200);
+
+  const passed =
+    !anyFetchError &&
+    allHttpOk &&
+    requiredFails.length === 0 &&
+    requiredFlaky.length === 0;
 
   return {
     fixture,
-    body,
-    response,
-    httpStatus,
-    fetchError,
-    results,
+    runs,
+    aggregated,
     requiredFails,
+    requiredFlaky,
     niceFails,
-    requiredPass,
+    requiredPassAllRuns,
     requiredTotal,
-    passed: requiredFails.length === 0 && !fetchError && httpStatus === 200,
+    passed,
+    firstResponse: first.response,
   };
 }
 
@@ -254,10 +304,45 @@ function loadFixtures() {
   return /** @type {Fixture[]} */ (data.fixtures);
 }
 
+function printRunConsistency(report) {
+  if (RUN_COUNT <= 1) return;
+
+  const names = report.runs.map(
+    (r) => getByPath(r.response, "business.name") ?? "",
+  );
+  const uniqueNames = [...new Set(names.map((n) => String(n)))];
+  const logos = report.runs.map(
+    (r) => getByPath(r.response, "brand.logoCandidates[0].source") ?? "",
+  );
+  const uniqueLogoSources = [...new Set(logos.map((s) => String(s)))];
+
+  console.log(`  Consistency (${RUN_COUNT} runs):`);
+  console.log(
+    `    business.name: ${uniqueNames.length === 1 ? "stable" : "varied"} — ${uniqueNames.map((n) => JSON.stringify(n)).join(", ")}`,
+  );
+  console.log(
+    `    top logo source: ${uniqueLogoSources.length === 1 ? "stable" : "varied"} — ${uniqueLogoSources.map((s) => JSON.stringify(s)).join(", ")}`,
+  );
+
+  for (const row of report.aggregated) {
+    if (row.passCount > 0 && row.passCount < RUN_COUNT) {
+      const tag =
+        row.check.severity === "nice_to_have" ? "nice_to_have" : "required";
+      console.log(
+        `    flaky [${tag}] ${row.check.type} ${row.check.path}: ${row.passCount}/${RUN_COUNT} runs passed`,
+      );
+    }
+  }
+}
+
 async function main() {
   console.log(`Design-intake extraction evaluation`);
   console.log(`POST ${EXTRACT_URL}`);
-  console.log(`Fixtures: ${FIXTURES_PATH}\n`);
+  console.log(`Fixtures: ${FIXTURES_PATH}`);
+  if (RUN_COUNT > 1) {
+    console.log(`Runs per fixture: ${RUN_COUNT}`);
+  }
+  console.log("");
 
   let fixtures;
   try {
@@ -275,52 +360,79 @@ async function main() {
     const report = await evaluateFixture(fixture);
     reports.push(report);
 
-    if (report.fetchError) {
-      console.log(`  ✗ request failed: ${report.fetchError}`);
+    const fetchErr = report.runs.find((r) => r.fetchError);
+    if (fetchErr?.fetchError) {
+      console.log(`  ✗ request failed: ${fetchErr.fetchError}`);
       console.log(`    Is the dev server running at ${BASE_URL}?`);
       continue;
     }
-    if (report.httpStatus !== 200) {
-      console.log(`  ✗ HTTP ${report.httpStatus}`);
-    }
 
-    for (const { check, result } of report.results) {
-      const icon = result.pass ? "✓" : result.severity === "required" ? "✗" : "⚠";
+    for (const row of report.aggregated) {
+      const lastRun = row.runResults[row.runResults.length - 1];
+      const icon =
+        row.passCount === RUN_COUNT
+          ? "✓"
+          : row.check.severity === "required"
+            ? "✗"
+            : "⚠";
       const tag =
-        result.severity === "nice_to_have" ? "nice_to_have" : "required";
+        row.check.severity === "nice_to_have" ? "nice_to_have" : "required";
+      const runNote =
+        RUN_COUNT > 1 ? ` (${row.passCount}/${RUN_COUNT} runs)` : "";
       console.log(
-        `  ${icon} [${tag}] ${check.type} ${check.path} — ${result.message}`,
+        `  ${icon} [${tag}] ${row.check.type} ${row.check.path} — ${lastRun.message}${runNote}`,
       );
+      if (
+        RUN_COUNT === 1 &&
+        !lastRun.pass &&
+        lastRun.expected !== undefined
+      ) {
+        console.log(
+          `      expected: ${formatValue(lastRun.expected)}  actual: ${formatValue(lastRun.actual)}`,
+        );
+      }
     }
 
     console.log(
-      `  ${report.passed ? "PASS" : "FAIL"} — required ${report.requiredPass}/${report.requiredTotal}`,
+      `  ${report.passed ? "PASS" : "FAIL"} — required stable ${report.requiredPassAllRuns}/${report.requiredTotal}`,
     );
     if (report.niceFails.length > 0) {
-      console.log(`  warnings: ${report.niceFails.length} nice_to_have check(s) failed`);
+      console.log(
+        `  warnings: ${report.niceFails.length} nice_to_have check(s) not stable across runs`,
+      );
     }
+
+    printRunConsistency(report);
+
     if (VERBOSE) {
-      console.log(JSON.stringify(report.response, null, 2));
+      for (let i = 0; i < report.runs.length; i += 1) {
+        console.log(`  — run ${i + 1} response —`);
+        console.log(JSON.stringify(report.runs[i].response, null, 2));
+      }
     }
     console.log("");
   }
 
-  const anyRequiredFail = reports.some((r) => !r.passed);
-  const totalRequiredPass = reports.reduce((n, r) => n + r.requiredPass, 0);
+  const anyFail = reports.some((r) => !r.passed);
+  const totalRequiredStable = reports.reduce(
+    (n, r) => n + r.requiredPassAllRuns,
+    0,
+  );
   const totalRequired = reports.reduce((n, r) => n + r.requiredTotal, 0);
-  const totalNiceWarn = reports.reduce((n, r) => n + r.niceFails.length, 0);
 
   console.log("Summary");
   console.log(
-    `  Fixtures: ${reports.filter((r) => r.passed).length}/${reports.length} passed (required checks)`,
+    `  Fixtures: ${reports.filter((r) => r.passed).length}/${reports.length} passed`,
   );
-  console.log(`  Required checks: ${totalRequiredPass}/${totalRequired}`);
-  if (totalNiceWarn > 0) {
-    console.log(`  Nice-to-have warnings: ${totalNiceWarn}`);
+  console.log(
+    `  Required checks stable across runs: ${totalRequiredStable}/${totalRequired}`,
+  );
+  if (RUN_COUNT > 1) {
+    console.log(`  (${RUN_COUNT} runs per fixture)`);
   }
 
-  if (anyRequiredFail) {
-    console.log("\nEvaluation failed (required check failures).");
+  if (anyFail) {
+    console.log("\nEvaluation failed (required failures or flaky checks).");
     process.exit(1);
   }
   console.log("\nAll required checks passed.");

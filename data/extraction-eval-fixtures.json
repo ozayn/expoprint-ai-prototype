@@ -21,10 +21,20 @@
           "severity": "required"
         },
         {
+          "type": "exists",
+          "path": "business.name",
+          "severity": "required"
+        },
+        {
           "type": "pathIncludes",
           "path": "business.name",
           "substring": "ExpoPrint",
           "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "metadata.quality.overall",
+          "severity": "nice_to_have"
         },
         {
           "type": "countGte",
@@ -101,9 +111,20 @@
           "severity": "required"
         },
         {
+          "type": "exists",
+          "path": "business.name",
+          "severity": "required"
+        },
+        {
           "type": "pathIncludes",
           "path": "business.name",
           "substring": "Google",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "google.com",
           "severity": "required"
         },
         {
@@ -143,6 +164,11 @@
           "type": "exact",
           "path": "ok",
           "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "business.name",
           "severity": "required"
         },
         {

@@ -213,6 +213,9 @@ Ground-truth fixture checks for `POST /api/design-intake/extract`: `data/extract
 **Test sites reference**  
 `docs/test-sites.md` — internal URL table and manual QA checklist for extraction/canvas review.
 
+**Extraction reliability and evaluation checks (Stage 24)**  
+Extract API: deterministic business-name fallbacks (`resolveBusinessName`), `metadata.quality` summary, structured warning codes (`missing_business_name`, `website_fetch_failed`, etc.). `npm run api:evaluate -- --runs N` for cross-run consistency. Lightweight prototype harness — not full production QA.
+
 ---
 
 ## Deployment — Vercel on `main` (current)
@@ -228,4 +231,4 @@ Ground-truth fixture checks for `POST /api/design-intake/extract`: `data/extract
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–23 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, and fixture-based `npm run api:evaluate`. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–24 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, fixture-based `npm run api:evaluate`, and extract reliability/quality metadata. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.

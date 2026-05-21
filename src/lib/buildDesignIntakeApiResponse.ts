@@ -14,6 +14,13 @@ import type {
 } from "@/lib/designIntakeApiSchema";
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
 import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
+import {
+  assessExtractionQuality,
+  attachQualityToMetadata,
+  collectReliabilityWarningCodes,
+  mergeWarnings,
+} from "@/lib/extractionQuality";
+import { resolveBusinessName } from "@/lib/resolveBusinessName";
 import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import { emptyTypographySignals } from "@/lib/typographySignals";
 import type {
@@ -82,17 +89,28 @@ function rowValue(rows: Record<ExtractedKey, ExtractedRow>, key: ExtractedKey): 
   return rows[key]?.value?.trim() ?? "";
 }
 
-function inferBusinessNameFromExtraction(
-  extraction: WebsiteContentExtraction,
+function resolveDomain(
+  request: DesignIntakeExtractRequest,
+  claude: ClaudeWebsiteAnalyzeSuccess | null,
+  websiteFetch: WebsiteFetchMeta,
 ): string {
-  const title = extraction.homepage.title.trim();
-  if (title) {
-    const part = title.split(/\s*[|\-–—]\s*/)[0]?.trim();
-    if (part) return part.slice(0, 200);
+  let domain = claude?.suggestedWebsiteDomain?.trim() ?? "";
+  const canonical =
+    claude?.suggestedCanonicalWebsiteUrl?.trim() ||
+    (websiteFetch.status === "success" && websiteFetch.finalUrl
+      ? websiteFetch.finalUrl.trim()
+      : "");
+  const website = canonical || request.websiteUrl.trim();
+  if (!domain && website) {
+    try {
+      domain = new URL(
+        /^https?:\/\//i.test(website) ? website : `https://${website}`,
+      ).hostname.replace(/^www\./i, "");
+    } catch {
+      domain = "";
+    }
   }
-  const og = extraction.homepage.ogTitle.trim();
-  if (og) return og.split(/\s*[|\-–—]\s*/)[0]?.trim().slice(0, 200) ?? "";
-  return "";
+  return domain;
 }
 
 function buildBusiness(
@@ -106,22 +124,20 @@ function buildBusiness(
     (websiteFetch.status === "success" && websiteFetch.finalUrl
       ? websiteFetch.finalUrl.trim()
       : "");
-  const website =
-    canonical || request.websiteUrl.trim();
-  let domain = claude?.suggestedWebsiteDomain?.trim() ?? "";
-  if (!domain && website) {
-    try {
-      domain = new URL(
-        /^https?:\/\//i.test(website) ? website : `https://${website}`,
-      ).hostname.replace(/^www\./i, "");
-    } catch {
-      domain = "";
-    }
-  }
-  const name =
-    claude?.suggestedBusinessName?.trim() ||
-    inferBusinessNameFromExtraction(extraction);
-  return { name, website, domain, canonicalUrl: canonical || website };
+  const website = canonical || request.websiteUrl.trim();
+  const domain = resolveDomain(request, claude, websiteFetch);
+  const resolved = resolveBusinessName({
+    claudeSuggestedName: claude?.suggestedBusinessName,
+    domain,
+    extraction,
+  });
+
+  return {
+    name: resolved.name,
+    website,
+    domain,
+    canonicalUrl: canonical || website,
+  };
 }
 
 function buildContent(rows: Record<ExtractedKey, ExtractedRow>): DesignIntakeApiContent {
@@ -144,6 +160,7 @@ function buildDesignIntakeSection(
   business: DesignIntakeApiBusiness,
   warnings: string[],
   logoCandidateCount: number,
+  businessNameSourceNote?: string,
 ): DesignIntakeApiDesignIntake {
   const services = rowValue(rows, "services");
   const products = rowValue(rows, "products");
@@ -168,6 +185,9 @@ function buildDesignIntakeSection(
     "Prototype extraction — not print-ready artwork.",
     "Logo candidates require human confirmation before production.",
   ];
+  if (businessNameSourceNote) {
+    confidenceNotes.push(businessNameSourceNote);
+  }
   if (warnings.length) {
     confidenceNotes.push(...warnings.slice(0, 6));
   }
@@ -226,18 +246,23 @@ function claudeStatusFromResult(result: ClaudeWebsiteAnalyzeResult): {
 
 function buildMetadata(
   result: ClaudeWebsiteAnalyzeResult,
-  warnings: string[],
+  humanWarnings: string[],
+  codes: string[],
   durationMs: number,
   source: DesignIntakeApiMetadata["source"],
+  quality: ReturnType<typeof assessExtractionQuality>,
 ): DesignIntakeApiMetadata {
-  return {
-    source,
-    pagesInspected: result.websiteFetch.pagesFetched ?? 0,
-    durationMs,
-    websiteFetch: result.websiteFetch,
-    claude: claudeStatusFromResult(result),
-    warnings,
-  };
+  return attachQualityToMetadata(
+    {
+      source,
+      pagesInspected: result.websiteFetch.pagesFetched ?? 0,
+      durationMs,
+      websiteFetch: result.websiteFetch,
+      claude: claudeStatusFromResult(result),
+      warnings: mergeWarnings(humanWarnings, codes),
+    },
+    quality,
+  );
 }
 
 function emptyRows(): Record<ExtractedKey, ExtractedRow> {
@@ -249,14 +274,7 @@ function emptyRows(): Record<ExtractedKey, ExtractedRow> {
   return out;
 }
 
-/**
- * Maps pipeline output to the integration API response contract.
- */
-export function buildDesignIntakeExtractResponse(
-  request: DesignIntakeExtractRequest,
-  result: ClaudeWebsiteAnalyzeResult,
-  durationMs: number,
-): DesignIntakeExtractResponse {
+function humanReadableWarnings(result: ClaudeWebsiteAnalyzeResult): string[] {
   const warnings: string[] = [];
   const { websiteFetch, extraction } = result;
 
@@ -287,79 +305,134 @@ export function buildDesignIntakeExtractResponse(
     warnings.push("No typography signals detected from static HTML/CSS.");
   }
 
-  if (result.ok) {
-    const rows = result.extracted;
-    const business = buildBusiness(request, result, websiteFetch, extraction);
-    const brand: DesignIntakeApiBrand = {
-      colors: parseBrandColors(rowValue(rows, "brandColors")),
-      typography: typo,
-      logoCandidates: logoList,
-    };
-    const content = buildContent(rows);
-    const designIntake = buildDesignIntakeSection(
-      request,
-      rows,
-      business,
-      warnings,
-      logoList.length,
-    );
-    const body: DesignIntakeExtractSuccess = {
-      ok: true,
-      business,
-      brand,
-      content,
-      designIntake,
-      metadata: buildMetadata(
-        result,
-        warnings,
-        durationMs,
-        "scraper_plus_claude",
-      ),
-    };
-    return body;
-  }
+  return warnings;
+}
 
-  const partialOk = scrapeHasUsefulPartial(websiteFetch, extraction);
-  const rows =
-    result.source === "missing_api_key" && partialOk
-      ? emptyRows()
-      : emptyRows();
+function assembleResponseParts(
+  request: DesignIntakeExtractRequest,
+  result: ClaudeWebsiteAnalyzeResult,
+  claude: ClaudeWebsiteAnalyzeSuccess | null,
+  rows: Record<ExtractedKey, ExtractedRow>,
+  durationMs: number,
+  source: DesignIntakeApiMetadata["source"],
+): DesignIntakeExtractSuccess | DesignIntakeExtractFailure {
+  const humanWarnings = humanReadableWarnings(result);
+  const { websiteFetch, extraction } = result;
+  const logoList = logoCandidatesFromFetch(websiteFetch);
+  const business = buildBusiness(request, claude, websiteFetch, extraction);
+  const domain = business.domain;
+  const resolved = resolveBusinessName({
+    claudeSuggestedName: claude?.suggestedBusinessName,
+    domain,
+    extraction,
+  });
 
-  const business = buildBusiness(request, null, websiteFetch, extraction);
   const brand: DesignIntakeApiBrand = {
-    colors: [],
-    typography: typo,
+    colors: parseBrandColors(rowValue(rows, "brandColors")),
+    typography: typographyFromExtraction(extraction),
     logoCandidates: logoList,
   };
   const content = buildContent(rows);
+
+  const businessNameSourceNote = resolved.inferredFromDomain
+    ? "Business name inferred from domain (cautious fallback)."
+    : undefined;
+
+  const codes = collectReliabilityWarningCodes({
+    result,
+    websiteFetch,
+    businessName: business.name,
+    businessNameSource: resolved.source,
+    logoCandidateCount: logoList.length,
+    content,
+  });
+
+  const quality = assessExtractionQuality({
+    businessName: business.name,
+    businessNameSource: resolved.source,
+    logoCandidates: logoList,
+    content,
+  });
+
   const designIntake = buildDesignIntakeSection(
     request,
     rows,
     business,
-    warnings,
+    humanWarnings,
     logoList.length,
+    businessNameSourceNote,
   );
 
-  if (partialOk) {
-    const successBody: DesignIntakeExtractSuccess = {
-      ok: true,
-      business,
-      brand,
-      content,
-      designIntake,
-      metadata: buildMetadata(result, warnings, durationMs, "scraper_only"),
-    };
-    return successBody;
-  }
+  const metadata = buildMetadata(
+    result,
+    humanWarnings,
+    codes,
+    durationMs,
+    source,
+    quality,
+  );
 
-  const failureBody: DesignIntakeExtractFailure = {
-    ok: false,
-    reason: result.reason ?? result.source,
+  return {
+    ok: true as const,
     business,
     brand,
     content,
     designIntake,
-    metadata: buildMetadata(result, warnings, durationMs, "scraper_only"),
+    metadata,
+  };
+}
+
+/**
+ * Maps pipeline output to the integration API response contract.
+ */
+export function buildDesignIntakeExtractResponse(
+  request: DesignIntakeExtractRequest,
+  result: ClaudeWebsiteAnalyzeResult,
+  durationMs: number,
+): DesignIntakeExtractResponse {
+  if (result.ok) {
+    const body = assembleResponseParts(
+      request,
+      result,
+      result,
+      result.extracted,
+      durationMs,
+      "scraper_plus_claude",
+    );
+    return body;
+  }
+
+  const partialOk = scrapeHasUsefulPartial(result.websiteFetch, result.extraction);
+  const rows = emptyRows();
+
+  if (partialOk) {
+    return assembleResponseParts(
+      request,
+      result,
+      null,
+      rows,
+      durationMs,
+      "scraper_only",
+    );
+  }
+
+  const partial = assembleResponseParts(
+    request,
+    result,
+    null,
+    rows,
+    durationMs,
+    "scraper_only",
+  );
+
+  const failureBody: DesignIntakeExtractFailure = {
+    ok: false,
+    reason: result.reason ?? result.source,
+    business: partial.business,
+    brand: partial.brand,
+    content: partial.content,
+    designIntake: partial.designIntake,
+    metadata: partial.metadata,
   };
   return failureBody;
 }

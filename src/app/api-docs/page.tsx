@@ -206,7 +206,19 @@ export default function ApiDocsPage() {
               <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
                 docs/extraction-evaluation.md
               </code>
-              .
+              . Use{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                --runs 3
+              </code>{" "}
+              to compare consistency across repeated calls. Responses include{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                metadata.quality
+              </code>{" "}
+              and reliability warning codes (e.g.{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                missing_business_name
+              </code>
+              ).
             </p>
           </section>
 

@@ -33,9 +33,26 @@ Verbose full JSON per fixture:
 npm run api:evaluate -- --verbose
 ```
 
-Exit code **0** when every fixture passes all **required** checks; **1** if any required check fails or the request cannot reach the server.
+Repeat each fixture to spot inconsistent runs (e.g. missing business name on some attempts):
 
-**Nice-to-have** checks print `⚠` and do not fail the run.
+```bash
+npm run api:evaluate -- --runs 3
+```
+
+With `--runs N`, **required** checks must pass on **every** run. Partial pass rates are reported as flaky. **Nice-to-have** checks warn but do not fail the script.
+
+Exit code **0** when every fixture passes all **required** checks on all runs; **1** if any required check fails, is flaky, or the request cannot reach the server.
+
+## API reliability signals
+
+Extract responses now include additive debug fields (backwards-compatible):
+
+| Field | Purpose |
+| --- | --- |
+| `metadata.quality` | `high` / `medium` / `low` for `businessName`, `logo`, `servicesProducts`, `overall` |
+| `metadata.warnings` | Human-readable lines plus machine codes such as `missing_business_name`, `website_fetch_failed`, `claude_failed_or_skipped`, `business_name_inferred_from_domain` |
+
+Business names use deterministic fallbacks when Claude omits a name: Claude suggestion → brand-like title/og:title → cautious domain label.
 
 ## Fixture format
 
