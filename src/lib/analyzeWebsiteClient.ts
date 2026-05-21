@@ -36,18 +36,12 @@ function websiteFetchSucceeded(rec: Record<string, unknown>): boolean {
 }
 
 function partialScrapeStatusLine(rec: Record<string, unknown>): string {
-  const base = analyzeStatusLineFromApiPayload(rec).line;
-  const reason = typeof rec.reason === "string" ? rec.reason : "";
-  const source = typeof rec.source === "string" ? rec.source : "";
-  const detail =
-    reason && reason !== source ? `${source}: ${reason}` : source || reason;
-  if (base.includes("Claude extraction used")) {
-    return base.replace(
-      "Claude extraction used",
-      `Scrape data used (Claude unavailable${detail ? `: ${detail}` : ""})`,
-    );
-  }
-  return `Scrape data used · ${detail || "Claude unavailable"}.`;
+  const line = formatClaudeSuccessStatusLine(rec);
+  if (rec.ok === true) return line;
+  return line.replace(
+    "Claude extraction used",
+    "Scrape-only extraction used",
+  );
 }
 
 /**

@@ -3,6 +3,7 @@ import type {
   LogoCandidateSource,
   LogoCandidateTransparency,
 } from "@/lib/analyzeWebsiteResponse";
+import { isFaviconStyleLogoCandidate } from "@/lib/logoCandidateQuality";
 
 export type ScoredLogoCandidate = LogoCandidate & {
   score: number;
@@ -204,20 +205,13 @@ function looksLikeNavDecorNotLogo(candidate: LogoCandidate): boolean {
   return false;
 }
 
-function looksLikePrimaryBrandMarkAsset(
-  candidate: LogoCandidate,
-  ctx: LogoRankingContext,
-): boolean {
+function looksLikePrimaryBrandMarkAsset(candidate: LogoCandidate): boolean {
   const pathBlob = candidatePathBlob(candidate);
+  if (/favicon\.svg(?:$|\?)/i.test(pathBlob)) return true;
+  if (isFaviconStyleLogoCandidate(candidate)) return false;
+  if (/\.ico(?:$|\?)/i.test(pathBlob)) return false;
   if (PRIMARY_BRAND_MARK_PATH_RE.test(pathBlob)) return true;
   if (LOGOISH_PATH_RE.test(pathBlob) && !MARKETING_OR_CUSTOMER_PATH_RE.test(pathBlob)) {
-    return true;
-  }
-  if (
-    isFaviconSource(candidate.source) &&
-    /favicon/i.test(pathBlob) &&
-    ctx.brandTokens.length > 0
-  ) {
     return true;
   }
   return false;
@@ -473,13 +467,18 @@ export function scoreLogoCandidate(
     reasons.push("larger usable dimensions");
   }
 
-  if (looksLikePrimaryBrandMarkAsset(candidate, ctx)) {
+  if (looksLikePrimaryBrandMarkAsset(candidate)) {
     score += 58;
     reasons.push("primary brand mark asset");
   }
   if (/favicon\.svg(?:$|\?)/i.test(candidatePathBlob(candidate))) {
     score += 14;
     reasons.push("SVG favicon brand mark");
+  }
+
+  if (/\.ico(?:$|\?)/i.test(candidatePathBlob(candidate))) {
+    score -= 30;
+    reasons.push("favicon .ico (weak for print)");
   }
 
   if (looksLikeMarketingOrCustomerImage(candidate)) {
@@ -492,12 +491,21 @@ export function scoreLogoCandidate(
     reasons.push("penalized: nav/decor image");
   }
 
+  if (
+    candidate.source === "og:image" &&
+    !urlLooksLogoish(candidate.url) &&
+    !/\blogo\b/i.test(alt)
+  ) {
+    score -= 45;
+    reasons.push("penalized: generic og:image share art");
+  }
+
   if (looksLikeProductAppIcon(candidate)) {
     score -= 58;
     reasons.push("penalized: product/app icon");
   }
 
-  const primaryBrandMark = looksLikePrimaryBrandMarkAsset(candidate, ctx);
+  const primaryBrandMark = looksLikePrimaryBrandMarkAsset(candidate);
 
   if (isFaviconSource(candidate.source) && !primaryBrandMark) {
     score -= 36;
@@ -606,7 +614,7 @@ export function isStrongDesignLogoCandidate(
   if (looksLikeProductAppIcon(scored)) return false;
   if (looksLikeMarketingOrCustomerImage(scored)) return false;
   if (looksLikeNavDecorNotLogo(scored)) return false;
-  if (looksLikePrimaryBrandMarkAsset(scored, ctx) && (scored.score ?? 0) >= 70) {
+  if (looksLikePrimaryBrandMarkAsset(scored) && (scored.score ?? 0) >= 70) {
     return true;
   }
   if (scored.score >= 120) return true;
@@ -642,7 +650,7 @@ function shouldHideWhenStrongCandidatesExist(
   if (
     hasHeaderWordmark &&
     isFaviconSource(candidate.source) &&
-    !looksLikePrimaryBrandMarkAsset(candidate, ctx)
+    !looksLikePrimaryBrandMarkAsset(candidate)
   ) {
     return true;
   }
@@ -704,7 +712,12 @@ export function logoDesignLabel(
   candidate: LogoCandidate,
   index: number,
 ): string | null {
-  if (index === 0) return "Best match";
+  if (index === 0 && !isFaviconStyleLogoCandidate(candidate)) {
+    return "Best match";
+  }
+  if (index === 0 && isFaviconStyleLogoCandidate(candidate)) {
+    return "Favicon fallback";
+  }
   if (candidate.source === "header-image") return "Header logo";
   if (
     candidate.source === "icon" ||

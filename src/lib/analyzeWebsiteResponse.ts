@@ -180,7 +180,9 @@ export function formatClaudeSuccessStatusLine(data: Record<string, unknown>): st
       ? w.logoCandidatesList.length
       : 0;
     const logoHint = logoCount > 0 ? ` · ${logoCount} logo candidate${logoCount === 1 ? "" : "s"}` : "";
-    const truncHint = truncated ? " · large page (partial HTML)" : "";
+    const truncHint = truncated
+      ? " · large page partially inspected"
+      : "";
     if (pagesFetched >= 2) {
       return `Claude extraction used · ${pagesFetched} pages inspected${logoHint}${truncHint}.`;
     }

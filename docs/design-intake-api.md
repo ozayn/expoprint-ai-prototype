@@ -170,7 +170,9 @@ Homepage HTML is capped at **800 KB** per GET (unchanged). When `Content-Length`
 | `status: "partial"` | Homepage truncated; `reason: "body_truncated"` |
 | `status: "failed"` | No usable HTML (HTTP error, timeout, non-HTML, empty body) |
 
-Warning code: `large_site_partial_extraction` (also a human-readable line in `metadata.warnings`). Useful for heavy retail sites (e.g. `cvs.com`) where the full homepage is multi‑MB but head metadata is still in the first chunk.
+Warning code: `large_site_partial_extraction` (also a human-readable line in `metadata.warnings`). Useful for heavy retail sites (e.g. `cvs.com`) where the full homepage is multi‑MB but head metadata is still in the first chunk. Partial pages may still yield `cvs-logo.svg` from JSON-LD/OG in the truncated head; favicon-only sites emit `favicon_only_logo_candidate` and `Production-quality logo upload recommended` in `missingAssets`.
+
+**Editor vs extract:** both routes call the same pipeline. The UI sends the placeholder business name (`Example Brand Co.`); the server ignores Claude echoes of that placeholder and resolves the public name from title/OG/domain like the integration API. Use `npm run api:compare -- cvs.com` to verify matching fetch metadata.
 
 ## Compare UI vs integration routes (same pipeline)
 

@@ -359,6 +359,12 @@ async function parseHtmlToPageSummary(
     });
   };
 
+  const parseDimAttr = (raw: string | undefined): number | undefined => {
+    if (!raw) return undefined;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
   $('link[href]').each((_, el) => {
     const rel = ($(el).attr("rel") ?? "").toLowerCase();
     const href = $(el).attr("href") ?? "";
@@ -373,12 +379,15 @@ async function parseHtmlToPageSummary(
     "og:image",
     { alt: $('meta[property="og:image:alt"]').attr("content") ?? undefined },
   );
-
-  const parseDimAttr = (raw: string | undefined): number | undefined => {
-    if (!raw) return undefined;
-    const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) && n > 0 ? n : undefined;
-  };
+  pushLogoCandidate($('meta[property="og:logo"]').attr("content"), "og:image", {
+    alt: "og:logo",
+  });
+  pushLogoCandidate(
+    $('meta[name="twitter:image"]').attr("content"),
+    "og:image",
+    { alt: "twitter:image",
+    },
+  );
 
   /**
    * Header / nav image scan first — only `<img>` inside `header` / `nav` tags or
@@ -390,6 +399,59 @@ async function parseHtmlToPageSummary(
     const src = $el.attr("src") ?? "";
     if (!src) return;
     pushLogoCandidate(src, "header-image", {
+      alt: $el.attr("alt"),
+      width: parseDimAttr($el.attr("width")),
+      height: parseDimAttr($el.attr("height")),
+    });
+  });
+
+  const visitJsonLd = (node: unknown) => {
+    if (node === null || node === undefined) return;
+    if (Array.isArray(node)) {
+      for (const item of node) visitJsonLd(item);
+      return;
+    }
+    if (typeof node !== "object") return;
+    const o = node as Record<string, unknown>;
+    const absorb = (v: unknown) => {
+      if (typeof v === "string" && /^https?:\/\//i.test(v)) {
+        pushLogoCandidate(v, "og:image", { alt: "Structured data image" });
+        return;
+      }
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        const img = v as Record<string, unknown>;
+        if (typeof img.url === "string") {
+          pushLogoCandidate(img.url, "og:image", { alt: "Structured data image" });
+        }
+      }
+    };
+    for (const key of ["logo", "image"]) {
+      if (key in o) absorb(o[key]);
+    }
+    for (const v of Object.values(o)) visitJsonLd(v);
+  };
+
+  $("script[type='application/ld+json'], script[type=\"application/ld+json\"]").each(
+    (_, el) => {
+      const raw = $(el).html()?.trim();
+      if (!raw) return;
+      try {
+        visitJsonLd(JSON.parse(raw));
+      } catch {
+        /* ignore invalid JSON-LD blocks */
+      }
+    },
+  );
+
+  $("img[src], source[src]").each((_, el) => {
+    const $el = $(el);
+    if ($el.closest("header, nav").length > 0) return;
+    const src = $el.attr("src") ?? "";
+    if (!src) return;
+    const blob = `${src} ${$el.attr("alt") ?? ""} ${$el.attr("class") ?? ""}`.toLowerCase();
+    if (!/logo|brand|wordmark/.test(blob)) return;
+    if (/enterprise-accordion|nav-bg|testimonial/i.test(blob)) return;
+    pushLogoCandidate(src, "img-logo", {
       alt: $el.attr("alt"),
       width: parseDimAttr($el.attr("width")),
       height: parseDimAttr($el.attr("height")),

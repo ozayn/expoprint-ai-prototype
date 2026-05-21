@@ -20,6 +20,10 @@ import {
   collectReliabilityWarningCodes,
   mergeWarnings,
 } from "@/lib/extractionQuality";
+import {
+  logoCandidatesAreFaviconOnly,
+  PRODUCTION_LOGO_UPLOAD_ASSET,
+} from "@/lib/logoCandidateQuality";
 import { resolveBusinessName } from "@/lib/resolveBusinessName";
 import { sanitizeTypographySignals } from "@/lib/typographyFontCleanup";
 import { emptyTypographySignals } from "@/lib/typographySignals";
@@ -161,7 +165,7 @@ function buildDesignIntakeSection(
   rows: Record<ExtractedKey, ExtractedRow>,
   business: DesignIntakeApiBusiness,
   warnings: string[],
-  logoCandidateCount: number,
+  logoCandidates: LogoCandidate[],
   businessNameSourceNote?: string,
 ): DesignIntakeApiDesignIntake {
   const services = rowValue(rows, "services");
@@ -173,8 +177,11 @@ function buildDesignIntakeSection(
   }
 
   const missingAssets: string[] = [];
-  if (logoCandidateCount === 0) {
+  const faviconOnly = logoCandidatesAreFaviconOnly(logoCandidates);
+  if (logoCandidates.length === 0) {
     missingAssets.push("Verified production logo file");
+  } else if (faviconOnly) {
+    missingAssets.push(PRODUCTION_LOGO_UPLOAD_ASSET);
   }
   if (parseBrandColors(rowValue(rows, "brandColors")).length === 0) {
     missingAssets.push("Brand color palette confirmation");
@@ -304,6 +311,10 @@ function humanReadableWarnings(result: ClaudeWebsiteAnalyzeResult): string[] {
   const logoList = logoCandidatesFromFetch(websiteFetch);
   if (logoList.length === 0) {
     warnings.push("No logo image candidates found in static HTML.");
+  } else if (logoCandidatesAreFaviconOnly(logoList)) {
+    warnings.push(
+      "Only favicon-style logo candidate found; production logo upload recommended.",
+    );
   }
 
   const typo = typographyFromExtraction(extraction);
@@ -353,6 +364,7 @@ function assembleResponseParts(
     businessName: business.name,
     businessNameSource: resolved.source,
     logoCandidateCount: logoList.length,
+    logoCandidates: logoList,
     content,
   });
 
@@ -368,7 +380,7 @@ function assembleResponseParts(
     rows,
     business,
     humanWarnings,
-    logoList.length,
+    logoList,
     businessNameSourceNote,
   );
 

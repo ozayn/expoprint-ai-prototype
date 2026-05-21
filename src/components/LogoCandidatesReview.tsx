@@ -8,6 +8,10 @@ import type {
 } from "@/lib/analyzeWebsiteResponse";
 import { HELP_LOGO_CANDIDATES } from "@/lib/editorHelpCopy";
 import {
+  FAVICON_ONLY_LOGO_WARNING,
+  logoCandidatesAreFaviconOnly,
+} from "@/lib/logoCandidateQuality";
+import {
   isFallbackIconCandidate,
   isStrongDesignLogoCandidate,
   logoDesignLabel,
@@ -138,6 +142,11 @@ export function LogoCandidatesReview({
         <>
           {helperMode === "inline" ? (
             <p className="text-xs leading-snug text-zinc-500">{HELPER_COPY}</p>
+          ) : null}
+          {logoCandidatesAreFaviconOnly(candidates) ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs leading-snug text-amber-900">
+              {FAVICON_ONLY_LOGO_WARNING}
+            </p>
           ) : null}
           {hiddenCount > 0 ? (
             <p className="text-[11px] text-zinc-400">

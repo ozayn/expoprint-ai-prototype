@@ -1,4 +1,8 @@
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
+import {
+  FAVICON_ONLY_LOGO_WARNING,
+  logoCandidatesAreFaviconOnly,
+} from "@/lib/logoCandidateQuality";
 import type { TypographySignals } from "@/lib/typographySignals";
 import { cleanExtractedRowValue } from "@/lib/extractedValueCleanup";
 
@@ -207,9 +211,11 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
   const header =
     intake.extractionSource === "claude"
       ? "DESIGN BRIEF (prototype — Claude-inferred fields, not scraped)"
-      : intake.extractionSource === "mock_fallback"
-        ? "DESIGN BRIEF (prototype — mocked extraction fallback)"
-        : "DESIGN BRIEF (prototype — mock extraction)";
+      : intake.extractionSource === "scraper_only"
+        ? "DESIGN BRIEF (prototype — scrape-only / partial page extraction)"
+        : intake.extractionSource === "mock_fallback"
+          ? "DESIGN BRIEF (prototype — mocked extraction fallback)"
+          : "DESIGN BRIEF (prototype — mock extraction)";
 
   const lines: string[] = [
     header,
@@ -239,6 +245,12 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
     lines.push(
       "  (Production-quality logo upload still recommended before print.)",
     );
+    lines.push("");
+  } else if (
+    intake.logoCandidates.length > 0 &&
+    logoCandidatesAreFaviconOnly(intake.logoCandidates)
+  ) {
+    lines.push(FAVICON_ONLY_LOGO_WARNING);
     lines.push("");
   } else if (
     intake.extractionSource !== "none" &&

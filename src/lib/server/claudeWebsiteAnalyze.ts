@@ -20,6 +20,7 @@ import {
   buildExtractedFromPlainValues,
   type ExtractedKey,
 } from "@/lib/designIntakeState";
+import { DEFAULT_DEMO_BUSINESS_NAME } from "@/lib/designIntakeState";
 import { resolveBusinessName } from "@/lib/resolveBusinessName";
 import {
   extractWebsiteContent,
@@ -93,7 +94,8 @@ const ROOT_META_KEYS = new Set([
 
 function businessNameForClaudePrompt(raw: string): string {
   const t = raw.trim();
-  return t ? t : "(not provided)";
+  if (!t || t === DEFAULT_DEMO_BUSINESS_NAME) return "(not provided)";
+  return t;
 }
 
 function stripJsonCodeFences(text: string): string {
@@ -159,6 +161,7 @@ export function buildAnalyzeSuggestionHints(
   websiteFetch: WebsiteFetchMeta,
   extraction: WebsiteContentExtraction,
   claudeSuggestedName?: string,
+  intakeBusinessName?: string,
 ): {
   suggestedBusinessName: string;
   suggestedWebsiteDomain: string;
@@ -169,6 +172,7 @@ export function buildAnalyzeSuggestionHints(
     claudeSuggestedName,
     domain,
     extraction,
+    intakeBusinessName,
   });
   return {
     suggestedBusinessName: resolved.name,
@@ -293,7 +297,13 @@ export async function runClaudeWebsiteAnalyze(
   const extraction = await extractWebsiteContent(websiteUrl);
   const websiteFetch = normalizeWebsiteFetchMeta(extraction.meta);
   const hints = (claudeName?: string) =>
-    buildAnalyzeSuggestionHints(websiteUrl, websiteFetch, extraction, claudeName);
+    buildAnalyzeSuggestionHints(
+      websiteUrl,
+      websiteFetch,
+      extraction,
+      claudeName,
+      input.businessName,
+    );
 
   if (!apiKey) {
     return {

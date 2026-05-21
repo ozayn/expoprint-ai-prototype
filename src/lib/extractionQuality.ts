@@ -1,4 +1,5 @@
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
+import { logoCandidatesAreFaviconOnly } from "@/lib/logoCandidateQuality";
 import type { WebsiteFetchMeta } from "@/lib/analyzeWebsiteResponse";
 import type {
   DesignIntakeApiContent,
@@ -18,6 +19,7 @@ export const RELIABILITY_WARNING_CODES = {
   claudeFailedOrSkipped: "claude_failed_or_skipped",
   businessNameFromDomain: "business_name_inferred_from_domain",
   largeSitePartialExtraction: "large_site_partial_extraction",
+  faviconOnlyLogo: "favicon_only_logo_candidate",
 } as const;
 
 function websiteFetchUsable(meta: WebsiteFetchMeta): boolean {
@@ -45,6 +47,7 @@ function businessNameQuality(
 
 function logoQuality(candidates: LogoCandidate[]): ExtractionQualityLevel {
   if (candidates.length === 0) return "low";
+  if (logoCandidatesAreFaviconOnly(candidates)) return "low";
   const top = candidates[0];
   const strongSources = new Set([
     "header-image",
@@ -96,6 +99,7 @@ export function collectReliabilityWarningCodes(params: {
   businessName: string;
   businessNameSource: BusinessNameSource;
   logoCandidateCount: number;
+  logoCandidates: LogoCandidate[];
   content: DesignIntakeApiContent;
 }): string[] {
   const codes: string[] = [];
@@ -124,6 +128,8 @@ export function collectReliabilityWarningCodes(params: {
 
   if (params.logoCandidateCount === 0) {
     codes.push(RELIABILITY_WARNING_CODES.missingLogoCandidates);
+  } else if (logoCandidatesAreFaviconOnly(params.logoCandidates)) {
+    codes.push(RELIABILITY_WARNING_CODES.faviconOnlyLogo);
   }
 
   if (content.services.length === 0 && content.products.length === 0) {
