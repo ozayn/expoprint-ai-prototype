@@ -3,6 +3,7 @@ import {
   FAVICON_ONLY_LOGO_WARNING,
   logoCandidatesAreFaviconOnly,
 } from "@/lib/logoCandidateQuality";
+import { selectedLogoRoleNeedsProductionWordmark } from "@/lib/logoRoleClassification";
 import type { TypographySignals } from "@/lib/typographySignals";
 import { cleanExtractedRowValue } from "@/lib/extractedValueCleanup";
 
@@ -240,8 +241,17 @@ export function computeDesignBriefText(intake: DesignIntakeState): string {
   }
 
   if (intake.selectedLogoCandidateUrl.trim()) {
+    const selectedUrl = intake.selectedLogoCandidateUrl.trim();
+    const selectedCandidate = intake.logoCandidates.find((c) => c.url === selectedUrl);
     lines.push("Selected logo candidate (for designer review):");
-    lines.push(`  • ${intake.selectedLogoCandidateUrl.trim()}`);
+    lines.push(`  • ${selectedUrl}`);
+    if (
+      selectedLogoRoleNeedsProductionWordmark(selectedCandidate?.logoRole)
+    ) {
+      lines.push(
+        "  Selected logo candidate appears to be an icon mark; full production logo may still be needed.",
+      );
+    }
     lines.push(
       "  (Production-quality logo upload still recommended before print.)",
     );

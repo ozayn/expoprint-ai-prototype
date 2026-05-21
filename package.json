@@ -14,7 +14,8 @@
     "lint": "eslint",
     "api:test": "bash scripts/test-design-intake-api.sh",
     "api:compare": "bash scripts/compare-analyze-api-routes.sh",
-    "api:evaluate": "node scripts/evaluate-design-intake-api.mjs"
+    "api:evaluate": "node scripts/evaluate-design-intake-api.mjs",
+    "api:logo-debug": "node scripts/debug-logo-candidates.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

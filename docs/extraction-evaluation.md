@@ -83,6 +83,7 @@ Each entry in `fixtures`:
 | `countGte` | `path`, `min` | Array length or numeric value ≥ `min` |
 | `logoCandidateSource` | `path`, `expected` | Exact match (e.g. `header-image`, `icon`) |
 | `typographyStyleGuess` | `path`, `expected` | Exact `styleGuess` (e.g. `modern_sans`, `unknown`) |
+| `pathIn` | `path`, `expected` (array) | String at `path` is one of the allowed values |
 
 ### Severity
 
@@ -103,3 +104,17 @@ Dot paths with optional indexes: `business.domain`, `brand.logoCandidates[0].sou
 4. Use **nice_to_have** for Claude-dependent copy (e.g. specific service phrases).
 
 See also [`test-sites.md`](./test-sites.md) for manual QA URLs and checklist.
+
+## Current fixture set (v1)
+
+| Fixture | URL | Focus |
+| --- | --- | --- |
+| `expoprint-baseline` | https://expoprint.io | Internal baseline, header logo, services |
+| `google-logo-ranking` | https://www.google.com | Logo ranking, multi-page |
+| `stripe-b2b-saas` | https://stripe.com | B2B SaaS, favicon-class logo |
+| `shopify-ecommerce-saas` | https://www.shopify.com | Ecommerce / commerce vocabulary |
+| `mailchimp-marketing-saas` | https://mailchimp.com | Marketing brand, playful SaaS |
+| `patagonia-consumer-brand` | https://www.patagonia.com | Consumer brand, bot-wall / logo stress |
+| `cvs-large-site-partial` | https://www.cvs.com | Partial HTML (`body_truncated`) |
+
+Newer fixtures intentionally avoid exact logo URLs and Claude-specific copy in **required** checks. Use **nice_to_have** for service/product phrases, typography, and warning codes.

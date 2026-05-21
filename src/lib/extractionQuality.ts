@@ -49,6 +49,8 @@ function logoQuality(candidates: LogoCandidate[]): ExtractionQualityLevel {
   if (candidates.length === 0) return "low";
   if (logoCandidatesAreFaviconOnly(candidates)) return "low";
   const top = candidates[0];
+  if (top?.logoRole === "wordmark") return "high";
+  if (top?.logoRole === "icon_mark") return "medium";
   const strongSources = new Set([
     "header-image",
     "img-logo",

@@ -1,8 +1,15 @@
 import type {
   DesignSpec,
+  SocialFooterItemLayer,
   SupportingContentLayout,
   TextLayer,
 } from "./designSpec";
+import {
+  estimateSocialItemWidthPx,
+  maxSocialItemsForSurface,
+  pickSocialLinksForFooter,
+  socialFooterTypography,
+} from "./socialPlatformDisplay";
 import type { DesignIntakeState, ExtractedKey, StylePreference } from "./designIntakeState";
 import {
   BOOTH_COMPONENTS,
@@ -299,74 +306,6 @@ function websiteLineFromIntake(intake: DesignIntakeState): string {
   return d || "expoprint.io";
 }
 
-/**
- * Strips `https?://`, `www.`, query/hash, trailing slash, and trailing
- * punctuation from a URL-ish token. Returns `""` if nothing recognizable
- * remains (i.e. no host-like `name.tld`). Never returns a partial URL.
- */
-function shortenSocialToken(rawToken: string): string {
-  let t = rawToken.trim();
-  if (!t) return "";
-  /** Mid-list garbage like `, h` or stray ellipses. */
-  if (t.length < 3) return "";
-  t = t.replace(/^[\s.,;:·•|@]+|[\s.,;:·•|]+$/g, "");
-  if (!t) return "";
-
-  /** Bare handles (e.g. `@google`) — keep but without the leading @. */
-  const handleMatch = /^@?([A-Za-z0-9_.]{2,30})$/.exec(t);
-  if (handleMatch && !t.includes("/") && !t.includes(".")) {
-    return `@${handleMatch[1]}`;
-  }
-
-  /**
-   * URL-ish: prepend a scheme so `URL` parses host/path/query reliably; we
-   * never re-emit the scheme.
-   */
-  const withScheme = /^https?:\/\//i.test(t) ? t : `https://${t}`;
-  let url: URL;
-  try {
-    url = new URL(withScheme);
-  } catch {
-    return "";
-  }
-  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
-  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host)) return "";
-
-  const cleanedPath = url.pathname
-    .replace(/\/+$/, "")
-    .replace(/[\s.,;:·•|]+$/, "");
-
-  const display = cleanedPath ? `${host}${cleanedPath}` : host;
-  /** Trailing punctuation belt-and-suspenders. */
-  return display.replace(/[\s.,;:·•|]+$/, "");
-}
-
-/**
- * Pick the cleanest single social token from a Claude-style list (comma /
- * semicolon / mid-dot / pipe separated). Prefers tokens that produce a short
- * displayable form (`youtube.com/googleads`, `@brand`, `instagram.com/foo`).
- * Returns `""` when no token cleans up below the per-item display cap.
- */
-const SOCIAL_DISPLAY_MAX = 40;
-
-function shortSocialForCanvas(raw: string): string {
-  const t = raw.trim();
-  if (!t) return "";
-
-  const tokens = t
-    .split(/\s*[,;·•|]\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  for (const tok of tokens) {
-    const cleaned = shortenSocialToken(tok);
-    if (cleaned && cleaned.length <= SOCIAL_DISPLAY_MAX) {
-      return cleaned;
-    }
-  }
-  return "";
-}
-
 /** Any selected extracted contact field that should appear on the canvas. */
 function hasContactExtractedForCanvas(intake: DesignIntakeState): boolean {
   return (
@@ -420,26 +359,18 @@ function emailForFooter(raw: string, maxChars: number): string {
 }
 
 /**
- * One concise footer line. Priority: phone → website domain → short email →
- * one clean social → booth address. **Whole items only** — nothing is truncated
- * mid-domain, mid-email, or mid-link. Uses a pixel-based char budget so Fabric
- * does not clip the last characters (e.g. `expoprint.i`). If phone + domain
- * do not fit together, keeps phone alone when possible, otherwise domain alone.
+ * Text footer line: phone → email → booth address. Website stays on the main
+ * `website` layer; social uses icon rows via {@link buildSocialFooterLayers}.
  */
 function buildContactFooterLine(
   intake: DesignIntakeState,
   boxWidthPx: number,
   fontSize: number = CONTACT_FONT_SIZE,
 ): string {
-  if (!hasContactExtractedForCanvas(intake)) return "";
-
   const maxChars = estimateFooterMaxChars(boxWidthPx, fontSize);
 
   const phone = selectedExtractedValue(intake, "phone").trim();
-  const domain = websiteLineFromIntake(intake);
   const email = emailForFooter(selectedExtractedValue(intake, "email"), maxChars);
-  const socialRaw = selectedExtractedValue(intake, "social").trim();
-  const social = socialRaw ? shortSocialForCanvas(socialRaw) : "";
   const addressRaw =
     intake.category === "Trade show booth"
       ? selectedExtractedValue(intake, "address").trim()
@@ -448,39 +379,94 @@ function buildContactFooterLine(
     addressRaw && addressRaw.length <= ADDRESS_DISPLAY_MAX ? addressRaw : "";
 
   const ordered = dedupeFooterItems(
-    [
-      phone,
-      domain,
-      email,
-      social,
-      address,
-    ].filter((item): item is string => Boolean(item && item.length > 0)),
+    [phone, email, address].filter(
+      (item): item is string => Boolean(item && item.length > 0),
+    ),
   );
 
   const picked: string[] = [];
   for (const item of ordered) {
     if (item.length > maxChars) continue;
-    const next = picked.length ? `${joinFooterItems([...picked, item])}` : item;
+    const next = picked.length ? joinFooterItems([...picked, item]) : item;
     if (footerLineFits(next, maxChars)) {
       picked.push(item);
     }
   }
 
-  if (phone && domain && picked.includes(phone) && !picked.includes(domain)) {
-    const together = joinFooterItems([phone, domain]);
-    if (!footerLineFits(together, maxChars)) {
-      if (footerLineFits(phone, maxChars)) {
-        return phone;
-      }
-      if (footerLineFits(domain, maxChars)) {
-        return domain;
-      }
-      return "";
-    }
-  }
-
   const line = joinFooterItems(picked);
   return footerLineFits(line, maxChars) ? line : "";
+}
+
+function buildSocialFooterLayers(
+  intake: DesignIntakeState,
+  surfaceLabel: string | null,
+  left: number,
+  top: number,
+  maxRightPx: number,
+  fill: string,
+  fontFamily: string,
+): SocialFooterItemLayer[] {
+  const socialRaw = selectedExtractedValue(intake, "social").trim();
+  if (!socialRaw) return [];
+
+  const { fontSize, iconSize, opacity } = socialFooterTypography(
+    intake.category,
+    surfaceLabel,
+  );
+  const maxItems = maxSocialItemsForSurface(intake.category, surfaceLabel);
+
+  const contactLine = buildContactFooterLine(
+    intake,
+    maxRightPx - left,
+    CONTACT_FONT_SIZE,
+  );
+  const contactTextWidth = contactLine
+    ? contactLine.length * CONTACT_FONT_SIZE * CONTACT_CHAR_WIDTH_FACTOR
+    : 0;
+  const gapAfterContact = contactTextWidth > 0 ? 14 : 0;
+  const socialStart = left + contactTextWidth + gapAfterContact;
+
+  const entries = pickSocialLinksForFooter(
+    socialRaw,
+    maxItems,
+    socialStart,
+    maxRightPx,
+    fontSize,
+    iconSize,
+  );
+
+  const layers: SocialFooterItemLayer[] = [];
+  let x = socialStart;
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]!;
+    const w = estimateSocialItemWidthPx(entry.displayText, fontSize, iconSize);
+    layers.push({
+      type: "socialFooterItem",
+      id: `social-footer-${i}`,
+      platform: entry.platform,
+      displayText: entry.displayText,
+      left: x,
+      top,
+      fontSize,
+      iconSize,
+      fontFamily,
+      fill,
+      fontWeight: "500",
+      opacity,
+    });
+    x += w + 12;
+  }
+
+  return layers;
+}
+
+function hasSocialFooterForCanvas(intake: DesignIntakeState): boolean {
+  return selectedExtractedValue(intake, "social").trim().length > 0;
+}
+
+/** Footer band is shown when contact text and/or social icons apply. */
+function hasFooterBandForCanvas(intake: DesignIntakeState): boolean {
+  return hasContactExtractedForCanvas(intake) || hasSocialFooterForCanvas(intake);
 }
 
 function logoLabelFromIntake(intake: DesignIntakeState): string {
@@ -699,10 +685,22 @@ export function createDesignSpecFromIntake(
     footerBoxWidth,
     CONTACT_FONT_SIZE,
   );
-  const hasContactFooter = contactFooter.length > 0;
-  /** Nudge main URL up slightly so a small contact line fits above the bottom edge. */
-  const websiteTop = hasContactFooter ? websiteBlock.top - 26 : websiteBlock.top;
-  const contactFooterTop = websiteTop + 36;
+  const websiteTopBase = websiteBlock.top;
+  /** Nudge main URL up when a footer band (contact and/or social) is present. */
+  const websiteTop = hasFooterBandForCanvas(intake)
+    ? websiteTopBase - 26
+    : websiteTopBase;
+  const footerBandTop = websiteTop + 36;
+  const socialFooterLayers = buildSocialFooterLayers(
+    intake,
+    surfaceLabel,
+    websiteBlock.left,
+    footerBandTop,
+    websiteBlock.left + footerBoxWidth,
+    plan.contactText,
+    typo.uiFontFamily,
+  );
+  const hasContactFooterText = contactFooter.length > 0;
 
   const supportingMaxHeight = Math.max(
     40,
@@ -896,13 +894,13 @@ export function createDesignSpecFromIntake(
     },
   ];
 
-  if (hasContactFooter) {
+  if (hasContactFooterText) {
     layers.push({
       type: "text",
       id: "contact-footer",
       content: contactFooter,
       left: websiteBlock.left,
-      top: contactFooterTop,
+      top: footerBandTop,
       fill: plan.contactText,
       fontSize: CONTACT_FONT_SIZE,
       ...textBase,
@@ -912,6 +910,10 @@ export function createDesignSpecFromIntake(
       textAlign: websiteBlock.textAlign,
       opacity: 0.92,
     });
+  }
+
+  if (socialFooterLayers.length > 0) {
+    layers.push(...socialFooterLayers);
   }
 
   return {

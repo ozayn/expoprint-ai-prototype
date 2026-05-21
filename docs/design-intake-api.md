@@ -94,7 +94,8 @@ POST /api/design-intake/extract
         "url": "https://expoprint.io/logo.svg",
         "source": "header-image",
         "score": 120,
-        "transparency": "likely_transparent"
+        "transparency": "likely_transparent",
+        "logoRole": "wordmark"
       }
     ]
   },
@@ -156,6 +157,8 @@ HTTP **400** for invalid JSON or missing `websiteUrl`. HTTP **200** with `ok: fa
 - Not a production-final API; schema may evolve.
 - Not print-ready artwork or exact font matching.
 - Logo candidates are **candidates only** — human confirmation required.
+- Each `brand.logoCandidates[]` entry may include optional `logoRole`: `wordmark`, `icon_mark`, `social_preview`, `fallback_icon`, or `unknown`. Wordmarks rank first for default design use; compact icon marks (e.g. brand favicon SVGs) are kept when useful and are not treated the same as low-quality tiny favicons.
+- Optional `previewFetch` on each candidate records whether a lightweight upstream probe saw a real image MIME type (same whitelist as `GET /api/proxy-image`). URLs that return `text/html` failover pages (common on bot-protected retail sites) are deprioritized and show **Preview unavailable** in the UI. Debug one site: `npm run api:logo-debug -- <url>`.
 - Production-quality logo upload is still recommended.
 - `needsHumanReview` is always `true` in v1.
 - Missing `ANTHROPIC_API_KEY` → Claude skipped; response may be `ok: true` with `metadata.source: "scraper_only"` when scrape data exists.

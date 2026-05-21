@@ -4,6 +4,10 @@ import type {
   LogoCandidateTransparency,
 } from "@/lib/analyzeWebsiteResponse";
 import { isFaviconStyleLogoCandidate } from "@/lib/logoCandidateQuality";
+import {
+  classifyLogoRole,
+  logoRoleUiLabel,
+} from "@/lib/logoRoleClassification";
 
 export type ScoredLogoCandidate = LogoCandidate & {
   score: number;
@@ -31,6 +35,14 @@ const PRODUCT_PATH_RE =
 /** CMS modules, nav promos, case-study art — not primary wordmarks. */
 const MARKETING_OR_CUSTOMER_PATH_RE =
   /enterprise-accordion|nav-bg|nav_background|sessions-\d|testimonial|headshot|case-study|customer-story|hero-?bg|bento|platform-graphic|annual-letter|the-happenings|lovable\.png|runway\.png|supabase\.png/i;
+
+/** CDN failover / bot-wall pages that serve HTML for `.png` paths. */
+export const FAILOVER_LOGO_PATH_RE =
+  /sitefailover|sitedown|botfailover|failover.*\/images\//i;
+
+export function looksLikeFailoverLogoUrl(candidate: LogoCandidate): boolean {
+  return FAILOVER_LOGO_PATH_RE.test(candidatePathBlob(candidate));
+}
 
 /** Long photo captions that mention "logo" or the brand incidentally (e.g. Stripe homepage). */
 const PHOTO_CAPTION_ALT_RE =
@@ -397,6 +409,7 @@ export function scoreLogoCandidate(
   candidate: LogoCandidate,
   ctx: LogoRankingContext = { brandTokens: [] },
 ): ScoredLogoCandidate {
+  const logoRole = classifyLogoRole(candidate, ctx);
   const reasons: string[] = [];
   const { points: sourcePoints, label: sourceLabel } = baseScoreForSource(
     candidate.source,
@@ -481,6 +494,11 @@ export function scoreLogoCandidate(
     reasons.push("favicon .ico (weak for print)");
   }
 
+  if (looksLikeFailoverLogoUrl(candidate)) {
+    score -= 160;
+    reasons.push("penalized: failover/HTML logo path");
+  }
+
   if (looksLikeMarketingOrCustomerImage(candidate)) {
     score -= 120;
     reasons.push("penalized: marketing/customer image");
@@ -508,11 +526,21 @@ export function scoreLogoCandidate(
   const primaryBrandMark = looksLikePrimaryBrandMarkAsset(candidate);
 
   if (isFaviconSource(candidate.source) && !primaryBrandMark) {
-    score -= 36;
-    reasons.push("favicon fallback");
+    if (logoRole === "icon_mark") {
+      score -= 10;
+      reasons.push("compact icon mark");
+    } else {
+      score -= 36;
+      reasons.push("favicon fallback");
+    }
   }
 
-  if (isVerySmallLogoIcon(candidate) && !primaryBrandMark) {
+  if (logoRole === "icon_mark" && (brandHitForScore(candidate, ctx) || primaryBrandMark)) {
+    score += 22;
+    reasons.push("brand icon mark");
+  }
+
+  if (isVerySmallLogoIcon(candidate) && !primaryBrandMark && logoRole !== "icon_mark") {
     score -= 48;
     reasons.push("small icon penalty");
   }
@@ -520,7 +548,8 @@ export function scoreLogoCandidate(
   if (
     isFaviconSource(candidate.source) &&
     isSquareIcon(candidate) &&
-    !primaryBrandMark
+    !primaryBrandMark &&
+    logoRole === "fallback_icon"
   ) {
     score -= 28;
     reasons.push("square favicon/app icon");
@@ -540,10 +569,18 @@ export function scoreLogoCandidate(
 
   return {
     ...candidate,
+    logoRole,
     score: Math.round(score),
     transparency,
     reason: reasons.join("; "),
   };
+}
+
+function brandHitForScore(
+  candidate: LogoCandidate,
+  ctx: LogoRankingContext,
+): boolean {
+  return hasBrandNameEvidence(candidate, ctx);
 }
 
 /** Sort by score descending; stable tie-break keeps earlier discovery order. */
@@ -617,6 +654,13 @@ export function isStrongDesignLogoCandidate(
   if (looksLikePrimaryBrandMarkAsset(scored) && (scored.score ?? 0) >= 70) {
     return true;
   }
+  if (
+    scored.logoRole === "icon_mark" &&
+    (scored.score ?? 0) >= 68 &&
+    (hasBrandNameEvidence(scored, ctx) || looksLikePrimaryBrandMarkAsset(scored))
+  ) {
+    return true;
+  }
   if (scored.score >= 120) return true;
   if (
     scored.source === "header-image" &&
@@ -647,18 +691,39 @@ function shouldHideWhenStrongCandidatesExist(
   if (looksLikeProductAppIcon(candidate)) return true;
   if (looksLikeMarketingOrCustomerImage(candidate)) return true;
   if (looksLikeNavDecorNotLogo(candidate)) return true;
+  if (candidate.logoRole === "social_preview") return true;
+  if (candidate.previewFetch?.accepted === false) return true;
+  if (looksLikeFailoverLogoUrl(candidate)) return true;
   if (
     hasHeaderWordmark &&
-    isFaviconSource(candidate.source) &&
-    !looksLikePrimaryBrandMarkAsset(candidate)
+    (candidate.logoRole === "fallback_icon" ||
+      (isFaviconSource(candidate.source) &&
+        candidate.logoRole !== "icon_mark" &&
+        !looksLikePrimaryBrandMarkAsset(candidate)))
   ) {
     return true;
   }
-  if (hasHeaderWordmark && candidate.source === "og:image") return true;
-  if (isFaviconSource(candidate.source) && isVerySmallLogoIcon(candidate)) {
+  if (
+    hasHeaderWordmark &&
+    candidate.source === "og:image" &&
+    candidate.logoRole !== "wordmark"
+  ) {
     return true;
   }
-  if (isFaviconSource(candidate.source) && candidate.score < 45) return true;
+  if (
+    isFaviconSource(candidate.source) &&
+    isVerySmallLogoIcon(candidate) &&
+    candidate.logoRole !== "icon_mark"
+  ) {
+    return true;
+  }
+  if (
+    isFaviconSource(candidate.source) &&
+    candidate.score < 45 &&
+    candidate.logoRole !== "icon_mark"
+  ) {
+    return true;
+  }
   if (candidate.source === "og:image" && !ogImageLooksLogoLike(candidate, ctx)) {
     return true;
   }
@@ -707,31 +772,24 @@ export function filterLogoCandidatesForDesignUi(
   return pool.slice(0, max);
 }
 
-/** Compact label for review cards (index 0 is always Best match when shown). */
+/** Primary badge: only the top-ranked card (index 0). */
+export function logoPrimaryDesignLabel(index: number): string | null {
+  return index === 0 ? "Best match" : null;
+}
+
+/** Role badge for each card (wordmark, icon mark, etc.). */
+export function logoRoleDesignLabel(candidate: LogoCandidate): string {
+  return logoRoleUiLabel(candidate.logoRole ?? classifyLogoRole(candidate));
+}
+
+/** @deprecated Use logoPrimaryDesignLabel + logoRoleDesignLabel */
 export function logoDesignLabel(
   candidate: LogoCandidate,
   index: number,
 ): string | null {
-  if (index === 0 && !isFaviconStyleLogoCandidate(candidate)) {
-    return "Best match";
-  }
-  if (index === 0 && isFaviconStyleLogoCandidate(candidate)) {
-    return "Favicon fallback";
-  }
-  if (candidate.source === "header-image") return "Header logo";
-  if (
-    candidate.source === "icon" ||
-    candidate.source === "apple-touch-icon"
-  ) {
-    return "Fallback icon";
-  }
-  if (/penalized:\s*product\/app icon/i.test(candidate.reason ?? "")) {
-    return "Less likely logo";
-  }
-  if (candidate.transparency === "likely_transparent") {
-    return "Transparent likely";
-  }
-  return null;
+  const primary = logoPrimaryDesignLabel(index);
+  if (primary) return primary;
+  return logoRoleDesignLabel(candidate);
 }
 
 export function isFallbackIconCandidate(candidate: LogoCandidate): boolean {

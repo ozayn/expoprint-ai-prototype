@@ -32,6 +32,14 @@ export type LogoCandidateTransparency =
   | "likely_opaque"
   | "unknown";
 
+/** Likely design role of a discovered logo asset (optional on API responses). */
+export type LogoRole =
+  | "wordmark"
+  | "icon_mark"
+  | "social_preview"
+  | "fallback_icon"
+  | "unknown";
+
 export type LogoCandidate = {
   url: string;
   source: LogoCandidateSource;
@@ -41,6 +49,14 @@ export type LogoCandidate = {
   /** Higher = better for design placement (server-ranked). */
   score?: number;
   transparency?: LogoCandidateTransparency;
+  /** Likely role: wordmark, compact icon mark, social card art, etc. */
+  logoRole?: LogoRole;
+  /** Upstream image probe (same rules as `/api/proxy-image`); optional on API/UI lists. */
+  previewFetch?: {
+    accepted: boolean;
+    contentType?: string;
+    reason?: string;
+  };
   /** Short human-readable ranking note for UI/debug. */
   reason?: string;
 };

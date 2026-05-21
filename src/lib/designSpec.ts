@@ -112,6 +112,32 @@ export interface ImagePlaceholderLayer {
  * so PNG export stays untainted; on load failure it leaves any siblings listed
  * in `replacePlaceholderIds` in place. Coordinates are top-left.
  */
+export type SocialPlatformId =
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "x"
+  | "youtube";
+
+/**
+ * Footer social indicator: inline vector icon + short platform label (e.g. `YouTube /brand`).
+ * Rendered as an editable Fabric group — no remote icon assets.
+ */
+export interface SocialFooterItemLayer {
+  type: "socialFooterItem";
+  id?: string;
+  platform: SocialPlatformId;
+  displayText: string;
+  left: number;
+  top: number;
+  fontSize?: number;
+  iconSize?: number;
+  fontFamily: string;
+  fill: string;
+  fontWeight?: string;
+  opacity?: number;
+}
+
 export interface ImageLayer {
   type: "image";
   id?: string;
@@ -134,6 +160,7 @@ export type DesignLayer =
   | BackgroundLayer
   | ShapeLayer
   | TextLayer
+  | SocialFooterItemLayer
   | ImagePlaceholderLayer
   | ImageLayer;
 

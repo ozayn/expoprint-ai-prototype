@@ -219,6 +219,291 @@
           "severity": "nice_to_have"
         }
       ]
+    },
+    {
+      "name": "shopify-ecommerce-saas",
+      "websiteUrl": "https://www.shopify.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "business.name",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "shopify.com",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "commerce",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "online store",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "payment",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "pos",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.typography.fontFamilies",
+          "min": 1,
+          "severity": "nice_to_have"
+        }
+      ]
+    },
+    {
+      "name": "mailchimp-marketing-saas",
+      "websiteUrl": "https://mailchimp.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Playful",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "Mailchimp",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "mailchimp.com",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "email",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "marketing",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "automation",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "campaign",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.typography.fontFamilies",
+          "min": 1,
+          "severity": "nice_to_have"
+        }
+      ]
+    },
+    {
+      "name": "patagonia-consumer-brand",
+      "websiteUrl": "https://www.patagonia.com",
+      "productCategory": "Outdoor tent",
+      "components": ["Canopy tent"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "business.name",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "Patagonia",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "patagonia.com",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "apparel",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "outdoor",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "gear",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "jacket",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "exists",
+          "path": "metadata.warnings",
+          "severity": "nice_to_have"
+        }
+      ]
+    },
+    {
+      "name": "cvs-large-site-partial",
+      "websiteUrl": "https://www.cvs.com",
+      "productCategory": "Outdoor tent",
+      "components": ["Canopy tent"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "CVS",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "cvs.com",
+          "severity": "required"
+        },
+        {
+          "type": "pathIn",
+          "path": "metadata.websiteFetch.status",
+          "expected": ["success", "partial"],
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "pharmacy",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "prescription",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "health",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.products",
+          "substring": "minuteclinic",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.typography.fontFamilies",
+          "min": 1,
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "metadata.warnings",
+          "substring": "large_site_partial_extraction",
+          "severity": "nice_to_have"
+        }
+      ]
     }
   ]
 }

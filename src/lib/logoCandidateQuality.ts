@@ -35,10 +35,23 @@ export function isFaviconStyleLogoCandidate(candidate: LogoCandidate): boolean {
   return false;
 }
 
-/** All discovered candidates are favicon/apple-touch (no header/wordmark-class asset). */
+/** No wordmark or useful icon mark — only weak favicon/social fallbacks. */
 export function logoCandidatesAreFaviconOnly(
   candidates: LogoCandidate[],
 ): boolean {
   if (candidates.length === 0) return false;
+  const hasRoles = candidates.some((c) => c.logoRole);
+  if (hasRoles) {
+    const hasUsable = candidates.some(
+      (c) => c.logoRole === "wordmark" || c.logoRole === "icon_mark",
+    );
+    if (hasUsable) return false;
+    return candidates.every(
+      (c) =>
+        c.logoRole === "fallback_icon" ||
+        c.logoRole === "social_preview" ||
+        c.logoRole === "unknown",
+    );
+  }
   return candidates.every((c) => isFaviconStyleLogoCandidate(c));
 }

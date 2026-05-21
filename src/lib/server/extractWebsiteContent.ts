@@ -43,6 +43,9 @@ const MAX_MAILTO_MERGED = 16;
 const MAX_TEL_MERGED = 16;
 const MAX_SOCIAL_MERGED = 20;
 
+const SCRAPE_USER_AGENT =
+  "ExpoPrintAI-Prototype/1.0 (+https://github.com/ozayn/expoprint-ai-prototype)";
+
 const SOCIAL_HOST_RE =
   /(instagram\.com|facebook\.com|fb\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com)/i;
 
@@ -365,15 +368,55 @@ async function parseHtmlToPageSummary(
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
-  $('link[href]').each((_, el) => {
+  for (const el of $('link[href]').toArray()) {
     const rel = ($(el).attr("rel") ?? "").toLowerCase();
     const href = $(el).attr("href") ?? "";
     if (rel === "apple-touch-icon" || rel === "apple-touch-icon-precomposed") {
       pushLogoCandidate(href, "apple-touch-icon");
     } else if (rel.includes("icon")) {
       pushLogoCandidate(href, "icon");
+    } else if (rel === "manifest") {
+      const manifestHref = href.trim();
+      if (!manifestHref) continue;
+      try {
+        const manifestUrl = toAbsolute(manifestHref, baseFinalUrl);
+        if (!manifestUrl) continue;
+        const manifestRes = await fetch(manifestUrl, {
+          method: "GET",
+          redirect: "follow",
+          signal: AbortSignal.timeout(4_000),
+          headers: { "User-Agent": SCRAPE_USER_AGENT },
+        });
+        if (!manifestRes.ok) continue;
+        const text = await manifestRes.text();
+        if (text.length > 32_000) continue;
+        const parsed = JSON.parse(text) as {
+          icons?: Array<{ src?: string; sizes?: string }>;
+        };
+        for (const icon of parsed.icons ?? []) {
+          if (typeof icon?.src === "string") {
+            pushLogoCandidate(icon.src, "icon", {
+              alt: icon.sizes ? `manifest ${icon.sizes}` : "manifest icon",
+            });
+          }
+        }
+      } catch {
+        /* ignore manifest parse failures */
+      }
     }
-  });
+  }
+
+  const hasLinkedIcon = logoCandidatesDetailed.some(
+    (c) => c.source === "icon" || c.source === "apple-touch-icon",
+  );
+  if (!hasLinkedIcon) {
+    try {
+      const origin = new URL(baseFinalUrl).origin;
+      pushLogoCandidate(`${origin}/favicon.ico`, "icon", { alt: "default favicon" });
+    } catch {
+      /* ignore */
+    }
+  }
   pushLogoCandidate(
     $('meta[property="og:image"]').attr("content"),
     "og:image",
@@ -575,8 +618,7 @@ async function fetchHtmlPage(
       redirect: "follow",
       headers: {
         Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-        "User-Agent":
-          "ExpoPrintAI-Prototype/1.0 (+https://github.com/ozayn/expoprint-ai-prototype)",
+        "User-Agent": SCRAPE_USER_AGENT,
       },
     });
     const finalUrl = res.url || url;

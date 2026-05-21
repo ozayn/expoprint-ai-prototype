@@ -7,10 +7,12 @@ import type {
   ImagePlaceholderLayer,
   PolygonLayer,
   RectLayer,
+  SocialFooterItemLayer,
   SpecOriginX,
   SpecOriginY,
   TextLayer,
 } from "./designSpec";
+import { SOCIAL_ICON_PATHS } from "./socialPlatformDisplay";
 
 export type FabricModule = typeof import("fabric");
 
@@ -151,6 +153,43 @@ function renderText(fabric: FabricModule, layer: TextLayer) {
   return text;
 }
 
+function renderSocialFooterItem(fabric: FabricModule, layer: SocialFooterItemLayer) {
+  const { Group, IText, Path } = fabric;
+  const iconSize = layer.iconSize ?? 14;
+  const fontSize = layer.fontSize ?? 14;
+  const scale = iconSize / 24;
+  const pathData = SOCIAL_ICON_PATHS[layer.platform];
+  const icon = new Path(pathData, {
+    left: 0,
+    top: 0,
+    scaleX: scale,
+    scaleY: scale,
+    fill: layer.fill,
+    strokeWidth: 0,
+    originX: "left",
+    originY: "top",
+  });
+  const label = new IText(layer.displayText, {
+    left: iconSize + 6,
+    top: Math.max(0, (iconSize - fontSize) / 2),
+    fontSize,
+    fontFamily: layer.fontFamily,
+    fill: layer.fill,
+    ...(layer.fontWeight !== undefined ? { fontWeight: layer.fontWeight } : {}),
+    originX: "left",
+    originY: "top",
+  });
+  const group = new Group([icon, label], {
+    left: layer.left,
+    top: layer.top,
+    originX: "left",
+    originY: "top",
+    ...(layer.opacity !== undefined ? { opacity: layer.opacity } : {}),
+  });
+  applyLayerId(group, layer.id);
+  return group;
+}
+
 function renderImagePlaceholder(fabric: FabricModule, layer: ImagePlaceholderLayer) {
   const { Rect } = fabric;
   const rect = new Rect({
@@ -182,6 +221,8 @@ function fabricObjectForLayer(
       return renderPolygon(fabric, layer);
     case "text":
       return renderText(fabric, layer);
+    case "socialFooterItem":
+      return renderSocialFooterItem(fabric, layer);
     case "imagePlaceholder":
       return renderImagePlaceholder(fabric, layer);
     default: {

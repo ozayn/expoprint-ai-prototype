@@ -12,9 +12,9 @@ import {
   logoCandidatesAreFaviconOnly,
 } from "@/lib/logoCandidateQuality";
 import {
-  isFallbackIconCandidate,
   isStrongDesignLogoCandidate,
-  logoDesignLabel,
+  logoPrimaryDesignLabel,
+  logoRoleDesignLabel,
 } from "@/lib/logoCandidateRanking";
 
 const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
@@ -27,7 +27,10 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
 };
 
 const HELPER_COPY =
-  "Ranked for design use — header wordmarks and larger logos first. Designers should confirm or upload a production-quality logo.";
+  "Ranked for design use — wordmarks first, then compact icon marks. Designers should confirm or upload a production-quality logo.";
+
+const ICON_MARK_HELPER =
+  "Useful for compact placement; production logo upload still recommended.";
 
 export type LogoCandidatesReviewProps = {
   candidates: LogoCandidate[];
@@ -162,11 +165,13 @@ export function LogoCandidatesReview({
                 selected={c.url === selectedUrl}
                 onSelect={onSelect}
                 previewHeightClass={previewHeight}
-                designLabel={logoDesignLabel(c, index)}
+                primaryLabel={logoPrimaryDesignLabel(index)}
+                roleLabel={logoRoleDesignLabel(c)}
                 isBestMatch={index === 0}
                 isDeemphasized={
                   index > 0 &&
-                  (isFallbackIconCandidate(c) ||
+                  (c.logoRole === "fallback_icon" ||
+                    c.logoRole === "social_preview" ||
                     isProductAppIconPenalty(c.reason))
                 }
                 onPreviewFailed={markPreviewFailed}
@@ -217,7 +222,8 @@ type LogoCandidateCardProps = {
   selected: boolean;
   onSelect: (url: string) => void;
   previewHeightClass: string;
-  designLabel: string | null;
+  primaryLabel: string | null;
+  roleLabel: string;
   isBestMatch: boolean;
   isDeemphasized: boolean;
   onPreviewFailed: (url: string) => void;
@@ -228,12 +234,14 @@ function LogoCandidateCard({
   selected,
   onSelect,
   previewHeightClass,
-  designLabel,
+  primaryLabel,
+  roleLabel,
   isBestMatch,
   isDeemphasized,
   onPreviewFailed,
 }: LogoCandidateCardProps) {
-  const [loadFailed, setLoadFailed] = useState(false);
+  const proxyRejected = candidate.previewFetch?.accepted === false;
+  const [loadFailed, setLoadFailed] = useState(proxyRejected);
   const sourceLabel = SOURCE_LABEL[candidate.source] ?? "image";
   const host = hostnameOf(candidate.url);
   const dims =
@@ -243,8 +251,8 @@ function LogoCandidateCard({
 
   const showTransparentBadge =
     candidate.transparency === "likely_transparent" &&
-    designLabel !== "Transparent likely" &&
     !isProductAppIconPenalty(candidate.reason);
+  const showIconMarkHelper = candidate.logoRole === "icon_mark";
 
   const handlePreviewError = () => {
     setLoadFailed(true);
@@ -305,32 +313,35 @@ function LogoCandidateCard({
         ) : null}
 
         <div className="mt-1.5 flex min-h-[20px] w-full flex-wrap items-center justify-center gap-1 px-0.5">
-          {designLabel ? (
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                isBestMatch
-                  ? "bg-zinc-900 text-white"
-                  : designLabel === "Fallback icon"
-                    ? "border border-zinc-200 bg-zinc-50 text-zinc-500"
-                    : designLabel === "Preview unavailable"
-                      ? "border border-zinc-200 text-zinc-400"
-                      : "border border-zinc-200 bg-white text-zinc-600"
-              }`}
-            >
-              {designLabel}
+          {primaryLabel ? (
+            <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-white">
+              {primaryLabel}
             </span>
           ) : null}
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              roleLabel === "Fallback icon" || roleLabel === "Social preview"
+                ? "border border-zinc-200 bg-zinc-50 text-zinc-500"
+                : "border border-zinc-200 bg-white text-zinc-600"
+            }`}
+          >
+            {roleLabel}
+          </span>
           {showTransparentBadge ? (
             <span className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-500">
               Transparent likely
             </span>
           ) : null}
-          {designLabel === "Less likely logo" ? null : isProductAppIconPenalty(
-              candidate.reason,
-            ) ? (
+          {isProductAppIconPenalty(candidate.reason) ? (
             <span className="text-[10px] text-zinc-400">Less likely logo</span>
           ) : null}
         </div>
+
+        {showIconMarkHelper ? (
+          <p className="mt-1 w-full px-0.5 text-[10px] leading-snug text-zinc-500">
+            {ICON_MARK_HELPER}
+          </p>
+        ) : null}
 
         <p
           className={`mt-auto w-full pt-2 text-[11px] ${

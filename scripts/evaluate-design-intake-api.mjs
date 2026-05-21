@@ -183,6 +183,21 @@ function runCheck(response, check) {
         expected: check.expected,
       };
     }
+    case "pathIn": {
+      const allowed = Array.isArray(check.expected) ? check.expected : [];
+      const pass =
+        typeof actual === "string" &&
+        allowed.some((v) => v === actual);
+      return {
+        pass,
+        message: pass
+          ? "value in allowed set"
+          : `expected one of ${formatValue(allowed)}, got ${formatValue(actual)}`,
+        severity,
+        actual,
+        expected: allowed,
+      };
+    }
     default:
       return {
         pass: false,
