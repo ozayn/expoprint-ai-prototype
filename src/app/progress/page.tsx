@@ -377,6 +377,22 @@ const stages: Stage[] = [
       "2026-05-21: display normalization for bullet phrases (sentence case, brands/acronyms/dimensions preserved, up to five bullets).",
     ],
   },
+  {
+    id: 23,
+    title: "Extraction quality evaluation harness",
+    status: "Complete",
+    completed: "2026-05-21",
+    summary:
+      "Lightweight ground-truth checks for `POST /api/design-intake/extract`: JSON fixtures describe expected paths and values (business identity, logo candidates, typography, services/products, contact, metadata). `npm run api:evaluate` runs repeatable pass/fail checks against a local dev server. Required vs nice-to-have severities separate hard regressions from softer quality gaps. Prototype evaluation only — not a full production QA suite.",
+    accomplishments: [
+      "`data/extraction-eval-fixtures.json` — starter fixtures for expoprint.io, google.com, and stripe.com with optional intake hints.",
+      "Check types: exact path match, path/array substring, exists, count ≥ N, logo candidate `source`, typography `styleGuess`.",
+      "`scripts/evaluate-design-intake-api.mjs` + `npm run api:evaluate` — POST each fixture to `http://localhost:3000/api/design-intake/extract`, print per-check pass/fail with expected vs actual; `--verbose` for full JSON; nonzero exit on required failures.",
+      "`docs/extraction-evaluation.md` — how to run; notes that the dev server and preferably `ANTHROPIC_API_KEY` should be configured for best results.",
+      "Linked from `/api-docs`, `README`, and related docs (`test-sites.md` for manual QA URLs).",
+      "Does not change scraping, Claude, Fabric, editor, demo, or export behavior — validation tooling only.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -412,9 +428,9 @@ export default function ProgressPage() {
             Stages completed so far and planned next steps.{" "}
             <strong className="font-medium text-zinc-800">Phase 1 (client direction)</strong>{" "}
             is a structured design-intake extraction API for ExpoPrint’s system — not only a
-            canvas demo. Stages 20–22 cover the extract API contract, `/api-docs` / `/api-test`
-            tooling, and canvas bullet layout; the editor and guided demo remain visual test
-            harnesses. A written
+            canvas demo. Stages 20–23 cover the extract API contract, `/api-docs` / `/api-test`
+            tooling, canvas bullet layout, and fixture-based extraction evaluation; the editor
+            and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
               docs/work-log.md
@@ -487,6 +503,12 @@ export default function ProgressPage() {
                 and{" "}
                 <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">/api-test</code>{" "}
                 for local and deployed API smoke tests
+              </li>
+              <li>
+                <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                  npm run api:evaluate
+                </code>{" "}
+                — ground-truth fixture checks (local dev server)
               </li>
             </ul>
           </div>

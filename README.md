@@ -43,6 +43,8 @@ npm run api:test -- https://expoprint.io
 npm run api:test -- https://stripe.com "Trade show booth" "Conservative"
 ```
 
+**Ground-truth evaluation (fixtures):** with the dev server running, `npm run api:evaluate` runs checks in [`data/extraction-eval-fixtures.json`](data/extraction-eval-fixtures.json) against `POST /api/design-intake/extract`. See [`docs/extraction-evaluation.md`](docs/extraction-evaluation.md). Manual URL list: [`docs/test-sites.md`](docs/test-sites.md).
+
 See [`docs/design-intake-api.md`](docs/design-intake-api.md) for the full contract. **Local docs page:** [http://localhost:3000/api-docs](http://localhost:3000/api-docs) (copyable curl and `npm run api:test` commands).
 
 **Verify Analyze / Claude (manual):**

@@ -207,6 +207,12 @@ Canvas bullet lists for services/products when layout rules allow; `supportingBu
 **Editor UI clarity (Stage 7 follow-up)**  
 `/` main editor: long helper paragraphs replaced with `InfoTooltip` icons; `/demo` keeps guided step copy.
 
+**Extraction quality evaluation harness (Stage 23)**  
+Ground-truth fixture checks for `POST /api/design-intake/extract`: `data/extraction-eval-fixtures.json` (expoprint.io, google.com, stripe.com), `scripts/evaluate-design-intake-api.mjs`, `npm run api:evaluate`. Checks cover business identity, logo candidate source/ranking signals, typography `styleGuess`, services/products substrings, contact fields, and `metadata.pagesInspected`. **Required** vs **nice_to_have** severities — required failures exit nonzero; nice-to-have prints warnings only. Documented in `docs/extraction-evaluation.md`; linked from `/api-docs` and `README`. Lightweight prototype harness — not a full production QA suite. No change to scrape/Claude/Fabric behavior.
+
+**Test sites reference**  
+`docs/test-sites.md` — internal URL table and manual QA checklist for extraction/canvas review.
+
 ---
 
 ## Deployment — Vercel on `main` (current)
@@ -216,10 +222,10 @@ Canvas bullet lists for services/products when layout rules allow; `supportingBu
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test`; `/demo` guided view; `/progress` current.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, transparency as minor bonus); selected logo on canvas via proxy; typography signals (cleaned) + canvas font mapping; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test`; `npm run api:evaluate` (local fixtures); `/demo` guided view; `/progress` current.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–22 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, and canvas bullet-list layout. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–23 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review (wordmark-first ranking), proxied logo rendering, Vercel on `main`, typography signals, Phase 1 `POST /api/design-intake/extract`, `/api-docs` / `/api-test`, canvas bullet-list layout, and fixture-based `npm run api:evaluate`. Not production-final. Future: versioned API, auth, full-site extraction, production-ready brief workflow, AI-generated DesignSpec, full template system.

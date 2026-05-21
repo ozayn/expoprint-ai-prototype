@@ -157,6 +157,59 @@ export default function ApiDocsPage() {
             </p>
           </section>
 
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-zinc-900">
+              Test sites for extraction QA
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              Curated URLs and a review checklist for logo ranking, typography, services/products
+              cleanup, contact/social fields, and canvas quality. Use with{" "}
+              <Link
+                href="/api-test"
+                className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500"
+              >
+                API test
+              </Link>{" "}
+              or the editor after changing the request URL.
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              Reference:{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                docs/test-sites.md
+              </code>{" "}
+              in the repository (includes expoprint.io, stripe.com, google.com, and retail
+              stress cases).
+            </p>
+          </section>
+
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-zinc-900">
+              Automated extraction evaluation
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              Ground-truth fixtures in{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                data/extraction-eval-fixtures.json
+              </code>{" "}
+              compare extract responses to expected paths (logo source, typography, services,
+              pages inspected, etc.). Requires a running local server and preferably{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                ANTHROPIC_API_KEY
+              </code>
+              .
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                npm run api:evaluate
+              </code>{" "}
+              — see{" "}
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                docs/extraction-evaluation.md
+              </code>
+              .
+            </p>
+          </section>
+
           <ApiDocsCommandBuilder />
         </div>
       </main>

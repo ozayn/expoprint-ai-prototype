@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "name": "expoprint-baseline",
+      "websiteUrl": "https://expoprint.io",
+      "productCategory": "Outdoor tent",
+      "components": ["Canopy tent"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "expoprint.io",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "ExpoPrint",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "logoCandidateSource",
+          "path": "brand.logoCandidates[0].source",
+          "expected": "header-image",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "brand.logoCandidates[0].url",
+          "substring": "expoprint.io",
+          "severity": "required"
+        },
+        {
+          "type": "typographyStyleGuess",
+          "path": "brand.typography.styleGuess",
+          "expected": "modern_sans",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.typography.fontFamilies",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "tent",
+          "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "content.contact.phone",
+          "severity": "required"
+        },
+        {
+          "type": "exact",
+          "path": "designIntake.needsHumanReview",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "metadata.source",
+          "substring": "scraper",
+          "severity": "nice_to_have"
+        }
+      ]
+    },
+    {
+      "name": "google-logo-ranking",
+      "websiteUrl": "https://www.google.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "Google",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "logoCandidateSource",
+          "path": "brand.logoCandidates[0].source",
+          "expected": "header-image",
+          "severity": "required"
+        },
+        {
+          "type": "typographyStyleGuess",
+          "path": "brand.typography.styleGuess",
+          "expected": "modern_sans",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        }
+      ]
+    },
+    {
+      "name": "stripe-b2b-saas",
+      "websiteUrl": "https://stripe.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Conservative",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.name",
+          "substring": "Stripe",
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "stripe.com",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "exists",
+          "path": "brand.logoCandidates[0].url",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.typography.fontFamilies",
+          "min": 1,
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "content.services",
+          "substring": "payment",
+          "severity": "nice_to_have"
+        }
+      ]
+    }
+  ]
+}
