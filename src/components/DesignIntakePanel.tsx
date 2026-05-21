@@ -14,8 +14,18 @@ import {
   type ProductCategory,
   type StylePreference,
 } from "@/lib/designIntakeState";
+import { InfoTooltip, SectionHeadingWithInfo } from "@/components/InfoTooltip";
 import { LogoCandidatesReview } from "@/components/LogoCandidatesReview";
 import { TypographySignalsRow } from "@/components/TypographySignalsRow";
+import {
+  HELP_ANALYZE_WEBSITE,
+  HELP_DESIGN_BRIEF,
+  HELP_DESIGN_INTAKE,
+  HELP_REVIEW_EXTRACTED,
+  HELP_REVIEW_IDENTITY,
+  HELP_STYLE_SUGGESTION,
+  HELP_THEME_PREVIEW,
+} from "@/lib/editorHelpCopy";
 
 const STYLE_SUGGESTIONS: Record<
   StylePreference,
@@ -161,14 +171,12 @@ export function DesignIntakePanel({
     <div className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-zinc-50/40">
       {/* A — Design intake */}
       <section className="space-y-3 px-3 py-4 sm:px-4" aria-labelledby="section-design-intake">
-        <div>
-          <h2 id="section-design-intake" className={sectionHeading}>
-            Design intake
-          </h2>
-          <p className={`mt-1 ${sectionHint}`}>
-            Enter the homepage first. Analysis can suggest identity, brand, and design content.
-          </p>
-        </div>
+        <SectionHeadingWithInfo
+          id="section-design-intake"
+          title="Design intake"
+          tooltipLabel="About design intake"
+          tooltip={HELP_DESIGN_INTAKE}
+        />
 
         <div>
           <label htmlFor="intake-website" className={labelClass}>
@@ -186,35 +194,46 @@ export function DesignIntakePanel({
           />
         </div>
 
-        <button
-          type="button"
-          disabled={analyzeInProgress}
-          aria-busy={analyzeInProgress}
-          className="min-h-11 w-full cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation disabled:cursor-wait disabled:opacity-70"
-          onClick={() => void onAnalyzeWebsite()}
-        >
-          {analyzeInProgress ? "Analyzing…" : "Analyze Website"}
-        </button>
+        <div className="flex items-stretch gap-2">
+          <button
+            type="button"
+            disabled={analyzeInProgress}
+            aria-busy={analyzeInProgress}
+            className="min-h-11 min-w-0 flex-1 cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 touch-manipulation disabled:cursor-wait disabled:opacity-70"
+            onClick={() => void onAnalyzeWebsite()}
+          >
+            {analyzeInProgress ? "Analyzing…" : "Analyze Website"}
+          </button>
+          <span className="flex items-center self-center">
+            <InfoTooltip
+              label="About Analyze Website"
+              titleText={HELP_ANALYZE_WEBSITE}
+            >
+              {HELP_ANALYZE_WEBSITE}
+            </InfoTooltip>
+          </span>
+        </div>
         {analyzeStatusLine.trim() !== "" && (
           <p className={sectionHint} aria-live="polite">
             {analyzeStatusLine}
           </p>
         )}
-        <p className={sectionHint}>
-          Homepage-only extraction for prototype. No full-site crawling yet. Run analyze after the
-          homepage URL looks right.
-        </p>
 
         <div
           className="rounded-md border border-zinc-200 bg-white px-2.5 py-3 sm:px-3"
           aria-labelledby="section-review-identity"
         >
-          <h3 id="section-review-identity" className={sectionHeading}>
-            Review identity
-          </h3>
-          <p className={`mt-1 ${sectionHint}`}>
-            Confirm the name designers should use.
-          </p>
+          <div className="flex items-center gap-1.5">
+            <h3 id="section-review-identity" className={sectionHeading}>
+              Review identity
+            </h3>
+            <InfoTooltip
+              label="About review identity"
+              titleText={HELP_REVIEW_IDENTITY}
+            >
+              {HELP_REVIEW_IDENTITY}
+            </InfoTooltip>
+          </div>
           {analyzeAuxiliaryNote && analyzeAuxiliaryNote.trim() !== "" ? (
             <p className="mt-2 text-[11px] leading-snug text-zinc-500" aria-live="polite">
               {analyzeAuxiliaryNote}
@@ -239,6 +258,7 @@ export function DesignIntakePanel({
               <TypographySignalsRow
                 signals={intake.typographySignals}
                 extractionSource={intake.extractionSource}
+                helperMode="tooltip"
               />
               <LogoCandidatesReview
                 key={intake.logoCandidates.map((c) => c.url).join("|")}
@@ -247,6 +267,7 @@ export function DesignIntakePanel({
                 onSelect={(url) =>
                   onIntakeChange({ selectedLogoCandidateUrl: url })
                 }
+                helperMode="tooltip"
               />
             </div>
           ) : null}
@@ -297,24 +318,31 @@ export function DesignIntakePanel({
           className="rounded-md border border-zinc-200 bg-white px-2.5 py-2.5 sm:px-3 sm:py-2"
           aria-live="polite"
         >
-          <p className={`${subLabel} mb-2`}>Style suggestion</p>
-          <ul className="space-y-1.5 text-xs leading-snug text-zinc-600">
-            <li>
-              <span className="font-medium text-zinc-700">Fits:</span>{" "}
-              {STYLE_SUGGESTIONS[intake.style].fits}.
-            </li>
-            <li>
-              <span className="font-medium text-zinc-700">Direction:</span>{" "}
-              {STYLE_SUGGESTIONS[intake.style].direction}.
-            </li>
-            <li>
-              <span className="font-medium text-zinc-700">Content:</span>{" "}
-              {STYLE_SUGGESTIONS[intake.style].content}.
-            </li>
-          </ul>
+          <p className={`${subLabel} mb-2 flex items-center gap-1`}>
+            Style suggestion
+            <InfoTooltip label="About style suggestion" titleText={HELP_STYLE_SUGGESTION}>
+              <span className="normal-case font-normal tracking-normal">
+                <span className="font-medium text-zinc-700">Fits:</span>{" "}
+                {STYLE_SUGGESTIONS[intake.style].fits}.{" "}
+                <span className="font-medium text-zinc-700">Direction:</span>{" "}
+                {STYLE_SUGGESTIONS[intake.style].direction}.{" "}
+                <span className="font-medium text-zinc-700">Content:</span>{" "}
+                {STYLE_SUGGESTIONS[intake.style].content}.
+              </span>
+            </InfoTooltip>
+          </p>
+          <p className="text-xs leading-snug text-zinc-600">
+            <span className="font-medium text-zinc-700">Fits:</span>{" "}
+            {STYLE_SUGGESTIONS[intake.style].fits}
+          </p>
 
           <div className="mt-3 border-t border-zinc-100 pt-3">
-            <p className={`${subLabel} mb-2`}>Theme preview</p>
+            <p className={`${subLabel} mb-2 flex items-center gap-1`}>
+              Theme preview
+              <InfoTooltip label="About theme preview" titleText={HELP_THEME_PREVIEW}>
+                {HELP_THEME_PREVIEW}
+              </InfoTooltip>
+            </p>
             <div
               className="flex flex-wrap items-center gap-2"
               role="presentation"
@@ -324,9 +352,6 @@ export function DesignIntakePanel({
                 <span key={`${intake.style}-${index}`} className={chipClass} />
               ))}
             </div>
-            <p className={`${sectionHint} mt-2`}>
-              Preview only — final colors can still come from the customer brand.
-            </p>
           </div>
         </div>
 
@@ -421,14 +446,12 @@ export function DesignIntakePanel({
         className="space-y-3 px-3 py-4 sm:px-4"
         aria-labelledby="section-extracted"
       >
-        <div>
-          <h2 id="section-extracted" className={sectionHeading}>
-            Review extracted content
-          </h2>
-          <p className={`mt-1 ${sectionHint}`}>
-            Toggle rows and edit text; checked items feed the brief and canvas.
-          </p>
-        </div>
+        <SectionHeadingWithInfo
+          id="section-extracted"
+          title="Review extracted content"
+          tooltipLabel="About review extracted content"
+          tooltip={HELP_REVIEW_EXTRACTED}
+        />
         {intake.showExtracted ? (
           <div className="rounded-md border border-zinc-200 bg-white">
             <div className="space-y-2 px-2.5 py-2 sm:px-3">
@@ -474,20 +497,18 @@ export function DesignIntakePanel({
             </div>
           </div>
         ) : (
-          <p className={sectionHint}>Use Analyze Website above to populate this section.</p>
+          <p className={sectionHint}>Run Analyze Website to populate this section.</p>
         )}
       </section>
 
       {/* C — Design brief */}
       <section className="space-y-3 px-3 py-4 sm:px-4" aria-labelledby="section-brief">
-        <div>
-          <h2 id="section-brief" className={sectionHeading}>
-            Design brief
-          </h2>
-          <p className={`mt-1 ${sectionHint}`}>
-            Updates live from the form. Refresh re-syncs the brief text from your current selections.
-          </p>
-        </div>
+        <SectionHeadingWithInfo
+          id="section-brief"
+          title="Design brief"
+          tooltipLabel="About design brief"
+          tooltip={HELP_DESIGN_BRIEF}
+        />
         <button
           type="button"
           className="relative z-10 min-h-11 w-full cursor-pointer rounded-md border-2 border-zinc-900 bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-950 hover:shadow-lg active:translate-y-px touch-manipulation sm:min-h-0 sm:py-2.5"

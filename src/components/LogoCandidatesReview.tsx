@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import type {
   LogoCandidate,
   LogoCandidateSource,
 } from "@/lib/analyzeWebsiteResponse";
+import { HELP_LOGO_CANDIDATES } from "@/lib/editorHelpCopy";
 import {
   isFallbackIconCandidate,
   isStrongDesignLogoCandidate,
@@ -29,6 +31,8 @@ export type LogoCandidatesReviewProps = {
   onSelect: (url: string) => void;
   /** Visual density helper — guided demo uses a slightly larger preview area. */
   variant?: "compact" | "wide";
+  /** Editor uses compact labels + tooltip; demo keeps inline helper copy. */
+  helperMode?: "inline" | "tooltip";
 };
 
 /**
@@ -40,6 +44,7 @@ export function LogoCandidatesReview({
   selectedUrl,
   onSelect,
   variant = "compact",
+  helperMode = "inline",
 }: LogoCandidatesReviewProps) {
   const previewHeight = variant === "wide" ? "h-28" : "h-24";
   const [failedPreviewUrls, setFailedPreviewUrls] = useState<Set<string>>(
@@ -85,8 +90,16 @@ export function LogoCandidatesReview({
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+        <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
           Logo candidates
+          {helperMode === "tooltip" ? (
+            <InfoTooltip
+              label="About logo candidates"
+              titleText={HELP_LOGO_CANDIDATES}
+            >
+              {HELP_LOGO_CANDIDATES}
+            </InfoTooltip>
+          ) : null}
         </p>
         <p
           className="text-[11px] text-zinc-500"
@@ -102,9 +115,15 @@ export function LogoCandidatesReview({
           <p className="font-medium text-zinc-700">
             No usable logo image candidate found from the website.
           </p>
-          <p className="mt-1 text-zinc-500">
-            Designers should request or upload a production-quality logo file.
-          </p>
+          {helperMode === "inline" ? (
+            <p className="mt-1 text-zinc-500">
+              Designers should request or upload a production-quality logo file.
+            </p>
+          ) : (
+            <p className="mt-1 text-zinc-500">
+              Upload a production-quality logo for final print.
+            </p>
+          )}
         </div>
       ) : displayCandidates.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-3 py-3 text-xs leading-snug text-zinc-600">
@@ -117,7 +136,9 @@ export function LogoCandidatesReview({
         </div>
       ) : (
         <>
-          <p className="text-xs leading-snug text-zinc-500">{HELPER_COPY}</p>
+          {helperMode === "inline" ? (
+            <p className="text-xs leading-snug text-zinc-500">{HELPER_COPY}</p>
+          ) : null}
           {hiddenCount > 0 ? (
             <p className="text-[11px] text-zinc-400">
               {hiddenCount} lower-priority or failed-preview candidate
@@ -146,12 +167,19 @@ export function LogoCandidatesReview({
           {selectedUrl ? (
             <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2.5 text-xs leading-snug">
               <p className="font-medium text-emerald-800">
-                Selected logo appears in the editable preview when it can be
-                loaded safely.
+                {helperMode === "tooltip"
+                  ? "Selected logo loads in the preview when possible."
+                  : "Selected logo appears in the editable preview when it can be loaded safely."}
               </p>
-              <p className="mt-1 text-emerald-900/80">
-                Production-quality logo upload is still recommended.
-              </p>
+              {helperMode === "inline" ? (
+                <p className="mt-1 text-emerald-900/80">
+                  Production-quality logo upload is still recommended.
+                </p>
+              ) : (
+                <p className="mt-1 text-emerald-900/80">
+                  Upload recommended for production.
+                </p>
+              )}
               <div className="mt-2 flex items-center justify-between gap-2">
                 <p
                   className="min-w-0 truncate text-[11px] text-emerald-900/70"

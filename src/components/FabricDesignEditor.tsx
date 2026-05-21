@@ -3,6 +3,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Canvas } from "fabric";
 import { DesignIntakePanel } from "@/components/DesignIntakePanel";
+import { InfoTooltip } from "@/components/InfoTooltip";
+import {
+  HELP_CLAUDE_FALLBACK,
+  HELP_CONCEPT_PREVIEW,
+  HELP_DESIGN_SURFACES,
+  HELP_DEV_TOOLS,
+  HELP_GENERATE_CONCEPT,
+  HELP_PAGE_INTRO,
+} from "@/lib/editorHelpCopy";
 import { analyzeStatusLineFromApiPayload, formatClaudeSuccessStatusLine } from "@/lib/analyzeWebsiteResponse";
 import { applyClaudeAnalyzeSuccessToIntake } from "@/lib/analyzeWebsiteSuggestions";
 import { isValidExtractedRowsPayload } from "@/lib/claudeExtractedContent";
@@ -424,15 +433,17 @@ export function FabricDesignEditor() {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 lg:flex-row lg:items-start lg:gap-6">
       <aside className="flex w-full max-w-full shrink-0 flex-col gap-5 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:gap-4 sm:p-5 lg:min-h-0 lg:w-96 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:overscroll-y-contain">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-lg">
-            ExpoPrint AI
-          </h1>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500 sm:text-sm">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-lg">
+              ExpoPrint AI
+            </h1>
+            <InfoTooltip label="About this editor" titleText={HELP_PAGE_INTRO}>
+              {HELP_PAGE_INTRO}{" "}
+              {HELP_CLAUDE_FALLBACK}
+            </InfoTooltip>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
             Prototype — intake to editable canvas
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500 sm:text-sm">
-            Claude-assisted homepage analysis when configured; mocked fallback when
-            unavailable.
           </p>
           <p
             className={`mt-2 text-xs font-medium ${
@@ -460,7 +471,18 @@ export function FabricDesignEditor() {
 
         <details className="group rounded-lg border border-zinc-200 bg-zinc-50/80">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium text-zinc-800 [&::-webkit-details-marker]:hidden">
-            <span>Export, import & developer tools</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              Export, import & developer tools
+              <span
+                className="inline-flex"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <InfoTooltip label="About developer tools" titleText={HELP_DEV_TOOLS}>
+                  {HELP_DEV_TOOLS}
+                </InfoTooltip>
+              </span>
+            </span>
             <span
               className="inline-block shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
               aria-hidden
@@ -469,9 +491,6 @@ export function FabricDesignEditor() {
             </span>
           </summary>
           <div className="space-y-3 border-t border-zinc-200 px-3 pb-3 pt-3 sm:px-4">
-            <p className="text-xs leading-relaxed text-zinc-500">
-              PNG/SVG/JSON use the full {CANVAS_W}×{CANVAS_H}px canvas.
-            </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
               <button
                 type="button"
@@ -566,32 +585,41 @@ export function FabricDesignEditor() {
 
       <section className="flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col lg:sticky lg:top-8 lg:z-10 lg:self-start">
         <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col gap-4 overflow-x-hidden">
-          <div>
+          <div className="flex items-center gap-1.5">
             <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-sm">
               Editable concept preview
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              {CANVAS_W}×{CANVAS_H}px artboard — preview scales to your screen; exports stay full size.
-            </p>
+            <InfoTooltip
+              label="About concept preview"
+              titleText={HELP_CONCEPT_PREVIEW}
+            >
+              {HELP_CONCEPT_PREVIEW} Artboard: {CANVAS_W}×{CANVAS_H}px.
+            </InfoTooltip>
           </div>
 
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              className={generateSampleBtn}
-              disabled={!ready}
-              onClick={generateSampleConcept}
-            >
-              Generate Sample Concept
-            </button>
-            <p className="text-xs leading-relaxed text-zinc-500" aria-live="polite">
+            <div className="flex items-stretch gap-2">
+              <button
+                type="button"
+                className={`${generateSampleBtn} min-w-0 flex-1`}
+                disabled={!ready}
+                onClick={generateSampleConcept}
+              >
+                Generate Sample Concept
+              </button>
+              <span className="flex items-center self-center">
+                <InfoTooltip
+                  label="About generate sample concept"
+                  titleText={HELP_GENERATE_CONCEPT}
+                >
+                  {HELP_GENERATE_CONCEPT}
+                </InfoTooltip>
+              </span>
+            </div>
+            <p className="text-xs text-zinc-500" aria-live="polite">
               {shouldUseIntakeDesignSpec(intake)
                 ? "Canvas source: intake data"
                 : "Canvas source: fallback sample"}
-            </p>
-            <p className="text-xs leading-relaxed text-zinc-400">
-              Regenerate the concept to update the editable canvas. Manual canvas edits are preserved
-              until regeneration.
             </p>
           </div>
 
@@ -603,13 +631,17 @@ export function FabricDesignEditor() {
               </span>
             </p>
             <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+              <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
                 Design surfaces
+                <InfoTooltip
+                  label="About design surfaces"
+                  titleText={HELP_DESIGN_SURFACES}
+                >
+                  {HELP_DESIGN_SURFACES}
+                </InfoTooltip>
               </p>
               {selectedSurfaces.length === 0 ? (
-                <p className="text-xs leading-relaxed text-zinc-500">
-                  Select components in Design intake. One surface at a time for now.
-                </p>
+                <p className="text-xs text-zinc-500">Select components in Design intake.</p>
               ) : (
                 <div
                   className="flex flex-wrap gap-2 sm:gap-1"
