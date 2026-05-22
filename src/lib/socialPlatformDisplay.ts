@@ -82,6 +82,12 @@ const INSTAGRAM_REJECT_PATH_RE =
 const X_REJECT_PATH_RE =
   /^\/(intent|share|i|home|search|explore|settings|privacy|tos|hashtag|status)(\/|$)/i;
 
+const LINKEDIN_REJECT_PATH_RE =
+  /^\/(posts|feed|pulse|learning|jobs|login|signup|share|shareArticle|embed|video|events|groups|school|public-profile)(\/|$)/i;
+
+const GENERIC_SOCIAL_PATH_RE =
+  /^\/(watch|shorts|embed|playlist|share|sharer|intent|post|posts|video|videos|reel|reels)(\/|$)/i;
+
 function detectPlatform(hostname: string): SocialPlatformId | null {
   const host = hostname.replace(/^www\./i, "").toLowerCase();
   for (const { re, platform } of HOST_PLATFORM) {
@@ -138,7 +144,7 @@ function firstPathSegment(path: string): string {
   return parts[0] ?? "";
 }
 
-function isYoutubeProfileUrl(url: URL): boolean {
+function isYoutubeProfileUrl(url: URL, brandTokens: string[]): boolean {
   const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (/(^|\.)youtu\.be$/i.test(host)) return false;
 
@@ -147,18 +153,50 @@ function isYoutubeProfileUrl(url: URL): boolean {
   if (path === "/watch" || url.searchParams.has("v")) return false;
 
   if (path.startsWith("/@")) return true;
-  if (/^\/channel\//i.test(path)) {
-    const id = path.split("/").filter(Boolean)[1] ?? "";
-    if (/^UC[A-Za-z0-9_-]{10,}$/.test(id)) return false;
-    return true;
-  }
+  if (/^\/channel\//i.test(path)) return true;
   if (/^\/c\//i.test(path)) return true;
   if (/^\/user\//i.test(path)) return true;
 
   const slug = firstPathSegment(path);
-  if (slug && !YOUTUBE_REJECT_PATH_RE.test(`/${slug}`)) return true;
+  if (slug && !YOUTUBE_REJECT_PATH_RE.test(`/${slug}`)) {
+    return brandTokens.length > 0 && slugMatchesBrand(slug, brandTokens);
+  }
 
   return false;
+}
+
+function splitSocialRawTokens(raw: string): string[] {
+  const chunks = raw
+    .split(/\s*[,;·•|]\s*|[\n\r]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const out: string[] = [];
+  for (const chunk of chunks) {
+    const embedded = chunk.match(/https?:\/\/[^\s,;·•|]+/gi);
+    if (embedded && embedded.length > 1) {
+      out.push(...embedded.map((u) => u.trim()));
+      continue;
+    }
+    const spaced = chunk
+      .split(/\s+(?=https?:\/\/)/i)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (spaced.length > 1) {
+      out.push(...spaced);
+      continue;
+    }
+    out.push(chunk);
+  }
+  return out;
+}
+
+function isDisplayableCanvasHandle(handleText: string): boolean {
+  const h = handleText.trim();
+  if (!h) return false;
+  if (GENERIC_SOCIAL_PATH_RE.test(h)) return false;
+  if (/^\/watch(?:\/|$)/i.test(h)) return false;
+  return true;
 }
 
 function formatCanvasHandle(url: URL, platform: SocialPlatformId): string | null {
@@ -201,6 +239,9 @@ function formatCanvasHandle(url: URL, platform: SocialPlatformId): string | null
       const handle = path.slice(2);
       return handle ? `@${handle}` : null;
     }
+    if (/^channel$/i.test(parts[0] ?? "") && parts[1]) {
+      return `/channel/${parts[1]}`;
+    }
     if (/^user$/i.test(parts[0] ?? "") && parts[1]) {
       return `/user/${parts[1]}`;
     }
@@ -228,6 +269,7 @@ function formatSocialFooterStrings(
 
 function isLinkedInProfileUrl(url: URL, brandTokens: string[]): boolean {
   const path = normalizePath(url.pathname);
+  if (LINKEDIN_REJECT_PATH_RE.test(path)) return false;
   if (/^\/company\//i.test(path)) return true;
   if (/^\/school\//i.test(path)) return true;
   if (/^\/showcase\//i.test(path)) return true;
@@ -276,7 +318,7 @@ function isMeaningfulSocialProfileUrl(
 ): boolean {
   switch (platform) {
     case "youtube":
-      return isYoutubeProfileUrl(url);
+      return isYoutubeProfileUrl(url, brandTokens);
     case "linkedin":
       return isLinkedInProfileUrl(url, brandTokens);
     case "facebook":
@@ -318,11 +360,15 @@ function scoreSocialProfileUrl(
   return score;
 }
 
-function pathSuffixFromUrl(url: URL, platform: SocialPlatformId): string | null {
+function pathSuffixFromUrl(
+  url: URL,
+  platform: SocialPlatformId,
+  brandTokens: string[] = [],
+): string | null {
   const path = normalizePath(url.pathname);
 
   if (platform === "youtube") {
-    if (!isYoutubeProfileUrl(url)) return null;
+    if (!isYoutubeProfileUrl(url, brandTokens)) return null;
     if (path.startsWith("/@")) {
       const handle = path.slice(1);
       return handle.length <= PATH_SUFFIX_MAX ? `/${handle}` : null;
@@ -367,11 +413,11 @@ export function parseSocialLinkToken(
   const brandTokens = brandTokensFromContext(ctx);
   if (!isMeaningfulSocialProfileUrl(url, platform, brandTokens)) return null;
 
-  const pathSuffix = pathSuffixFromUrl(url, platform);
+  const pathSuffix = pathSuffixFromUrl(url, platform, brandTokens);
   if (pathSuffix === null) return null;
 
   const handleText = formatCanvasHandle(url, platform);
-  if (!handleText) return null;
+  if (!handleText || !isDisplayableCanvasHandle(handleText)) return null;
 
   const formatted = formatSocialFooterStrings(platform, handleText);
   if (!formatted) return null;
@@ -387,15 +433,23 @@ export function parseSocialLinkToken(
   };
 }
 
+/**
+ * Canvas-only filter: parse raw intake/API social text into ranked brand profile
+ * handles. Generic video/share URLs and non-brand personal profiles are dropped.
+ */
+export function filterSocialLinksForCanvasDisplay(
+  raw: string,
+  ctx: SocialLinkParseContext = {},
+): ParsedSocialLink[] {
+  return parseSocialLinksFromRaw(raw, ctx);
+}
+
 /** Split a selected social field into ranked, deduped profile entries. */
 export function parseSocialLinksFromRaw(
   raw: string,
   ctx: SocialLinkParseContext = {},
 ): ParsedSocialLink[] {
-  const tokens = raw
-    .split(/\s*[,;·•|]\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const tokens = splitSocialRawTokens(raw);
 
   const out: ParsedSocialLink[] = [];
   const seen = new Set<string>();
@@ -418,7 +472,7 @@ export function hasDisplayableSocialLinks(
   raw: string,
   ctx: SocialLinkParseContext = {},
 ): boolean {
-  return parseSocialLinksFromRaw(raw, ctx).length > 0;
+  return filterSocialLinksForCanvasDisplay(raw, ctx).length > 0;
 }
 
 export function maxSocialItemsForSurface(
@@ -474,7 +528,7 @@ export function pickSocialLinksForFooter(
   iconSize: number,
   ctx: SocialLinkParseContext = {},
 ): ParsedSocialLink[] {
-  const parsed = parseSocialLinksFromRaw(raw, ctx);
+  const parsed = filterSocialLinksForCanvasDisplay(raw, ctx);
   const picked: ParsedSocialLink[] = [];
   let x = startLeftPx;
 

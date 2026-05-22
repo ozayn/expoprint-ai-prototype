@@ -239,6 +239,28 @@ More fixtures (Shopify, Mailchimp, Patagonia, CVS partial, Warby Parker blocked)
 
 ---
 
+## 2026-05-22
+
+**Canvas social link display filter (Stage 31)**  
+DesignSpec/canvas footer applies `filterSocialLinksForCanvasDisplay` — raw social URLs may remain in API/intake metadata, but only clean brand/profile handles render on canvas. Rejects YouTube `/watch`, `/shorts`, `/embed`, `/playlist`, share/intent/video URLs, and personal LinkedIn `/in/` unless brand-related. Compact badge + short handle (e.g. `X /stripe`, `◎ @shopify`); max 1–2 on tent/expo; website/domain stays primary; omit social when nothing clean. Shared `/` + `/demo`. Prototype design-use filter — not a final brand-asset system; human review still required.
+
+**Export filename polish (Stage 32)**  
+`exportConceptFilename.ts` — slugified business + surface names (e.g. `shopify-canopy-tent-concept.png`); safer fallbacks than generic `expoprint-concept`. Editor PNG/SVG and demo step-7 PNG. Prototype naming only.
+
+**Logo candidate quality and classification (Stage 33)**  
+`logoRoleClassification.ts` — wordmark, icon mark, favicon/social preview, `marketing_image`, unknown. Ranking favors primary wordmarks over marketing/header graphics and weak favicons. Shopify primary-logo paths classify as wordmark, not icon mark. Favicons/icon marks remain optional fallbacks; production logo upload/validation still recommended.
+
+**Role-aware logo rendering and sizing on canvas (Stage 34)**  
+Proxied logo load when possible; role-aware contain-fit with `logoMaxRenderedPx` caps for compact square/icon marks; wider wordmarks use more horizontal space. Placeholder on proxy failure. Shopify square logos no longer dominate canvas inappropriately. Not production logo placement rules.
+
+**Contextual color fallback handling (Stage 35)**  
+Empty/missing brand colors no longer silently use ExpoPrint navy/teal on unrelated sites. `colorPlanMode`: `defaultFallback`, `neutralFallback`, `logoColorFallback`, `extractedBrandColors`, `greenBrandLight`. Google-style empty-color cases use neutral/light fallback; Shopify green and ExpoPrint styling preserved when context matches.
+
+**Evaluation coverage for logo and canvas regressions (Stage 36)**  
+Shopify fixture checks top logo URL (`shopify-logo-primary-logo`) and `logoRole: wordmark`. `npm run api:evaluate` — 52/52 required checks passing on current fixtures. Harness only — no browser automation; API schema unchanged.
+
+---
+
 ## Deployment — Vercel on `main` (current)
 
 - **Vercel only** — production/demo deploys from Git branch **`main`**.
@@ -246,10 +268,10 @@ More fixtures (Shopify, Mailchimp, Patagonia, CVS partial, Warby Parker blocked)
 - Git branches **`staging`** and **`vercel-deploy`** deleted; only **`main`** remains.
 - **Rule:** keep `main` demo-ready before push.
 
-**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, role-aware); selected logo on canvas via proxy with contain-fit; typography signals (cleaned) + canvas font mapping; stale intake reset on URL domain change; social footer marks when selected; slugified export PNG names; `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test` (bare-domain URL normalization); `npm run api:evaluate` (expanded fixtures, required checks passing); partial large-page extraction smoke (e.g. cvs.com); blocked-site warnings on honest failures (e.g. Warby Parker — prototype only); `/demo` guided view; `/progress` current. Human review and production logo validation still required; no full browser automation.
+**Verified on Vercel (`main`):** Claude Analyze Website; multi-page scraping; logo candidates (wordmark-ranked, role-aware); selected logo on canvas via proxy with contain-fit and role-aware sizing; typography signals (cleaned) + canvas font mapping; stale intake reset on URL domain change; canvas social display filter (brand handles only; generic video/share URLs omitted); slugified export PNG names; contextual color fallbacks (neutral/light when brand colors missing); `POST /api/design-intake/extract` (Phase 1 contract); `/api-docs` and `/api-test` (bare-domain URL normalization); `npm run api:evaluate` (expanded fixtures, 52/52 required checks passing); partial large-page extraction smoke (e.g. cvs.com); blocked-site warnings on honest failures (e.g. Warby Parker — prototype only); `/demo` guided view; `/progress` current. Human review and production logo validation still required; social display is a prototype design-use filter; no full browser automation.
 
 ---
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–30 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, and blocked-site warnings. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

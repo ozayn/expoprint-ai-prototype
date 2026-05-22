@@ -310,10 +310,15 @@ function websiteLineFromIntake(intake: DesignIntakeState): string {
 
 /** Any selected extracted contact field that should appear on the canvas. */
 function hasContactExtractedForCanvas(intake: DesignIntakeState): boolean {
+  const socialCtx = {
+    businessName: intake.businessName,
+    websiteUrl: intake.websiteUrl,
+    productCategory: intake.category,
+  };
   return (
     !!selectedExtractedValue(intake, "phone") ||
     !!selectedExtractedValue(intake, "email") ||
-    !!selectedExtractedValue(intake, "social") ||
+    hasDisplayableSocialLinks(selectedExtractedValue(intake, "social"), socialCtx) ||
     (intake.category === "Trade show booth" &&
       !!selectedExtractedValue(intake, "address"))
   );

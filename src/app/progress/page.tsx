@@ -498,6 +498,98 @@ const stages: Stage[] = [
       "Documented in `docs/extraction-evaluation.md` and `docs/design-intake-api.md`. `npm run api:evaluate` — required checks passing across current fixtures; nice-to-have may warn without blocking.",
     ],
   },
+  {
+    id: 31,
+    title: "Canvas social link display filter",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Raw social URLs from the extract/analyze API can remain in metadata and intake fields, but the DesignSpec/canvas footer applies a prototype design-use filter: only clean official brand/profile handles render on the canvas. Generic video, share, and personal-profile links are dropped. Website/domain stays the primary footer item. Not a final brand-asset system — human review still required.",
+    accomplishments: [
+      "`filterSocialLinksForCanvasDisplay` in `socialPlatformDisplay.ts` — canvas-only filter; API response schema unchanged.",
+      "Rejects generic YouTube `/watch`, `/shorts`, `/embed`, `/playlist`, share/intent/post/video paths, and similar non-profile URLs.",
+      "Personal LinkedIn `/in/<person>` profiles are skipped unless the handle clearly matches the business name/domain.",
+      "Accepts official brand handles when clean: X/Twitter, Instagram, Facebook, LinkedIn company, YouTube `@handle` / `/user/` / `/c/` / brand-like slugs.",
+      "Compact badge + short handle display (e.g. `X /stripe`, `◎ @shopify`) — not full URLs; max 1–2 items on tent/expo surfaces with whole-item drop when space is tight.",
+      "If no clean profile exists, social rows are omitted and the footer shows website/contact only.",
+      "Shared through `createDesignSpecFromIntake` for `/` and `/demo`; Fabric editability and PNG/SVG export safety preserved (text/simple vector marks only).",
+    ],
+  },
+  {
+    id: 32,
+    title: "Export filename polish",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Concept export filenames can include business and active design-surface context where available, producing safer and more descriptive download names than a generic `expoprint-concept` default. Prototype naming only — not production file standards or brand guidelines.",
+    accomplishments: [
+      "`exportConceptFilename.ts` — `buildConceptExportFilename` slugifies business name and surface label (e.g. `shopify-canopy-tent-concept.png`).",
+      "Falls back to category slug or `expoprint-concept` when business name is missing.",
+      "Used by editor Export PNG/SVG and guided demo step-7 PNG download.",
+      "NFKD normalization and character filtering keep filenames filesystem-safe.",
+    ],
+  },
+  {
+    id: 33,
+    title: "Logo candidate quality and classification",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Logo candidates now carry clearer role hints — wordmark, icon mark, favicon/social preview, marketing/header image, unknown — so ranking and review UI can prefer real brand marks over decorative header graphics and weak favicons. Shopify primary-logo paths are classified as wordmarks, not icon marks. Production-quality logo upload and validation remain recommended; not print-ready asset proofing.",
+    accomplishments: [
+      "`logoRoleClassification.ts` — distinguishes wordmarks, compact icon marks, favicons, `marketing_image`, `social_preview`, and unknown candidates.",
+      "`logoCandidateRanking.ts` — primary logo assets and wordmarks rank above marketing/header graphics and low-quality favicons; marketing images can be excluded from top picks.",
+      "Shopify `shopify-logo-primary-logo` and similar primary-logo paths classify as wordmark/full-logo candidates rather than icon marks.",
+      "Favicons and compact icon marks may still be useful fallback marks but are not treated as full production logos.",
+      "`LogoCandidatesReview` role badges and cautious copy on `/` and `/demo`; human confirmation still required before print.",
+    ],
+  },
+  {
+    id: 34,
+    title: "Role-aware logo rendering and sizing on canvas",
+    status: "Complete",
+    completed: "2026-05-22",
+    lastUpdated: "2026-05-22",
+    summary:
+      "Selected logos render through the safe image proxy when possible, with role-aware contain-fit inside the Fabric logo box: wide wordmarks can use more horizontal space; square/icon-style marks are capped smaller and centered. Placeholder fallback remains when proxy or image load fails. Prototype canvas behavior only — not production logo placement rules.",
+    accomplishments: [
+      "Proxied load unchanged (`/api/proxy-image` + `crossOrigin: anonymous`); remote URLs are not loaded directly into Fabric.",
+      "`fitImageContainInLayerBox` — object-contain with padding; `fitHint` and `logoRole` drive layout.",
+      "Wide wordmarks may use a larger rendered width; compact square/icon marks get a lower `logoMaxRenderedPx` cap and stay centered in the logo area.",
+      "Shopify-style square primary logos no longer dominate the canvas when a wordmark-sized treatment is more appropriate.",
+      "On proxy/image failure, dashed placeholder and label text remain — exports stay safe.",
+      "Applies to `/` and `/demo` through shared DesignSpec generation.",
+    ],
+  },
+  {
+    id: 35,
+    title: "Contextual color fallback handling",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Empty or missing brand colors no longer silently fall back to the ExpoPrint navy/teal palette on unrelated sites. The style guide exposes clearer color-plan modes (default ExpoPrint fallback, neutral fallback, logo-color fallback, extracted brand colors, green-brand-light) so Google-style empty-color cases use a neutral/light treatment instead of looking like ExpoPrint branding. Shopify green/light behavior and intentional ExpoPrint styling are preserved.",
+    accomplishments: [
+      "`designStyleGuide.ts` — `colorPlanMode` on `ConceptColorPlan` and DesignSpec metadata (`colorPlanMode`, `colorBackground`, etc.).",
+      "Modes include `defaultFallback` (ExpoPrint palette when appropriate), `neutralFallback`, `logoColorFallback`, `extractedBrandColors`, and `greenBrandLight` for black+green brands.",
+      "When extracted brand colors are empty, concepts prefer neutral/light fallbacks rather than defaulting every site to ExpoPrint navy/teal.",
+      "Shopify green brand-light plan and ExpoPrint’s own styling path remain available when context matches.",
+      "Shared `buildConceptColorPlan` path for `/` and `/demo`; not ICC/spot-color production color management.",
+    ],
+  },
+  {
+    id: 36,
+    title: "Evaluation coverage for logo and canvas regressions",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Ground-truth evaluation fixtures and checks were extended to catch logo-quality and classification regressions — including Shopify primary-logo URL and wordmark role expectations. Required checks pass across the current fixture set (`npm run api:evaluate`). Prototype harness only — not a full production QA suite; no browser automation.",
+    accomplishments: [
+      "`data/extraction-eval-fixtures.json` — Shopify fixture checks top logo candidate URL substring (`shopify-logo-primary-logo`) and `logoRole: wordmark`.",
+      "Expanded fixture set (Shopify, Mailchimp, Patagonia, CVS partial, Warby Parker blocked) with required vs nice-to-have severities.",
+      "`npm run api:evaluate` — 52/52 required checks passing on current fixtures; nice-to-have warnings for softer gaps (e.g. typography) without failing the script.",
+      "Does not change extract API schema, scraping, or Fabric behavior — validation tooling only.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -536,7 +628,9 @@ export default function ProgressPage() {
             canvas demo. Stages 20–30 cover the extract API contract, `/api-docs` / `/api-test`,
             canvas bullet layout, fixture-based evaluation, reliability/quality metadata,
             large-site partial extraction, stale intake reset on URL change, logo contain-fit
-            and role-aware ranking, social footer/export polish, and blocked-site warnings; the
+            and role-aware ranking, social footer/export polish, and blocked-site warnings; Stages
+            31–36 add canvas social display filtering, export filename polish, logo classification
+            and role-aware sizing, contextual color fallbacks, and expanded evaluation checks; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">
@@ -624,6 +718,10 @@ export default function ProgressPage() {
               <li>
                 Stale intake clears when website domain changes; logo contain-fit on canvas;
                 expanded `npm run api:evaluate` fixtures — prototype only, human review required
+              </li>
+              <li>
+                Canvas social display filter (brand handles only; generic video/share URLs omitted);
+                role-aware logo sizing; contextual color fallbacks — not production-final
               </li>
             </ul>
           </div>
