@@ -7,6 +7,7 @@ import type {
 } from "./designSpec";
 import {
   estimateSocialItemWidthPx,
+  hasDisplayableSocialLinks,
   maxSocialItemsForSurface,
   pickSocialLinksForFooter,
   socialFooterTypography,
@@ -427,6 +428,13 @@ function buildSocialFooterLayers(
   const gapAfterContact = contactTextWidth > 0 ? 14 : 0;
   const socialStart = left + contactTextWidth + gapAfterContact;
 
+  const socialCtx = {
+    businessName: intake.businessName,
+    websiteUrl: intake.websiteUrl,
+    productCategory: intake.category,
+    surfaceLabel,
+  };
+
   const entries = pickSocialLinksForFooter(
     socialRaw,
     maxItems,
@@ -434,6 +442,7 @@ function buildSocialFooterLayers(
     maxRightPx,
     fontSize,
     iconSize,
+    socialCtx,
   );
 
   const layers: SocialFooterItemLayer[] = [];
@@ -464,7 +473,13 @@ function buildSocialFooterLayers(
 }
 
 function hasSocialFooterForCanvas(intake: DesignIntakeState): boolean {
-  return selectedExtractedValue(intake, "social").trim().length > 0;
+  const raw = selectedExtractedValue(intake, "social").trim();
+  if (!raw) return false;
+  return hasDisplayableSocialLinks(raw, {
+    businessName: intake.businessName,
+    websiteUrl: intake.websiteUrl,
+    productCategory: intake.category,
+  });
 }
 
 /** Footer band is shown when contact text and/or social icons apply. */

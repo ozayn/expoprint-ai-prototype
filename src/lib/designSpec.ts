@@ -130,7 +130,7 @@ export type SocialPlatformId =
   | "youtube";
 
 /**
- * Footer social indicator: compact platform mark badge + label (e.g. `▶ YouTube /brand`).
+ * Footer social indicator: compact platform mark badge + short handle (e.g. `▶ @shopify`).
  * Rendered as an editable Fabric group — no remote icon assets.
  */
 export interface SocialFooterItemLayer {
@@ -139,7 +139,7 @@ export interface SocialFooterItemLayer {
   platform: SocialPlatformId;
   /** Badge glyph, e.g. `▶`, `f`, `in` */
   platformMark: string;
-  /** Text beside badge: platform + path, e.g. `YouTube /googleads` */
+  /** Text beside badge: short handle only, e.g. `@shopify` or `/company/stripe` */
   labelText: string;
   /** Full token for layout width checks */
   displayText: string;
