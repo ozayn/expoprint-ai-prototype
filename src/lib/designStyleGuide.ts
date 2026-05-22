@@ -20,12 +20,27 @@
 import type { BrandColors } from "./designSpec";
 import type { DesignIntakeState, StylePreference } from "./designIntakeState";
 
-const FALLBACK: BrandColors = {
+/** How the canvas palette was chosen (prototype debug / DesignSpec metadata). */
+export type ColorPlanMode =
+  | "defaultFallback"
+  | "neutralFallback"
+  | "logoColorFallback"
+  | "extractedBrandColors";
+
+/** Sub-mode when colors were parsed from extracted brand hexes. */
+export type ExtractionPaletteMode =
+  | "multiBright"
+  | "darkDominant"
+  | "soft"
+  | "greenBrandLight";
+
+const EXPOPRINT_BRAND: BrandColors = {
   navy: "#0B2E4A",
   teal: "#2BB3A3",
   white: "#FFFFFF",
 };
 
+const NEUTRAL_ACCENT = "#64748b";
 const NEUTRAL_BG = "#f4f6f8";
 const NEUTRAL_BG_COOL = "#f1f5f9";
 const TEXT_HEADING_ON_LIGHT = "#0f172a";
@@ -43,8 +58,11 @@ export type NormalizedCanvasPalette = {
 };
 
 export type ConceptColorPlan = NormalizedCanvasPalette & {
-  /** Palette normalization mode (prototype debug). */
-  paletteMode?: "multiBright" | "darkDominant" | "soft" | "greenBrandLight";
+  colorPlanMode: ColorPlanMode;
+  /** Set when `colorPlanMode` is `extractedBrandColors`. */
+  extractionPaletteMode?: ExtractionPaletteMode;
+  /** @deprecated Use colorPlanMode */
+  paletteMode?: ColorPlanMode | ExtractionPaletteMode;
   /** Polygon fill (often a muted mix; not always identical to `accentColor`). */
   accentShape: string;
   accentOpacityFactor: number;
@@ -318,7 +336,7 @@ function wrapPlan(
     logoLabelText: string;
     brandColors: BrandColors;
   },
-): ConceptColorPlan {
+): Omit<ConceptColorPlan, "colorPlanMode" | "extractionPaletteMode" | "paletteMode"> {
   const bg = base.backgroundColor;
   return {
     ...base,
@@ -336,28 +354,105 @@ function wrapPlan(
   };
 }
 
-function fallbackPlan(note?: string): ConceptColorPlan {
+function expoprintDefaultFallbackPlan(note?: string): ConceptColorPlan {
   const brandColors: BrandColors = {
-    ...FALLBACK,
+    ...EXPOPRINT_BRAND,
     ...(note ? { paletteNote: note } : {}),
   };
   const palette: NormalizedCanvasPalette = {
-    backgroundColor: FALLBACK.navy,
-    textColor: FALLBACK.white,
-    accentColor: FALLBACK.teal,
-    secondaryAccentColor: FALLBACK.teal,
-    mutedTextColor: FALLBACK.white,
+    backgroundColor: EXPOPRINT_BRAND.navy,
+    textColor: EXPOPRINT_BRAND.white,
+    accentColor: EXPOPRINT_BRAND.teal,
+    secondaryAccentColor: EXPOPRINT_BRAND.teal,
+    mutedTextColor: EXPOPRINT_BRAND.white,
   };
-  return wrapPlan({
-    ...palette,
-    accentShape: FALLBACK.teal,
-    accentOpacityFactor: 1,
-    accentPolygonScale: 1,
-    logoFill: FALLBACK.white,
-    logoStroke: FALLBACK.teal,
-    logoLabelText: FALLBACK.navy,
-    brandColors,
-  });
+  return {
+    ...wrapPlan({
+      ...palette,
+      accentShape: EXPOPRINT_BRAND.teal,
+      accentOpacityFactor: 1,
+      accentPolygonScale: 1,
+      logoFill: EXPOPRINT_BRAND.white,
+      logoStroke: EXPOPRINT_BRAND.teal,
+      logoLabelText: EXPOPRINT_BRAND.navy,
+      brandColors,
+    }),
+    colorPlanMode: "defaultFallback",
+  };
+}
+
+function neutralFallbackPlan(
+  intake: DesignIntakeState,
+  colorPlanMode: "neutralFallback" | "logoColorFallback",
+  options?: { accentColor?: string; backgroundColor?: string; note?: string },
+): ConceptColorPlan {
+  const bg = options?.backgroundColor ?? NEUTRAL_BG_COOL;
+  const accent = options?.accentColor ?? NEUTRAL_ACCENT;
+  const accentMuted = mixHex(accent, "#cbd5e1", 0.58);
+  const accentShape = mixHex(accentMuted, "#e8edf3", 0.42);
+  const brandColors: BrandColors = {
+    navy: bg,
+    teal: accent,
+    white: "#ffffff",
+    ...(options?.note ? { paletteNote: options.note } : {}),
+  };
+  return {
+    ...wrapPlan({
+      backgroundColor: bg,
+      textColor: TEXT_HEADING_ON_LIGHT,
+      accentColor: accent,
+      secondaryAccentColor: mixHex(accent, TEXT_BODY_ON_LIGHT, 0.68),
+      mutedTextColor: TEXT_CONTACT_ON_LIGHT,
+      accentShape,
+      accentOpacityFactor: accentOpacityForStyle(intake.style, "multiBright"),
+      accentPolygonScale: 0.52,
+      logoFill: "#ffffff",
+      logoStroke: mixHex(accent, "#94a3b8", 0.55),
+      logoLabelText: mixHex(TEXT_HEADING_ON_LIGHT, "#64748b", 0.38),
+      brandColors,
+    }),
+    colorPlanMode,
+  };
+}
+
+function isExpoprintBrand(intake: DesignIntakeState): boolean {
+  const blob = `${intake.businessName} ${intake.websiteUrl}`.toLowerCase();
+  return /expoprint/.test(blob);
+}
+
+function isGoogleBrand(intake: DesignIntakeState): boolean {
+  const blob = `${intake.businessName} ${intake.websiteUrl}`.toLowerCase();
+  return /\bgoogle\b/.test(blob) || /(?:^|[/.])google\.com\b/.test(blob);
+}
+
+function buildContextualEmptyColorPlan(
+  intake: DesignIntakeState,
+  note?: string,
+): ConceptColorPlan {
+  if (isExpoprintBrand(intake)) {
+    return expoprintDefaultFallbackPlan(note);
+  }
+  if (isGoogleBrand(intake)) {
+    const mutedBlue = mixHex("#4285f4", "#94a3b8", 0.62);
+    return neutralFallbackPlan(intake, "logoColorFallback", {
+      backgroundColor: "#ffffff",
+      accentColor: mutedBlue,
+      note,
+    });
+  }
+  return neutralFallbackPlan(intake, "neutralFallback", { note });
+}
+
+function extractedColorPlan(
+  plan: Omit<ConceptColorPlan, "colorPlanMode" | "extractionPaletteMode" | "paletteMode">,
+  extractionPaletteMode: ExtractionPaletteMode,
+): ConceptColorPlan {
+  return {
+    ...plan,
+    colorPlanMode: "extractedBrandColors",
+    extractionPaletteMode,
+    paletteMode: extractionPaletteMode,
+  };
 }
 
 /**
@@ -367,19 +462,19 @@ export function normalizeBrandPalette(
   hexes: string[],
   style: StylePreference,
 ): NormalizedCanvasPalette & {
-  mode: "multiBright" | "darkDominant" | "soft" | "greenBrandLight";
+  mode: ExtractionPaletteMode;
   accentPickHex: string;
 } {
   const samples = analyzeSamples(hexes);
   if (samples.length === 0) {
     return {
-      backgroundColor: FALLBACK.navy,
-      textColor: FALLBACK.white,
-      accentColor: FALLBACK.teal,
-      secondaryAccentColor: FALLBACK.teal,
-      mutedTextColor: mixHex(FALLBACK.white, FALLBACK.navy, 0.12),
+      backgroundColor: NEUTRAL_BG_COOL,
+      textColor: TEXT_HEADING_ON_LIGHT,
+      accentColor: NEUTRAL_ACCENT,
+      secondaryAccentColor: mixHex(NEUTRAL_ACCENT, TEXT_BODY_ON_LIGHT, 0.68),
+      mutedTextColor: TEXT_CONTACT_ON_LIGHT,
       mode: "soft",
-      accentPickHex: FALLBACK.teal,
+      accentPickHex: NEUTRAL_ACCENT,
     };
   }
 
@@ -508,16 +603,21 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
   const note = raw || undefined;
 
   if (hexes.length === 0) {
-    return { ...fallbackPlan(note), paletteMode: "soft" };
+    return buildContextualEmptyColorPlan(intake, note);
   }
 
   const norm = normalizeBrandPalette(hexes, intake.style);
   const { mode, accentPickHex } = norm;
 
+  if (analyzeSamples(hexes).length === 0) {
+    return buildContextualEmptyColorPlan(intake, note);
+  }
+
   const brandColors: BrandColors = {
     navy: norm.backgroundColor,
     teal: norm.accentColor,
-    white: norm.backgroundColor === FALLBACK.navy ? FALLBACK.white : "#ffffff",
+    white:
+      norm.backgroundColor === EXPOPRINT_BRAND.navy ? EXPOPRINT_BRAND.white : "#ffffff",
     ...(note ? { paletteNote: note } : {}),
   };
 
@@ -529,8 +629,8 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
     const logoLabel = mixHex(TEXT_HEADING_ON_LIGHT, "#64748b", 0.38);
     brandColors.white = logoFill;
 
-    return {
-      ...wrapPlan({
+    return extractedColorPlan(
+      wrapPlan({
         backgroundColor: norm.backgroundColor,
         textColor: norm.textColor,
         accentColor: norm.accentColor,
@@ -544,8 +644,8 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
         logoLabelText: logoLabel,
         brandColors,
       }),
-      paletteMode: mode,
-    };
+      mode,
+    );
   }
 
   if (mode === "greenBrandLight") {
@@ -558,8 +658,8 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
     brandColors.teal = norm.accentColor;
     brandColors.navy = norm.backgroundColor;
 
-    return {
-      ...wrapPlan({
+    return extractedColorPlan(
+      wrapPlan({
         backgroundColor: norm.backgroundColor,
         textColor: norm.textColor,
         accentColor: norm.accentColor,
@@ -573,8 +673,8 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
         logoLabelText: logoLabel,
         brandColors,
       }),
-      paletteMode: mode,
-    };
+      mode,
+    );
   }
 
   if (mode === "darkDominant") {
@@ -585,8 +685,8 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
     const logoLabel = mixHex(norm.textColor, bg, 0.28);
     brandColors.white = logoFill;
 
-    return {
-      ...wrapPlan({
+    return extractedColorPlan(
+      wrapPlan({
         backgroundColor: bg,
         textColor: norm.textColor,
         accentColor: accent,
@@ -600,16 +700,16 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
         logoLabelText: logoLabel,
         brandColors,
       }),
-      paletteMode: mode,
-    };
+      mode,
+    );
   }
 
   const bg = norm.backgroundColor;
   const accent = norm.accentColor;
   if (relativeLuminance(hexToRgb(bg)!) < 0.35) {
     brandColors.white = mixHex("#ffffff", bg, 0.08);
-    return {
-      ...wrapPlan({
+    return extractedColorPlan(
+      wrapPlan({
         backgroundColor: bg,
         textColor: norm.textColor,
         accentColor: accent,
@@ -623,13 +723,13 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
         logoLabelText: mixHex(norm.textColor, bg, 0.32),
         brandColors,
       }),
-      paletteMode: mode,
-    };
+      mode,
+    );
   }
 
   brandColors.white = "#ffffff";
-  return {
-    ...wrapPlan({
+  return extractedColorPlan(
+    wrapPlan({
       backgroundColor: bg,
       textColor: norm.textColor,
       accentColor: accent,
@@ -643,6 +743,6 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
       logoLabelText: mixHex(TEXT_HEADING_ON_LIGHT, "#94a3b8", 0.38),
       brandColors,
     }),
-    paletteMode: mode,
-  };
+    mode,
+  );
 }

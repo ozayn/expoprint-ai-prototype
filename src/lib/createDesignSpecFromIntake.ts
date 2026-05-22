@@ -1013,7 +1013,10 @@ export function createDesignSpecFromIntake(
       contentLayout,
       ...(surfaceLabel ? { activeSurface: surfaceLabel } : {}),
       supportingItemCount,
-      colorPlanMode: plan.paletteMode,
+      colorPlanMode: plan.colorPlanMode,
+      ...(plan.extractionPaletteMode
+        ? { colorPlanExtractionMode: plan.extractionPaletteMode }
+        : {}),
       colorBackground: plan.backgroundColor,
       colorAccent: plan.accentColor,
       colorText: plan.headlineText,

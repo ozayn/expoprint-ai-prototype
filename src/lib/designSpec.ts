@@ -19,6 +19,7 @@ export interface DesignSpecMetadata {
   selectedLogoFitMode?: string;
   selectedLogoRenderedMaxPx?: number;
   colorPlanMode?: string;
+  colorPlanExtractionMode?: string;
   colorBackground?: string;
   colorAccent?: string;
   colorText?: string;
