@@ -270,6 +270,86 @@ function fabricObjectForLayer(
 }
 
 const DEFAULT_LOGO_BOX_PADDING = 15;
+/** Compact marks: cap rendered size inside the logo zone (px). */
+const ICON_MAX_RENDERED_PX = 68;
+const ICON_MIN_RENDERED_PX = 32;
+const WORDMARK_MIN_RENDERED_HEIGHT_PX = 24;
+
+const COMPACT_PRIMARY_LOGO_PATH_RE =
+  /shopify-logo-primary-logo|logo-primary-logo|primary-logo|primary_logo|full-logo|horizontal-logo/i;
+
+type LogoFitMode = "wordmark" | "icon" | "contain";
+
+function logoLayerUrlBlob(layer: ImageLayer): string {
+  const parts = [layer.logoRemoteUrl ?? "", layer.src];
+  try {
+    return decodeURIComponent(parts.join(" ")).toLowerCase();
+  } catch {
+    return parts.join(" ").toLowerCase();
+  }
+}
+
+function isCompactPrimaryLogoLayer(layer: ImageLayer): boolean {
+  if (layer.fitHint === "icon") return true;
+  if (typeof layer.logoMaxRenderedPx === "number") return true;
+  return COMPACT_PRIMARY_LOGO_PATH_RE.test(logoLayerUrlBlob(layer));
+}
+
+function isSquareishAspect(natW: number, natH: number): boolean {
+  const ratio = natW / natH;
+  return ratio >= 0.82 && ratio <= 1.22;
+}
+
+function isWideWordmarkAspect(natW: number, natH: number): boolean {
+  return natW / natH >= 1.55;
+}
+
+function resolveLogoFitMode(
+  layer: ImageLayer,
+  natW: number,
+  natH: number,
+): LogoFitMode {
+  if (isCompactPrimaryLogoLayer(layer)) return "icon";
+
+  const hint = layer.fitHint ?? "contain";
+  const role = layer.logoRole;
+
+  if (hint === "icon") return "icon";
+  if (role === "icon_mark" || role === "fallback_icon") return "icon";
+  if (role === "marketing_image" || role === "social_preview" || role === "unknown") {
+    return "icon";
+  }
+
+  if (isSquareishAspect(natW, natH)) return "icon";
+
+  if (hint === "wordmark" || role === "wordmark" || natW / natH > 2.4) {
+    return isWideWordmarkAspect(natW, natH) ? "wordmark" : "contain";
+  }
+
+  return "contain";
+}
+
+function iconBoxFraction(layer: ImageLayer): number {
+  if (isCompactPrimaryLogoLayer(layer)) return 0.52;
+  if (
+    layer.logoRole === "fallback_icon" ||
+    layer.logoRole === "marketing_image" ||
+    layer.logoRole === "social_preview"
+  ) {
+    return 0.5;
+  }
+  return 0.58;
+}
+
+function iconMaxRenderedPx(layer: ImageLayer): number {
+  if (typeof layer.logoMaxRenderedPx === "number" && layer.logoMaxRenderedPx > 0) {
+    return layer.logoMaxRenderedPx;
+  }
+  if (COMPACT_PRIMARY_LOGO_PATH_RE.test(logoLayerUrlBlob(layer))) {
+    return 64;
+  }
+  return ICON_MAX_RENDERED_PX;
+}
 
 type FabricImageLike = FabricObject & {
   getOriginalSize?: () => { width: number; height: number };
@@ -301,18 +381,38 @@ function fitImageContainInLayerBox(img: FabricImageLike, layer: ImageLayer): boo
   }
 
   let scale = Math.min(boxW / natW, boxH / natH);
-  const fitHint = layer.fitHint ?? "contain";
+  const fitMode = resolveLogoFitMode(layer, natW, natH);
 
-  if (fitHint === "wordmark" || natW / natH > 2.4) {
-    /** Wide marks: never exceed inner width (height may letterbox). */
+  if (fitMode === "wordmark") {
+    /** Wide marks: prioritize readable width; height letterboxes inside the box. */
     scale = Math.min(scale, boxW / natW);
+    const maxWordmarkHeight = boxH * 0.88;
+    scale = Math.min(scale, maxWordmarkHeight / natH);
   }
 
-  if (fitHint === "icon") {
-    /** Compact icon/favicon marks: stay centered without filling the whole box. */
-    const maxIconDim = Math.min(boxW, boxH) * 0.88;
-    const maxScale = maxIconDim / Math.max(natW, natH);
-    scale = Math.min(scale, maxScale);
+  if (fitMode === "icon") {
+    /** Compact / square marks: stay centered without filling the whole logo zone. */
+    const maxByBox = Math.min(boxW, boxH) * iconBoxFraction(layer);
+    const maxByPx = iconMaxRenderedPx(layer);
+    const maxIconDim = Math.min(maxByBox, maxByPx);
+    scale = Math.min(scale, maxIconDim / Math.max(natW, natH));
+  }
+
+  /** Never exceed the inner logo box. */
+  scale = Math.min(scale, boxW / natW, boxH / natH);
+
+  const renderedMin = Math.min(natW * scale, natH * scale);
+  if (fitMode !== "icon" && renderedMin < ICON_MIN_RENDERED_PX) {
+    const boost = ICON_MIN_RENDERED_PX / Math.min(natW, natH);
+    scale = Math.min(Math.max(scale, boost), boxW / natW, boxH / natH);
+  }
+
+  if (fitMode === "wordmark") {
+    const renderedH = natH * scale;
+    if (renderedH < WORDMARK_MIN_RENDERED_HEIGHT_PX) {
+      const boost = WORDMARK_MIN_RENDERED_HEIGHT_PX / natH;
+      scale = Math.min(Math.max(scale, boost), boxW / natW, boxH / natH);
+    }
   }
 
   const centerX = layer.left + layer.width / 2;

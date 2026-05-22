@@ -1,3 +1,5 @@
+import type { LogoCandidateSource, LogoRole } from "./analyzeWebsiteResponse";
+
 /** Named brand palette; extra keys allowed for future AI output. */
 export interface BrandColors {
   navy: string;
@@ -13,6 +15,13 @@ export interface DesignSpecMetadata {
   contentLayout?: SupportingContentLayout;
   activeSurface?: string;
   supportingItemCount?: number;
+  /** Internal canvas debug — not shown in main UI. */
+  selectedLogoFitMode?: string;
+  selectedLogoRenderedMaxPx?: number;
+  colorPlanMode?: string;
+  colorBackground?: string;
+  colorAccent?: string;
+  colorText?: string;
 }
 
 export interface DesignSpec {
@@ -159,6 +168,16 @@ export interface ImageLayer {
    * `wordmark` — wide logos; `icon` — compact marks capped so they do not dominate the box.
    */
   fitHint?: "contain" | "wordmark" | "icon";
+  /** Selected candidate metadata for role-aware sizing (internal DesignSpec only). */
+  logoRole?: LogoRole;
+  logoSource?: LogoCandidateSource;
+  /** Extraction-time dimensions when known (actual asset may differ slightly). */
+  candidateWidth?: number;
+  candidateHeight?: number;
+  /** Original remote logo URL (for compact-primary detection in renderer). */
+  logoRemoteUrl?: string;
+  /** Hard cap on longest rendered side in px (compact square/icon marks). */
+  logoMaxRenderedPx?: number;
   /** Layer ids removed from the canvas only when the image actually loads. */
   replacePlaceholderIds?: string[];
   opacity?: number;

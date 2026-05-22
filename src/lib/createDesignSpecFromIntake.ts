@@ -1,5 +1,6 @@
 import type {
   DesignSpec,
+  ImageLayer,
   SocialFooterItemLayer,
   SupportingContentLayout,
   TextLayer,
@@ -487,6 +488,72 @@ function proxiedLogoUrl(remoteUrl: string): string {
   return `/api/proxy-image?url=${encodeURIComponent(remoteUrl)}`;
 }
 
+function isSquareishLogoDimensions(width?: number, height?: number): boolean {
+  if (typeof width !== "number" || typeof height !== "number" || height <= 0) {
+    return false;
+  }
+  const ratio = width / height;
+  return ratio >= 0.82 && ratio <= 1.22;
+}
+
+const COMPACT_PRIMARY_LOGO_PATH_RE =
+  /shopify-logo-primary-logo|logo-primary-logo|primary-logo|primary_logo|full-logo|horizontal-logo/i;
+
+function isCompactPrimaryLogoAsset(
+  remote: string,
+  selected: DesignIntakeState["logoCandidates"][number] | undefined,
+): boolean {
+  const url = remote.toLowerCase();
+  if (COMPACT_PRIMARY_LOGO_PATH_RE.test(url)) return true;
+  if (isSquareishLogoDimensions(selected?.width, selected?.height)) return true;
+  const role = selected?.logoRole;
+  if (
+    role === "icon_mark" ||
+    role === "fallback_icon" ||
+    role === "marketing_image" ||
+    role === "social_preview" ||
+    role === "unknown"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function resolveSelectedLogoFitHint(
+  remote: string,
+  selected: DesignIntakeState["logoCandidates"][number] | undefined,
+): "contain" | "wordmark" | "icon" {
+  if (isCompactPrimaryLogoAsset(remote, selected)) return "icon";
+  const role = selected?.logoRole;
+  if (role === "icon_mark" || role === "fallback_icon") return "icon";
+  if (role === "marketing_image" || role === "social_preview" || role === "unknown") {
+    return "icon";
+  }
+  if (role === "wordmark") {
+    if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
+    return "wordmark";
+  }
+  if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
+  const w = selected?.width;
+  const h = selected?.height;
+  if (typeof w === "number" && typeof h === "number" && h > 0 && w / h > 1.55) {
+    return "wordmark";
+  }
+  return "contain";
+}
+
+/** Target max rendered side for compact square/icon marks (56–72px). */
+function compactLogoMaxRenderedPx(
+  remote: string,
+  fitHint: "contain" | "wordmark" | "icon",
+): number | undefined {
+  if (fitHint !== "icon") return undefined;
+  if (/shopify-logo-primary-logo|logo-primary-logo|primary-logo/i.test(remote.toLowerCase())) {
+    return 64;
+  }
+  return 68;
+}
+
 /**
  * One-or-zero `image` layer for the selected logo candidate. The renderer adds
  * this asynchronously and only removes the placeholder + label layers
@@ -495,7 +562,7 @@ function proxiedLogoUrl(remoteUrl: string): string {
  */
 function buildSelectedLogoImageLayer(
   intake: DesignIntakeState,
-): DesignSpec["layers"] {
+): ImageLayer[] {
   const remote =
     typeof intake.selectedLogoCandidateUrl === "string"
       ? intake.selectedLogoCandidateUrl.trim()
@@ -504,12 +571,10 @@ function buildSelectedLogoImageLayer(
 
   const selected = intake.logoCandidates.find((c) => c.url === remote);
   const role = selected?.logoRole;
-  const fitHint =
-    role === "icon_mark" || role === "fallback_icon"
-      ? "icon"
-      : role === "wordmark"
-        ? "wordmark"
-        : "contain";
+  const fitHint = resolveSelectedLogoFitHint(remote, selected);
+  const logoMaxRenderedPx = compactLogoMaxRenderedPx(remote, fitHint);
+  const iconPadding =
+    fitHint === "icon" || role === "icon_mark" || role === "fallback_icon" ? 20 : 15;
 
   return [
     {
@@ -520,8 +585,14 @@ function buildSelectedLogoImageLayer(
       top: 72,
       width: 132,
       height: 132,
-      padding: 15,
+      padding: iconPadding,
       fitHint,
+      logoRole: role,
+      logoSource: selected?.source,
+      candidateWidth: selected?.width,
+      candidateHeight: selected?.height,
+      logoRemoteUrl: remote,
+      logoMaxRenderedPx,
       replacePlaceholderIds: ["logo-box", "logo-label", "logo-label-sub"],
     },
   ];
@@ -830,6 +901,9 @@ export function createDesignSpecFromIntake(
         },
       ];
 
+  const selectedLogoLayers = buildSelectedLogoImageLayer(intake);
+  const selectedLogoLayer: ImageLayer | undefined = selectedLogoLayers[0];
+
   const layers: DesignSpec["layers"] = [
     {
       type: "background",
@@ -860,7 +934,7 @@ export function createDesignSpecFromIntake(
       ...(logoStrokeDash ? { strokeDashArray: logoStrokeDash } : {}),
     },
     ...logoLabelLayers,
-    ...buildSelectedLogoImageLayer(intake),
+    ...selectedLogoLayers,
     {
       type: "text",
       id: "headline",
@@ -939,6 +1013,16 @@ export function createDesignSpecFromIntake(
       contentLayout,
       ...(surfaceLabel ? { activeSurface: surfaceLabel } : {}),
       supportingItemCount,
+      colorPlanMode: plan.paletteMode,
+      colorBackground: plan.backgroundColor,
+      colorAccent: plan.accentColor,
+      colorText: plan.headlineText,
+      ...(selectedLogoLayer
+        ? {
+            selectedLogoFitMode: selectedLogoLayer.fitHint,
+            selectedLogoRenderedMaxPx: selectedLogoLayer.logoMaxRenderedPx,
+          }
+        : {}),
     },
   };
 }

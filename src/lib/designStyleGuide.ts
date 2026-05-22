@@ -43,6 +43,8 @@ export type NormalizedCanvasPalette = {
 };
 
 export type ConceptColorPlan = NormalizedCanvasPalette & {
+  /** Palette normalization mode (prototype debug). */
+  paletteMode?: "multiBright" | "darkDominant" | "soft" | "greenBrandLight";
   /** Polygon fill (often a muted mix; not always identical to `accentColor`). */
   accentShape: string;
   accentOpacityFactor: number;
@@ -223,6 +225,28 @@ function analyzeSamples(hexes: string[]): Sample[] {
   return out;
 }
 
+function isAchromaticNearBlack(s: Sample): boolean {
+  return s.hsl.l <= 0.18 && s.hsl.s < 0.22;
+}
+
+/** Saturated brand greens (Shopify-like) — not teal UI chrome. */
+function pickBrandGreen(samples: Sample[]): Sample | null {
+  const greens = samples.filter(
+    (s) =>
+      s.hsl.h >= 115 &&
+      s.hsl.h <= 168 &&
+      s.hsl.s >= 0.28 &&
+      s.hsl.l >= 0.22 &&
+      s.hsl.l <= 0.58,
+  );
+  if (greens.length === 0) return null;
+  return pickMostSaturated(greens);
+}
+
+function hasCleanLightNeutral(samples: Sample[]): boolean {
+  return samples.some((s) => s.hsl.l >= 0.88 && s.hsl.s < 0.14);
+}
+
 function isStrongPrimary(s: Sample): boolean {
   return s.hsl.s >= 0.36 && s.hsl.l >= 0.22 && s.hsl.l <= 0.88;
 }
@@ -343,7 +367,7 @@ export function normalizeBrandPalette(
   hexes: string[],
   style: StylePreference,
 ): NormalizedCanvasPalette & {
-  mode: "multiBright" | "darkDominant" | "soft";
+  mode: "multiBright" | "darkDominant" | "soft" | "greenBrandLight";
   accentPickHex: string;
 } {
   const samples = analyzeSamples(hexes);
@@ -365,11 +389,31 @@ export function normalizeBrandPalette(
     (samples.length >= 3 && strong.length >= 1 && samples.filter((s) => s.hsl.s > 0.28).length >= 3);
 
   const darkest = pickDarkest(samples);
+  const brandGreen = pickBrandGreen(samples);
   const darkDominant =
     !multiBright &&
     darkest !== null &&
     darkest.hsl.l <= 0.22 &&
     samples.some((s) => s.hex !== darkest.hex && s.hsl.s > 0.18);
+
+  /** Black + brand green → light field + green accent (avoid muddy black canvas). */
+  if (
+    darkDominant &&
+    darkest !== null &&
+    isAchromaticNearBlack(darkest) &&
+    brandGreen !== null
+  ) {
+    const bg = hasCleanLightNeutral(samples) ? "#ffffff" : NEUTRAL_BG_COOL;
+    return {
+      backgroundColor: bg,
+      textColor: TEXT_HEADING_ON_LIGHT,
+      accentColor: brandGreen.hex,
+      secondaryAccentColor: mixHex(brandGreen.hex, TEXT_BODY_ON_LIGHT, 0.62),
+      mutedTextColor: TEXT_CONTACT_ON_LIGHT,
+      mode: "greenBrandLight",
+      accentPickHex: brandGreen.hex,
+    };
+  }
 
   if (multiBright) {
     const bg = style === "Traditional" ? "#fafaf9" : NEUTRAL_BG_COOL;
@@ -416,7 +460,9 @@ export function normalizeBrandPalette(
   const sortedByLum = [...samples].sort((a, b) => a.hsl.l - b.hsl.l);
   const bgCandidate = sortedByLum[0]!;
   let bg =
-    bgCandidate.hsl.l < 0.48 && bgCandidate.hsl.s < 0.45
+    bgCandidate.hsl.l < 0.48 &&
+    bgCandidate.hsl.s < 0.45 &&
+    !isAchromaticNearBlack(bgCandidate)
       ? mixHex(bgCandidate.hex, "#0f172a", 0.35)
       : mixHex(NEUTRAL_BG, bgCandidate.hex, 0.08);
   if (relativeLuminance(hexToRgb(bg)!) > 0.55) {
@@ -462,7 +508,7 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
   const note = raw || undefined;
 
   if (hexes.length === 0) {
-    return fallbackPlan(note);
+    return { ...fallbackPlan(note), paletteMode: "soft" };
   }
 
   const norm = normalizeBrandPalette(hexes, intake.style);
@@ -483,20 +529,52 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
     const logoLabel = mixHex(TEXT_HEADING_ON_LIGHT, "#64748b", 0.38);
     brandColors.white = logoFill;
 
-    return wrapPlan({
-      backgroundColor: norm.backgroundColor,
-      textColor: norm.textColor,
-      accentColor: norm.accentColor,
-      secondaryAccentColor: norm.secondaryAccentColor,
-      mutedTextColor: norm.mutedTextColor,
-      accentShape,
-      accentOpacityFactor: accentOpacityForStyle(intake.style, "multiBright"),
-      accentPolygonScale: 0.56,
-      logoFill,
-      logoStroke,
-      logoLabelText: logoLabel,
-      brandColors,
-    });
+    return {
+      ...wrapPlan({
+        backgroundColor: norm.backgroundColor,
+        textColor: norm.textColor,
+        accentColor: norm.accentColor,
+        secondaryAccentColor: norm.secondaryAccentColor,
+        mutedTextColor: norm.mutedTextColor,
+        accentShape,
+        accentOpacityFactor: accentOpacityForStyle(intake.style, "multiBright"),
+        accentPolygonScale: 0.56,
+        logoFill,
+        logoStroke,
+        logoLabelText: logoLabel,
+        brandColors,
+      }),
+      paletteMode: mode,
+    };
+  }
+
+  if (mode === "greenBrandLight") {
+    const accentMuted = mixHex(accentPickHex, "#cbd5e1", 0.52);
+    const accentShape = mixHex(accentMuted, "#e8edf3", 0.28);
+    const logoFill = "#ffffff";
+    const logoStroke = mixHex(accentPickHex, "#64748b", 0.55);
+    const logoLabel = mixHex(TEXT_HEADING_ON_LIGHT, "#64748b", 0.35);
+    brandColors.white = logoFill;
+    brandColors.teal = norm.accentColor;
+    brandColors.navy = norm.backgroundColor;
+
+    return {
+      ...wrapPlan({
+        backgroundColor: norm.backgroundColor,
+        textColor: norm.textColor,
+        accentColor: norm.accentColor,
+        secondaryAccentColor: norm.secondaryAccentColor,
+        mutedTextColor: norm.mutedTextColor,
+        accentShape,
+        accentOpacityFactor: accentOpacityForStyle(intake.style, "soft"),
+        accentPolygonScale: 0.72,
+        logoFill,
+        logoStroke,
+        logoLabelText: logoLabel,
+        brandColors,
+      }),
+      paletteMode: mode,
+    };
   }
 
   if (mode === "darkDominant") {
@@ -507,55 +585,64 @@ export function buildConceptColorPlan(intake: DesignIntakeState): ConceptColorPl
     const logoLabel = mixHex(norm.textColor, bg, 0.28);
     brandColors.white = logoFill;
 
-    return wrapPlan({
-      backgroundColor: bg,
-      textColor: norm.textColor,
-      accentColor: accent,
-      secondaryAccentColor: norm.secondaryAccentColor,
-      mutedTextColor: norm.mutedTextColor,
-      accentShape: mixHex(accent, "#000000", 0.06),
-      accentOpacityFactor: accentOpacityForStyle(intake.style, "darkDominant"),
-      accentPolygonScale: 0.92,
-      logoFill,
-      logoStroke,
-      logoLabelText: logoLabel,
-      brandColors,
-    });
+    return {
+      ...wrapPlan({
+        backgroundColor: bg,
+        textColor: norm.textColor,
+        accentColor: accent,
+        secondaryAccentColor: norm.secondaryAccentColor,
+        mutedTextColor: norm.mutedTextColor,
+        accentShape: mixHex(accent, "#000000", 0.06),
+        accentOpacityFactor: accentOpacityForStyle(intake.style, "darkDominant"),
+        accentPolygonScale: 0.92,
+        logoFill,
+        logoStroke,
+        logoLabelText: logoLabel,
+        brandColors,
+      }),
+      paletteMode: mode,
+    };
   }
 
   const bg = norm.backgroundColor;
   const accent = norm.accentColor;
   if (relativeLuminance(hexToRgb(bg)!) < 0.35) {
     brandColors.white = mixHex("#ffffff", bg, 0.08);
-    return wrapPlan({
+    return {
+      ...wrapPlan({
+        backgroundColor: bg,
+        textColor: norm.textColor,
+        accentColor: accent,
+        secondaryAccentColor: norm.secondaryAccentColor,
+        mutedTextColor: norm.mutedTextColor,
+        accentShape: mixHex(accent, "#000000", 0.08),
+        accentOpacityFactor: accentOpacityForStyle(intake.style, "soft"),
+        accentPolygonScale: 0.88,
+        logoFill: brandColors.white,
+        logoStroke: mixHex(accent, "#ffffff", 0.28),
+        logoLabelText: mixHex(norm.textColor, bg, 0.32),
+        brandColors,
+      }),
+      paletteMode: mode,
+    };
+  }
+
+  brandColors.white = "#ffffff";
+  return {
+    ...wrapPlan({
       backgroundColor: bg,
       textColor: norm.textColor,
       accentColor: accent,
       secondaryAccentColor: norm.secondaryAccentColor,
       mutedTextColor: norm.mutedTextColor,
-      accentShape: mixHex(accent, "#000000", 0.08),
+      accentShape: mixHex(accent, "#e2e8f0", 0.38),
       accentOpacityFactor: accentOpacityForStyle(intake.style, "soft"),
-      accentPolygonScale: 0.88,
-      logoFill: brandColors.white,
-      logoStroke: mixHex(accent, "#ffffff", 0.28),
-      logoLabelText: mixHex(norm.textColor, bg, 0.32),
+      accentPolygonScale: 0.82,
+      logoFill: "#ffffff",
+      logoStroke: mixHex(accent, "#94a3b8", 0.48),
+      logoLabelText: mixHex(TEXT_HEADING_ON_LIGHT, "#94a3b8", 0.38),
       brandColors,
-    });
-  }
-
-  brandColors.white = "#ffffff";
-  return wrapPlan({
-    backgroundColor: bg,
-    textColor: norm.textColor,
-    accentColor: accent,
-    secondaryAccentColor: norm.secondaryAccentColor,
-    mutedTextColor: norm.mutedTextColor,
-    accentShape: mixHex(accent, "#e2e8f0", 0.38),
-    accentOpacityFactor: accentOpacityForStyle(intake.style, "soft"),
-    accentPolygonScale: 0.82,
-    logoFill: "#ffffff",
-    logoStroke: mixHex(accent, "#94a3b8", 0.48),
-    logoLabelText: mixHex(TEXT_HEADING_ON_LIGHT, "#94a3b8", 0.38),
-    brandColors,
-  });
+    }),
+    paletteMode: mode,
+  };
 }
