@@ -19,7 +19,14 @@ const LOGOISH_PATH_RE = /logo|brand|mark|identity|wordmark|primary[_-]?logo/i;
 const LOGOISH_ALT_RE = /\blogo\b|wordmark/i;
 
 const PRIMARY_LOGO_PATH_RE =
-  /primary[_-]?logo|(?:^|\/)[^/]*[_-]logo[_-]|site[_-]?logo|brand[_-]?mark|wordmark/i;
+  /primary[_-]?logo|logo[_-]primary[_-]?logo|(?:^|\/)[^/]*[_-]logo[_-]|site[_-]?logo|brand[_-]?mark|wordmark|full[_-]?logo|horizontal[_-]?logo/i;
+
+/** Full brand wordmark assets in CDN/CMS paths — not compact icons. */
+const FULL_WORDMARK_PATH_RE =
+  /primary[_-]?logo|logo[_-]primary[_-]?logo|wordmark|full[_-]?logo|horizontal[_-]?logo/i;
+
+const ICON_ONLY_PATH_RE =
+  /favicon|apple[_-]?touch(?:[_-]?icon)?|app[_-]?icon|icon[_-]?\d|\/icons?(?:\/|$)|\/32x32|\/64x64/i;
 
 const MARKETING_PATH_RE =
   /enterprise-accordion|nav-bg|testimonial|hero-?bg|case-study|customer-story|sessions-\d/i;
@@ -98,7 +105,52 @@ export function altLooksLikeMarketingCopy(alt: string): boolean {
 
 export function pathHasStrongLogoEvidence(path: string): boolean {
   if (MARKETING_PATH_RE.test(path)) return false;
-  return PRIMARY_LOGO_PATH_RE.test(path) || LOGOISH_PATH_RE.test(path);
+  return (
+    pathHasFullWordmarkPathEvidence(path) ||
+    PRIMARY_LOGO_PATH_RE.test(path) ||
+    pathHasBrandAssetsLogo(path) ||
+    LOGOISH_PATH_RE.test(path)
+  );
+}
+
+function pathHasBrandAssetsLogo(path: string): boolean {
+  return /brand[_-]?assets/i.test(path) && LOGOISH_PATH_RE.test(path);
+}
+
+/** Path clearly names a full horizontal/wordmark logo file (not a favicon/app icon). */
+export function pathHasFullWordmarkPathEvidence(path: string): boolean {
+  if (MARKETING_PATH_RE.test(path)) return false;
+  return FULL_WORDMARK_PATH_RE.test(path) || pathHasBrandAssetsLogo(path);
+}
+
+/** Compact icon / favicon — not a full wordmark asset even when logo-ish. */
+function isClearlyIconLikeCandidate(candidate: LogoCandidate): boolean {
+  const path = candidatePath(candidate.url);
+  if (pathHasFullWordmarkPathEvidence(path)) return false;
+
+  if (isFaviconSource(candidate)) return true;
+  if (ICON_ONLY_PATH_RE.test(path)) return true;
+  if (isPrimaryBrandSvg(path)) return true;
+
+  const { width, height } = candidate;
+  if (typeof width === "number" && typeof height === "number") {
+    const max = Math.max(width, height);
+    if (max <= 64 && isSquareish(candidate)) return true;
+  }
+
+  if (
+    isSquareish(candidate) &&
+    !looksLikeWordmarkProportions(candidate) &&
+    pathHasStrongLogoEvidence(path)
+  ) {
+    const max =
+      typeof width === "number" && typeof height === "number"
+        ? Math.max(width, height)
+        : undefined;
+    if (max !== undefined && max >= 56) return true;
+  }
+
+  return false;
 }
 
 function isSquareish(candidate: LogoCandidate): boolean {
@@ -184,6 +236,14 @@ export function hasStrongWordmarkEvidence(
   const path = candidatePath(candidate.url);
   const alt = candidate.alt ?? "";
 
+  if (
+    pathHasFullWordmarkPathEvidence(path) &&
+    !altLooksLikeMarketingCopy(alt) &&
+    !isClearlyIconLikeCandidate(candidate)
+  ) {
+    return true;
+  }
+
   if (pathHasStrongLogoEvidence(path) && !altLooksLikeMarketingCopy(alt)) {
     if (
       candidate.source === "img-logo" ||
@@ -264,10 +324,19 @@ export function classifyLogoRole(
   }
 
   if (
+    pathHasFullWordmarkPathEvidence(path) &&
+    !altLooksLikeMarketingCopy(alt) &&
+    !isClearlyIconLikeCandidate(candidate)
+  ) {
+    return "wordmark";
+  }
+
+  if (
     candidate.source === "og:image" &&
     ogImageLooksLogoLike(candidate, ctx) &&
     !looksLikeWordmarkProportions(candidate) &&
-    isSquareish(candidate)
+    isSquareish(candidate) &&
+    !pathHasFullWordmarkPathEvidence(path)
   ) {
     return "icon_mark";
   }
@@ -306,7 +375,9 @@ export function classifyLogoRole(
   if (
     isSquareish(candidate) &&
     pathHasStrongLogoEvidence(path) &&
-    !looksLikeWordmarkProportions(candidate)
+    !looksLikeWordmarkProportions(candidate) &&
+    !pathHasFullWordmarkPathEvidence(path) &&
+    isClearlyIconLikeCandidate(candidate)
   ) {
     const max =
       typeof candidate.width === "number" && typeof candidate.height === "number"
@@ -321,7 +392,8 @@ export function classifyLogoRole(
 
   if (
     candidate.source === "og:image" &&
-    ogImageLooksLogoLike(candidate, ctx)
+    ogImageLooksLogoLike(candidate, ctx) &&
+    !pathHasFullWordmarkPathEvidence(path)
   ) {
     return "icon_mark";
   }

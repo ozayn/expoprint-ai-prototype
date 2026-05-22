@@ -295,7 +295,7 @@
         {
           "type": "pathIn",
           "path": "brand.logoCandidates[0].logoRole",
-          "expected": ["wordmark", "icon_mark"],
+          "expected": ["wordmark"],
           "severity": "nice_to_have"
         }
       ]
