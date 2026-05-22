@@ -1,12 +1,21 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { FabricPreviewCanvas } from "@/components/FabricPreviewCanvas";
 import {
   API_TEST_WEBSITE_URL_EMPTY_MESSAGE,
   API_TEST_WEBSITE_URL_HELPER,
   normalizeApiTestWebsiteUrl,
 } from "@/lib/apiTestWebsiteUrl";
-import type { DesignIntakeExtractResponse } from "@/lib/designIntakeApiSchema";
+import type {
+  DesignIntakeExtractResponse,
+  DesignIntakeExtractSuccess,
+} from "@/lib/designIntakeApiSchema";
+import { getSelectedProductComponents } from "@/lib/designIntakeState";
+import {
+  mapExtractApiResponseToIntake,
+  type ExtractApiFormContext,
+} from "@/lib/mapExtractApiResponseToIntake";
 
 const PRODUCT_CATEGORIES = ["Outdoor tent", "Trade show booth"] as const;
 type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
@@ -103,6 +112,43 @@ export function DesignIntakeApiTester() {
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<DesignIntakeExtractResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [previewSessionKey, setPreviewSessionKey] = useState(0);
+  const [selectedPreviewLogoUrl, setSelectedPreviewLogoUrl] = useState("");
+
+  const formContext = useMemo(
+    (): ExtractApiFormContext => ({
+      websiteUrl,
+      productCategory,
+      components,
+      stylePreference,
+      customerInstructions,
+    }),
+    [
+      websiteUrl,
+      productCategory,
+      components,
+      stylePreference,
+      customerInstructions,
+    ],
+  );
+
+  const successResponse =
+    response?.ok === true ? (response as DesignIntakeExtractSuccess) : null;
+
+  const previewIntake = useMemo(() => {
+    if (!successResponse) return null;
+    return mapExtractApiResponseToIntake(successResponse, formContext, {
+      selectedLogoUrl: selectedPreviewLogoUrl,
+    });
+  }, [successResponse, formContext, selectedPreviewLogoUrl]);
+
+  const previewSurface = useMemo(() => {
+    if (!previewIntake) return null;
+    const surfaces = getSelectedProductComponents(previewIntake);
+    return surfaces[0] ?? null;
+  }, [previewIntake]);
+
+  const logoCandidates = successResponse?.brand.logoCandidates ?? [];
 
   const onCategoryChange = useCallback((next: ProductCategory) => {
     setProductCategory(next);
@@ -182,13 +228,23 @@ export function DesignIntakeApiTester() {
         return;
       }
 
-      setResponse(parsed as DesignIntakeExtractResponse);
+      const typed = parsed as DesignIntakeExtractResponse;
+      setResponse(typed);
+
+      if (typed.ok === true) {
+        const topLogo = typed.brand.logoCandidates[0]?.url?.trim() ?? "";
+        setSelectedPreviewLogoUrl(topLogo);
+        setPreviewSessionKey((k) => k + 1);
+      } else {
+        setSelectedPreviewLogoUrl("");
+      }
 
       if (!res.ok) {
         setError(`HTTP ${res.status} — see JSON body below.`);
       }
     } catch (err) {
       setResponse(null);
+      setSelectedPreviewLogoUrl("");
       setError(
         err instanceof Error ? err.message : "Request failed. Is the dev server running?",
       );
@@ -218,6 +274,8 @@ export function DesignIntakeApiTester() {
     setResponse(null);
     setError(null);
     setCopied(false);
+    setSelectedPreviewLogoUrl("");
+    setPreviewSessionKey((k) => k + 1);
   }, []);
 
   const componentOptions = COMPONENT_OPTIONS[productCategory];
@@ -422,6 +480,44 @@ export function DesignIntakeApiTester() {
                 <dd className="font-mono text-zinc-900">{summary.warningsCount}</dd>
               </div>
             </dl>
+          )}
+
+          {successResponse && previewIntake && (
+            <section className="mt-6 border-t border-zinc-100 pt-6">
+              <h3 className="text-sm font-semibold text-zinc-900">Canvas preview</h3>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                This canvas is a visual preview generated from the API response; JSON
+                remains the integration output.
+              </p>
+
+              {logoCandidates.length > 0 ? (
+                <div className="mt-3">
+                  <label htmlFor="api-test-preview-logo" className={labelClass}>
+                    Preview logo candidate
+                  </label>
+                  <select
+                    id="api-test-preview-logo"
+                    value={selectedPreviewLogoUrl}
+                    onChange={(e) => setSelectedPreviewLogoUrl(e.target.value)}
+                    className={inputClass}
+                  >
+                    {logoCandidates.map((candidate, index) => (
+                      <option key={candidate.url} value={candidate.url}>
+                        {index === 0 ? "Top ranked — " : ""}
+                        {candidate.source}
+                        {candidate.alt ? ` (${candidate.alt})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <FabricPreviewCanvas
+                intake={previewIntake}
+                surfaceLabel={previewSurface}
+                sessionKey={previewSessionKey}
+              />
+            </section>
           )}
 
           {formattedJson && (

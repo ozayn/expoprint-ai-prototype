@@ -27,7 +27,8 @@ export default function ApiTestPage() {
               <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
                 POST /api/design-intake/extract
               </code>{" "}
-              from the browser and inspect the full JSON response.
+              from the browser, inspect the JSON response, and preview the generated
+              canvas concept.
             </p>
           </div>
           <nav className="flex shrink-0 flex-wrap gap-2">
