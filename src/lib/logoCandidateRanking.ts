@@ -5,8 +5,13 @@ import type {
 } from "@/lib/analyzeWebsiteResponse";
 import { isFaviconStyleLogoCandidate } from "@/lib/logoCandidateQuality";
 import {
+  altHasLogoKeyword,
+  altLooksLikeMarketingCopy,
+  candidateLooksLikeMarketingImage,
   classifyLogoRole,
+  hasStrongWordmarkEvidence,
   logoRoleUiLabel,
+  pathHasStrongLogoEvidence,
 } from "@/lib/logoRoleClassification";
 
 export type ScoredLogoCandidate = LogoCandidate & {
@@ -364,7 +369,9 @@ function baseScoreForSource(
 ): { points: number; label: string } {
   switch (source) {
     case "header-image":
-      return { points: 94, label: "header/nav image" };
+      return hasStrongWordmarkEvidence(candidate, ctx)
+        ? { points: 94, label: "header/nav image" }
+        : { points: 36, label: "header/nav image (weak logo evidence)" };
     case "img-logo":
       return {
         points: hasBrandNameEvidence(candidate, ctx) ? 78 : 68,
@@ -419,22 +426,28 @@ export function scoreLogoCandidate(
   let score = sourcePoints;
   reasons.push(sourceLabel);
 
-  const blob = candidateTextBlob(candidate);
   const alt = (candidate.alt ?? "").toLowerCase();
+
+  const pathBlob = candidatePathBlob(candidate);
+  const strongWordmark = hasStrongWordmarkEvidence(candidate, ctx);
 
   if (hasBrandNameEvidence(candidate, ctx)) {
     score += 42;
-    reasons.push("brand name in alt/URL");
+    reasons.push("brand name in alt/path");
   }
-  if (
-    (alt.includes("logo") || /\blogo\b/i.test(blob)) &&
-    !altLooksLikeMarketingPhotoCaption(alt)
-  ) {
+  if (altHasLogoKeyword(candidate.alt ?? "") && !altLooksLikeMarketingCopy(alt)) {
     score += 18;
-    reasons.push("logo in alt or path");
+    reasons.push("alt matches logo keyword");
   }
-  if (urlLooksLogoish(candidate.url)) {
-    score += 10;
+  if (/primary[_-]?logo/i.test(pathBlob)) {
+    score += 40;
+    reasons.push("primary logo asset path");
+  }
+  if (pathHasStrongLogoEvidence(pathBlob)) {
+    score += 14;
+    reasons.push("brand logo path");
+  } else if (urlLooksLogoish(candidate.url)) {
+    score += 6;
     reasons.push("logo-like path");
   }
 
@@ -453,14 +466,30 @@ export function scoreLogoCandidate(
     reasons.push("JPEG (often photo)");
   }
 
-  if (looksLikeWordmarkDimensions(candidate)) {
+  if (looksLikeWordmarkDimensions(candidate) && strongWordmark) {
     score += 18;
     reasons.push("wordmark proportions");
+  } else if (
+    looksLikeWordmarkDimensions(candidate) &&
+    !strongWordmark
+  ) {
+    score -= 8;
+    reasons.push("not enough logo evidence");
+  }
+
+  if (logoRole === "wordmark" && strongWordmark) {
+    score += 20;
+    reasons.push("classified wordmark");
+  }
+
+  if (logoRole === "marketing_image") {
+    score -= 150;
+    reasons.push("penalized: marketing image");
   }
 
   if (
     candidate.source === "header-image" &&
-    hasBrandNameEvidence(candidate, ctx)
+    strongWordmark
   ) {
     score += 10;
     reasons.push("header wordmark with brand match");
@@ -499,7 +528,10 @@ export function scoreLogoCandidate(
     reasons.push("penalized: failover/HTML logo path");
   }
 
-  if (looksLikeMarketingOrCustomerImage(candidate)) {
+  if (
+    looksLikeMarketingOrCustomerImage(candidate) ||
+    candidateLooksLikeMarketingImage(candidate)
+  ) {
     score -= 120;
     reasons.push("penalized: marketing/customer image");
   }
@@ -648,8 +680,11 @@ export function isStrongDesignLogoCandidate(
       ? (candidate as ScoredLogoCandidate)
       : scoreLogoCandidate(candidate, ctx);
 
+  if (scored.logoRole === "marketing_image") return false;
+  if (scored.logoRole === "social_preview") return false;
   if (looksLikeProductAppIcon(scored)) return false;
   if (looksLikeMarketingOrCustomerImage(scored)) return false;
+  if (candidateLooksLikeMarketingImage(scored)) return false;
   if (looksLikeNavDecorNotLogo(scored)) return false;
   if (looksLikePrimaryBrandMarkAsset(scored) && (scored.score ?? 0) >= 70) {
     return true;
@@ -664,18 +699,21 @@ export function isStrongDesignLogoCandidate(
   if (scored.score >= 120) return true;
   if (
     scored.source === "header-image" &&
-    (hasBrandNameEvidence(scored, ctx) || looksLikeWordmarkDimensions(scored))
+    hasStrongWordmarkEvidence(scored, ctx)
   ) {
     return true;
   }
   if (
     scored.source === "img-logo" &&
-    hasBrandNameEvidence(scored, ctx) &&
+    hasStrongWordmarkEvidence(scored, ctx) &&
     (looksLikeWordmarkDimensions(scored) || (scored.score ?? 0) >= 85)
   ) {
     return true;
   }
-  if (looksLikeWordmarkDimensions(scored) && hasBrandNameEvidence(scored, ctx)) {
+  if (
+    looksLikeWordmarkDimensions(scored) &&
+    hasStrongWordmarkEvidence(scored, ctx)
+  ) {
     return true;
   }
   return false;
@@ -692,6 +730,7 @@ function shouldHideWhenStrongCandidatesExist(
   if (looksLikeMarketingOrCustomerImage(candidate)) return true;
   if (looksLikeNavDecorNotLogo(candidate)) return true;
   if (candidate.logoRole === "social_preview") return true;
+  if (candidate.logoRole === "marketing_image") return true;
   if (candidate.previewFetch?.accepted === false) return true;
   if (looksLikeFailoverLogoUrl(candidate)) return true;
   if (
@@ -756,9 +795,8 @@ export function filterLogoCandidatesForDesignUi(
   const hasStrong = strongList.length > 0;
   const hasHeaderWordmark = strongList.some(
     (c) =>
-      c.source === "header-image" ||
-      (c.source === "img-logo" &&
-        (looksLikeWordmarkDimensions(c) || hasBrandNameEvidence(c, ctx))),
+      c.logoRole === "wordmark" ||
+      (c.logoRole === "icon_mark" && hasStrongWordmarkEvidence(c, ctx)),
   );
 
   let pool = sorted;

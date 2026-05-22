@@ -172,6 +172,7 @@ export function LogoCandidatesReview({
                   index > 0 &&
                   (c.logoRole === "fallback_icon" ||
                     c.logoRole === "social_preview" ||
+                    c.logoRole === "marketing_image" ||
                     isProductAppIconPenalty(c.reason))
                 }
                 onPreviewFailed={markPreviewFailed}

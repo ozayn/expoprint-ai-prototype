@@ -1,14 +1,35 @@
 import type { LogoCandidate, LogoRole } from "@/lib/analyzeWebsiteResponse";
-import {
-  looksLikeFailoverLogoUrl,
-  type LogoRankingContext,
-} from "@/lib/logoCandidateRanking";
+import type { LogoRankingContext } from "@/lib/logoCandidateRanking";
 
-const LOGOISH_PATH_RE = /logo|brand|mark|identity|wordmark/i;
+const FAILOVER_LOGO_PATH_RE =
+  /sitefailover|sitedown|botfailover|failover.*\/images\//i;
 
-const LOGOISH_RE = /logo|brand|mark|wordmark/i;
+function looksLikeFailoverLogoUrl(candidate: LogoCandidate): boolean {
+  try {
+    const u = new URL(candidate.url);
+    const blob = `${u.pathname}${u.search}`.toLowerCase();
+    return FAILOVER_LOGO_PATH_RE.test(blob);
+  } catch {
+    return FAILOVER_LOGO_PATH_RE.test(candidate.url.toLowerCase());
+  }
+}
+
+const LOGOISH_PATH_RE = /logo|brand|mark|identity|wordmark|primary[_-]?logo/i;
+
+const LOGOISH_ALT_RE = /\blogo\b|wordmark/i;
+
+const PRIMARY_LOGO_PATH_RE =
+  /primary[_-]?logo|(?:^|\/)[^/]*[_-]logo[_-]|site[_-]?logo|brand[_-]?mark|wordmark/i;
+
 const MARKETING_PATH_RE =
   /enterprise-accordion|nav-bg|testimonial|hero-?bg|case-study|customer-story|sessions-\d/i;
+
+/** Promo / hero copy in alt — not brand wordmarks. */
+const MARKETING_ALT_RE =
+  /\b(get started|switch to|world'?s best|learn more|try free|sign up|free trial|background|hero\b|hero image|sessions\b|testimonial|accordion|customer story|case study|bento|platform graphic|annual letter|overhead view|delivery bag|boutique|kiosk|newspaper)\b/i;
+
+const PHOTO_CAPTION_ALT_RE =
+  /\b(view of|overhead|aerial|exterior|street view|imitating|forms a|crosswalk|showcasing)\b/i;
 
 function candidatePath(url: string): string {
   try {
@@ -19,20 +40,65 @@ function candidatePath(url: string): string {
   }
 }
 
-function candidateBlob(candidate: LogoCandidate): string {
-  return `${candidate.url} ${candidate.alt ?? ""}`.toLowerCase();
+function normalizeAltText(alt: string): string {
+  return alt.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function brandMatch(blob: string, ctx: LogoRankingContext): boolean {
-  return ctx.brandTokens.some((t) => {
-    if (t.length < 2) return false;
-    if (t.length <= 3) {
-      return new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
-        blob,
-      );
+function brandTokenMatchesText(text: string, token: string): boolean {
+  if (token.length < 2) return false;
+  if (token.length <= 3) {
+    return new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
+      text,
+    );
+  }
+  return text.includes(token);
+}
+
+function altMatchesBusinessName(alt: string, ctx: LogoRankingContext): boolean {
+  const normalized = normalizeAltText(alt);
+  if (!normalized) return false;
+  for (const token of ctx.brandTokens) {
+    if (token.length < 2) continue;
+    if (normalized === token) return true;
+    if (normalized === `${token} logo` || normalized === `${token} wordmark`) {
+      return true;
     }
-    return blob.includes(t);
-  });
+    if (
+      normalized.length <= token.length + 12 &&
+      brandTokenMatchesText(normalized, token) &&
+      !MARKETING_ALT_RE.test(normalized)
+    ) {
+      const words = normalized.split(/\s+/);
+      if (words.length <= 4 && words[0] === token) return true;
+    }
+  }
+  return false;
+}
+
+/** Alt explicitly names a logo (not a long marketing scene caption). */
+export function altHasLogoKeyword(alt: string): boolean {
+  const normalized = normalizeAltText(alt);
+  if (!normalized || !LOGOISH_ALT_RE.test(normalized)) return false;
+  if (PHOTO_CAPTION_ALT_RE.test(normalized)) return false;
+  if (normalized.length > 72 && !/\blogo\b/i.test(normalized)) return false;
+  return true;
+}
+
+/** Promo, hero, or descriptive scene copy — not a wordmark. */
+export function altLooksLikeMarketingCopy(alt: string): boolean {
+  const normalized = normalizeAltText(alt);
+  if (!normalized) return false;
+  if (MARKETING_ALT_RE.test(normalized)) return true;
+  if (/^switch to\b/i.test(normalized)) return true;
+  if (PHOTO_CAPTION_ALT_RE.test(normalized)) return true;
+  if (normalized.length > 55 && !LOGOISH_ALT_RE.test(normalized)) return true;
+  if (normalized.length > 72 && LOGOISH_ALT_RE.test(normalized)) return true;
+  return false;
+}
+
+export function pathHasStrongLogoEvidence(path: string): boolean {
+  if (MARKETING_PATH_RE.test(path)) return false;
+  return PRIMARY_LOGO_PATH_RE.test(path) || LOGOISH_PATH_RE.test(path);
 }
 
 function isSquareish(candidate: LogoCandidate): boolean {
@@ -60,28 +126,17 @@ function isPrimaryBrandSvg(path: string): boolean {
   return /favicon\.svg(?:$|\?)/i.test(path);
 }
 
-function isLogoishPath(path: string): boolean {
-  return LOGOISH_RE.test(path);
-}
-
-function urlLooksLogoish(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return LOGOISH_PATH_RE.test(`${u.pathname}${u.search}`);
-  } catch {
-    return LOGOISH_PATH_RE.test(url);
-  }
-}
-
 function ogImageLooksLogoLike(
   candidate: LogoCandidate,
   ctx: LogoRankingContext,
 ): boolean {
   if (candidate.source !== "og:image") return false;
-  const alt = (candidate.alt ?? "").toLowerCase();
-  if (alt.includes("logo")) return true;
-  if (urlLooksLogoish(candidate.url)) return true;
-  if (brandMatch(candidateBlob(candidate), ctx)) return true;
+  const alt = candidate.alt ?? "";
+  if (altLooksLikeMarketingCopy(alt)) return false;
+  if (altHasLogoKeyword(alt)) return true;
+  const path = candidatePath(candidate.url);
+  if (pathHasStrongLogoEvidence(path)) return true;
+  if (altMatchesBusinessName(alt, ctx)) return true;
   const { width, height } = candidate;
   if (
     typeof width === "number" &&
@@ -92,31 +147,91 @@ function ogImageLooksLogoLike(
     height <= 520
   ) {
     const ratio = width / height;
-    if (ratio >= 0.45 && ratio <= 2.2) return true;
+    if (ratio >= 0.45 && ratio <= 2.2 && pathHasStrongLogoEvidence(path)) {
+      return true;
+    }
   }
   return false;
 }
 
-function looksLikeMarketingImage(candidate: LogoCandidate): boolean {
-  const blob = candidateBlob(candidate);
-  if (MARKETING_PATH_RE.test(blob)) return true;
-  const alt = (candidate.alt ?? "").trim();
-  if (candidate.source === "img-logo" && alt.length > 72 && /\blogo\b/i.test(alt)) {
+export function candidateLooksLikeMarketingImage(
+  candidate: LogoCandidate,
+): boolean {
+  const path = candidatePath(candidate.url);
+  const alt = candidate.alt ?? "";
+  if (MARKETING_PATH_RE.test(path)) return true;
+  if (altLooksLikeMarketingCopy(alt)) return true;
+  if (
+    candidate.source === "img-logo" &&
+    alt.length > 72 &&
+    /\blogo\b/i.test(alt)
+  ) {
     return true;
   }
   return false;
 }
 
-function isVerySmallIcon(candidate: LogoCandidate): boolean {
-  const { width, height } = candidate;
-  if (typeof width === "number" && typeof height === "number") {
-    if (Math.max(width, height) <= 48) return true;
-    if (width <= 64 && height <= 64) return true;
+/**
+ * Strong evidence this asset is a real brand logo/wordmark — not header promo art.
+ */
+export function hasStrongWordmarkEvidence(
+  candidate: LogoCandidate,
+  ctx: LogoRankingContext = { brandTokens: [] },
+): boolean {
+  if (candidateLooksLikeMarketingImage(candidate)) return false;
+  if (looksLikeFailoverLogoUrl(candidate)) return false;
+
+  const path = candidatePath(candidate.url);
+  const alt = candidate.alt ?? "";
+
+  if (pathHasStrongLogoEvidence(path) && !altLooksLikeMarketingCopy(alt)) {
+    if (
+      candidate.source === "img-logo" ||
+      candidate.source === "icon" ||
+      candidate.source === "apple-touch-icon" ||
+      isPrimaryBrandSvg(path)
+    ) {
+      return true;
+    }
+    if (
+      (candidate.source === "header-image" || candidate.source === "og:image") &&
+      (altMatchesBusinessName(alt, ctx) ||
+        altHasLogoKeyword(alt) ||
+        looksLikeWordmarkProportions(candidate))
+    ) {
+      return true;
+    }
+    if (
+      candidate.source === "header-image" &&
+      looksLikeWordmarkProportions(candidate) &&
+      PRIMARY_LOGO_PATH_RE.test(path)
+    ) {
+      return true;
+    }
   }
-  return (
-    isFaviconSource(candidate) &&
-    /fav[_-]?icon|\/32x32|\/64x64|width=32\b/i.test(candidate.url)
-  );
+
+  if (altMatchesBusinessName(alt, ctx)) return true;
+
+  if (altHasLogoKeyword(alt)) return true;
+
+  if (
+    candidate.source === "header-image" &&
+    (altMatchesBusinessName(alt, ctx) || altHasLogoKeyword(alt))
+  ) {
+    return true;
+  }
+
+  if (
+    (candidate.source === "img-logo" || candidate.source === "og:image") &&
+    looksLikeWordmarkProportions(candidate) &&
+    (altMatchesBusinessName(alt, ctx) ||
+      altHasLogoKeyword(alt) ||
+      pathHasStrongLogoEvidence(path))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -127,16 +242,14 @@ export function classifyLogoRole(
   ctx: LogoRankingContext = { brandTokens: [] },
 ): LogoRole {
   const path = candidatePath(candidate.url);
-  const blob = candidateBlob(candidate);
-  const alt = (candidate.alt ?? "").toLowerCase();
-  const brandHit = brandMatch(blob, ctx);
+  const alt = candidate.alt ?? "";
 
   if (looksLikeFailoverLogoUrl(candidate)) {
     return "social_preview";
   }
 
-  if (looksLikeMarketingImage(candidate)) {
-    return "social_preview";
+  if (candidateLooksLikeMarketingImage(candidate)) {
+    return "marketing_image";
   }
 
   if (
@@ -146,26 +259,7 @@ export function classifyLogoRole(
     return "social_preview";
   }
 
-  if (
-    candidate.source === "header-image" &&
-    !/flags\.svg|\/flags(?:\/|$)/i.test(blob)
-  ) {
-    if (
-      looksLikeWordmarkProportions(candidate) ||
-      brandHit ||
-      LOGOISH_RE.test(alt) ||
-      isLogoishPath(path)
-    ) {
-      return "wordmark";
-    }
-    return "wordmark";
-  }
-
-  if (
-    (candidate.source === "img-logo" || candidate.source === "og:image") &&
-    looksLikeWordmarkProportions(candidate) &&
-    (brandHit || LOGOISH_RE.test(alt) || isLogoishPath(path))
-  ) {
+  if (hasStrongWordmarkEvidence(candidate, ctx)) {
     return "wordmark";
   }
 
@@ -182,11 +276,28 @@ export function classifyLogoRole(
     return "icon_mark";
   }
 
+  const brandInPath = ctx.brandTokens.some((t) =>
+    t.length >= 3 ? path.includes(t) : false,
+  );
+
   if (
     isFaviconSource(candidate) &&
-    (brandHit || isLogoishPath(path) || /\.svg(?:$|\?)/i.test(path))
+    (pathHasStrongLogoEvidence(path) || brandInPath) &&
+    /\.svg(?:$|\?)/i.test(path)
   ) {
-    if (isVerySmallIcon(candidate) && !brandHit && !isPrimaryBrandSvg(path)) {
+    return "icon_mark";
+  }
+
+  if (
+    isFaviconSource(candidate) &&
+    (pathHasStrongLogoEvidence(path) || brandInPath)
+  ) {
+    if (
+      typeof candidate.width === "number" &&
+      typeof candidate.height === "number" &&
+      Math.max(candidate.width, candidate.height) <= 48 &&
+      !isPrimaryBrandSvg(path)
+    ) {
       return "fallback_icon";
     }
     return "icon_mark";
@@ -194,7 +305,7 @@ export function classifyLogoRole(
 
   if (
     isSquareish(candidate) &&
-    (brandHit || isLogoishPath(path) || LOGOISH_RE.test(alt)) &&
+    pathHasStrongLogoEvidence(path) &&
     !looksLikeWordmarkProportions(candidate)
   ) {
     const max =
@@ -204,7 +315,7 @@ export function classifyLogoRole(
     if (max !== undefined && max >= 56) return "icon_mark";
   }
 
-  if (isFaviconSource(candidate) || isVerySmallIcon(candidate)) {
+  if (isFaviconSource(candidate)) {
     return "fallback_icon";
   }
 
@@ -212,11 +323,18 @@ export function classifyLogoRole(
     candidate.source === "og:image" &&
     ogImageLooksLogoLike(candidate, ctx)
   ) {
-    return looksLikeWordmarkProportions(candidate) ? "wordmark" : "icon_mark";
+    return "icon_mark";
   }
 
-  if (LOGOISH_RE.test(alt) || isLogoishPath(path)) {
-    return looksLikeWordmarkProportions(candidate) ? "wordmark" : "unknown";
+  if (
+    candidate.source === "header-image" &&
+    !/flags\.svg|\/flags(?:\/|$)/i.test(path)
+  ) {
+    return "unknown";
+  }
+
+  if (pathHasStrongLogoEvidence(path) && !altLooksLikeMarketingCopy(alt)) {
+    return "unknown";
   }
 
   return "unknown";
@@ -230,6 +348,8 @@ export function logoRoleUiLabel(role: LogoRole | undefined): string {
       return "Icon mark";
     case "social_preview":
       return "Social preview";
+    case "marketing_image":
+      return "Marketing image";
     case "fallback_icon":
       return "Fallback icon";
     case "unknown":

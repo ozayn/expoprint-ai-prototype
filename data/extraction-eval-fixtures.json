@@ -285,6 +285,18 @@
           "path": "brand.typography.fontFamilies",
           "min": 1,
           "severity": "nice_to_have"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "brand.logoCandidates[0].url",
+          "substring": "shopify-logo-primary-logo",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "pathIn",
+          "path": "brand.logoCandidates[0].logoRole",
+          "expected": ["wordmark", "icon_mark"],
+          "severity": "nice_to_have"
         }
       ]
     },

@@ -37,6 +37,7 @@ export type LogoRole =
   | "wordmark"
   | "icon_mark"
   | "social_preview"
+  | "marketing_image"
   | "fallback_icon"
   | "unknown";
 
