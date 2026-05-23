@@ -13,6 +13,10 @@ import type {
 } from "@/lib/designIntakeApiSchema";
 import { getSelectedProductComponents } from "@/lib/designIntakeState";
 import {
+  buildExtractApiPreviewJson,
+  resolveExtractApiPreviewLogoSelection,
+} from "@/lib/buildExtractApiPreviewJson";
+import {
   buildLogoRankingContextFromIntake,
   pickBestCanvasLogoCandidate,
 } from "@/lib/logoCanvasPreference";
@@ -115,9 +119,11 @@ export function DesignIntakeApiTester() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<DesignIntakeExtractResponse | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedRaw, setCopiedRaw] = useState(false);
+  const [copiedPreview, setCopiedPreview] = useState(false);
   const [previewSessionKey, setPreviewSessionKey] = useState(0);
-  const [selectedPreviewLogoUrl, setSelectedPreviewLogoUrl] = useState("");
+  const [selectedPreviewLogoCandidateUrl, setSelectedPreviewLogoCandidateUrl] =
+    useState("");
 
   const formContext = useMemo(
     (): ExtractApiFormContext => ({
@@ -142,9 +148,9 @@ export function DesignIntakeApiTester() {
   const previewIntake = useMemo(() => {
     if (!successResponse) return null;
     return mapExtractApiResponseToIntake(successResponse, formContext, {
-      selectedLogoUrl: selectedPreviewLogoUrl,
+      selectedLogoUrl: selectedPreviewLogoCandidateUrl,
     });
-  }, [successResponse, formContext, selectedPreviewLogoUrl]);
+  }, [successResponse, formContext, selectedPreviewLogoCandidateUrl]);
 
   const previewSurface = useMemo(() => {
     if (!previewIntake) return null;
@@ -181,10 +187,28 @@ export function DesignIntakeApiTester() {
     });
   }, []);
 
-  const formattedJson = useMemo(
+  const previewLogoSelection = useMemo(() => {
+    if (!successResponse) return null;
+    return resolveExtractApiPreviewLogoSelection(
+      successResponse,
+      formContext,
+      selectedPreviewLogoCandidateUrl,
+    );
+  }, [successResponse, formContext, selectedPreviewLogoCandidateUrl]);
+
+  const formattedRawJson = useMemo(
     () => (response ? JSON.stringify(response, null, 2) : ""),
     [response],
   );
+
+  const formattedPreviewJson = useMemo(() => {
+    if (!response || !previewLogoSelection) return "";
+    return JSON.stringify(
+      buildExtractApiPreviewJson(response, previewLogoSelection),
+      null,
+      2,
+    );
+  }, [response, previewLogoSelection]);
 
   const summary = useMemo(
     () => (response ? summarizeResponse(response) : null),
@@ -213,7 +237,8 @@ export function DesignIntakeApiTester() {
 
     setLoading(true);
     setError(null);
-    setCopied(false);
+    setCopiedRaw(false);
+    setCopiedPreview(false);
 
     const body = buildRequestBody(
       normalizedUrl,
@@ -248,10 +273,10 @@ export function DesignIntakeApiTester() {
       setResponse(typed);
 
       if (typed.ok === true) {
-        setSelectedPreviewLogoUrl("");
+        setSelectedPreviewLogoCandidateUrl("");
         setPreviewSessionKey((k) => k + 1);
       } else {
-        setSelectedPreviewLogoUrl("");
+        setSelectedPreviewLogoCandidateUrl("");
       }
 
       if (!res.ok) {
@@ -259,7 +284,7 @@ export function DesignIntakeApiTester() {
       }
     } catch (err) {
       setResponse(null);
-      setSelectedPreviewLogoUrl("");
+      setSelectedPreviewLogoCandidateUrl("");
       setError(
         err instanceof Error ? err.message : "Request failed. Is the dev server running?",
       );
@@ -274,22 +299,39 @@ export function DesignIntakeApiTester() {
     customerInstructions,
   ]);
 
-  const onCopyJson = useCallback(async () => {
-    if (!formattedJson) return;
+  const copyText = useCallback(async (text: string, which: "raw" | "preview") => {
+    if (!text) return;
     try {
-      await navigator.clipboard.writeText(formattedJson);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      if (which === "raw") {
+        setCopiedRaw(true);
+        window.setTimeout(() => setCopiedRaw(false), 2000);
+      } else {
+        setCopiedPreview(true);
+        window.setTimeout(() => setCopiedPreview(false), 2000);
+      }
     } catch {
-      setCopied(false);
+      if (which === "raw") setCopiedRaw(false);
+      else setCopiedPreview(false);
     }
-  }, [formattedJson]);
+  }, []);
+
+  const onCopyRawJson = useCallback(
+    () => void copyText(formattedRawJson, "raw"),
+    [copyText, formattedRawJson],
+  );
+
+  const onCopyPreviewJson = useCallback(
+    () => void copyText(formattedPreviewJson, "preview"),
+    [copyText, formattedPreviewJson],
+  );
 
   const onClear = useCallback(() => {
     setResponse(null);
     setError(null);
-    setCopied(false);
-    setSelectedPreviewLogoUrl("");
+    setCopiedRaw(false);
+    setCopiedPreview(false);
+    setSelectedPreviewLogoCandidateUrl("");
     setPreviewSessionKey((k) => k + 1);
   }, []);
 
@@ -436,19 +478,9 @@ export function DesignIntakeApiTester() {
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-zinc-900">Response</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void onCopyJson()}
-                disabled={!formattedJson}
-                className={btnSecondary}
-              >
-                {copied ? "Copied" : "Copy JSON"}
-              </button>
-              <button type="button" onClick={onClear} className={btnSecondary}>
-                Clear response
-              </button>
-            </div>
+            <button type="button" onClick={onClear} className={btnSecondary}>
+              Clear response
+            </button>
           </div>
 
           {error && (
@@ -501,9 +533,31 @@ export function DesignIntakeApiTester() {
             <section className="mt-6 border-t border-zinc-100 pt-6">
               <h3 className="text-sm font-semibold text-zinc-900">Canvas preview</h3>
               <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                This canvas is a visual preview generated from the API response; JSON
-                remains the integration output.
+                Canvas preview uses the logo selection below. Raw JSON is the API
+                contract; Preview JSON adds local UI state for the chosen canvas logo.
               </p>
+
+              {previewLogoSelection ? (
+                <p className="mt-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                  Preview logo:{" "}
+                  <span className="font-medium text-zinc-800">
+                    {previewLogoSelection.logoSelectionMode === "auto"
+                      ? "Auto (compact mark)"
+                      : "Manual"}
+                  </span>
+                  {previewLogoSelection.selectedLogoCandidateUrl ? (
+                    <>
+                      {" "}
+                      —{" "}
+                      <span className="font-mono text-[11px] text-zinc-700">
+                        {previewLogoSelection.selectedLogoCandidateUrl}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-500"> (none on canvas)</span>
+                  )}
+                </p>
+              ) : null}
 
               {logoCandidates.length > 0 ? (
                 <div className="mt-3">
@@ -512,8 +566,10 @@ export function DesignIntakeApiTester() {
                   </label>
                   <select
                     id="api-test-preview-logo"
-                    value={selectedPreviewLogoUrl}
-                    onChange={(e) => setSelectedPreviewLogoUrl(e.target.value)}
+                    value={selectedPreviewLogoCandidateUrl}
+                    onChange={(e) =>
+                      setSelectedPreviewLogoCandidateUrl(e.target.value)
+                    }
                     className={inputClass}
                   >
                     <option value="">
@@ -541,11 +597,48 @@ export function DesignIntakeApiTester() {
             </section>
           )}
 
-          {formattedJson && (
-            <pre className="mt-4 max-h-[min(70vh,640px)] overflow-auto rounded-lg border border-zinc-200 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-100">
-              <code>{formattedJson}</code>
-            </pre>
-          )}
+          {formattedRawJson ? (
+            <div className="mt-6 border-t border-zinc-100 pt-6">
+              <p className="text-xs leading-relaxed text-zinc-500">
+                Raw JSON is the API contract. Preview JSON includes local UI selections
+                such as the chosen canvas logo.
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-zinc-900">Raw API response</h3>
+                <button
+                  type="button"
+                  onClick={() => void onCopyRawJson()}
+                  disabled={!formattedRawJson}
+                  className={btnSecondary}
+                >
+                  {copiedRaw ? "Copied" : "Copy raw JSON"}
+                </button>
+              </div>
+              <pre className="mt-2 max-h-[min(50vh,480px)] overflow-auto rounded-lg border border-zinc-200 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-100">
+                <code>{formattedRawJson}</code>
+              </pre>
+
+              {formattedPreviewJson ? (
+                <>
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-zinc-900">Preview JSON</h3>
+                    <button
+                      type="button"
+                      onClick={() => void onCopyPreviewJson()}
+                      disabled={!formattedPreviewJson}
+                      className={btnSecondary}
+                    >
+                      {copiedPreview ? "Copied" : "Copy preview JSON"}
+                    </button>
+                  </div>
+                  <pre className="mt-2 max-h-[min(50vh,480px)] overflow-auto rounded-lg border border-zinc-200 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-100">
+                    <code>{formattedPreviewJson}</code>
+                  </pre>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       )}
     </div>
