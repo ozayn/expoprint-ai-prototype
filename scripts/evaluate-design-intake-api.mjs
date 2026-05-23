@@ -135,6 +135,21 @@ function runCheck(response, check) {
         expected: sub,
       };
     }
+    case "pathNotIncludes": {
+      const sub = check.substring ?? "";
+      const hay = typeof actual === "string" ? actual : String(actual ?? "");
+      const pass =
+        hay.length === 0 || !hay.toLowerCase().includes(sub.toLowerCase());
+      return {
+        pass,
+        message: pass
+          ? "substring absent"
+          : `expected path not to include ${JSON.stringify(sub)}, got ${formatValue(actual)}`,
+        severity,
+        actual,
+        expected: `not ${sub}`,
+      };
+    }
     case "arrayIncludes": {
       const sub = check.substring ?? "";
       const arr = Array.isArray(actual) ? actual : [];

@@ -21,6 +21,7 @@ import {
 import { buildConceptColorPlan } from "./designStyleGuide";
 import { buildFabricTypographyFromSignals } from "@/lib/typographyMapping";
 import { normalizeBulletPhrasesForDisplay } from "@/lib/supportingBulletText";
+import { resolveCanvasLogo } from "@/lib/logoCanvasPreference";
 
 const CANVAS = { width: 1000, height: 600 } as const;
 
@@ -523,10 +524,14 @@ function isCompactPrimaryLogoAsset(
   remote: string,
   selected: DesignIntakeState["logoCandidates"][number] | undefined,
 ): boolean {
+  const role = selected?.logoRole;
+  if (role === "wordmark") {
+    return isSquareishLogoDimensions(selected?.width, selected?.height);
+  }
+
   const url = remote.toLowerCase();
   if (COMPACT_PRIMARY_LOGO_PATH_RE.test(url)) return true;
   if (isSquareishLogoDimensions(selected?.width, selected?.height)) return true;
-  const role = selected?.logoRole;
   if (
     role === "icon_mark" ||
     role === "fallback_icon" ||
@@ -583,13 +588,8 @@ function compactLogoMaxRenderedPx(
 function buildSelectedLogoImageLayer(
   intake: DesignIntakeState,
 ): ImageLayer[] {
-  const remote =
-    typeof intake.selectedLogoCandidateUrl === "string"
-      ? intake.selectedLogoCandidateUrl.trim()
-      : "";
+  const { url: remote, candidate: selected } = resolveCanvasLogo(intake);
   if (!remote || !/^https?:\/\//i.test(remote)) return [];
-
-  const selected = intake.logoCandidates.find((c) => c.url === remote);
   const role = selected?.logoRole;
   const fitHint = resolveSelectedLogoFitHint(remote, selected);
   const logoMaxRenderedPx = compactLogoMaxRenderedPx(remote, fitHint);
@@ -856,9 +856,8 @@ export function createDesignSpecFromIntake(
    * do not believe the remote image is embedded. The actual URL is recorded
    * in the design brief for the designer.
    */
-  const hasSelectedLogoCandidate =
-    typeof intake.selectedLogoCandidateUrl === "string" &&
-    intake.selectedLogoCandidateUrl.trim().length > 0;
+  const canvasLogo = resolveCanvasLogo(intake);
+  const hasSelectedLogoCandidate = canvasLogo.url.length > 0;
   const logoStrokeWidth = hasSelectedLogoCandidate
     ? baseLogoStrokeWidth + 1
     : baseLogoStrokeWidth;
@@ -1044,6 +1043,9 @@ export function createDesignSpecFromIntake(
         ? {
             selectedLogoFitMode: selectedLogoLayer.fitHint,
             selectedLogoRenderedMaxPx: selectedLogoLayer.logoMaxRenderedPx,
+            ...(canvasLogo.autoSelected
+              ? { canvasLogoAutoSelected: true as const }
+              : {}),
           }
         : {}),
     },

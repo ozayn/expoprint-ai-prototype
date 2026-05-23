@@ -494,6 +494,51 @@
       ]
     },
     {
+      "name": "instagram-social-app",
+      "websiteUrl": "https://www.instagram.com",
+      "productCategory": "Trade show booth",
+      "components": ["Backdrop"],
+      "stylePreference": "Modern",
+      "expectedChecks": [
+        {
+          "type": "exact",
+          "path": "ok",
+          "expected": true,
+          "severity": "required"
+        },
+        {
+          "type": "pathIncludes",
+          "path": "business.domain",
+          "substring": "instagram.com",
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "brand.logoCandidates",
+          "min": 1,
+          "severity": "required"
+        },
+        {
+          "type": "pathNotIncludes",
+          "path": "brand.logoCandidates[0].url",
+          "substring": "scontent",
+          "severity": "required"
+        },
+        {
+          "type": "pathIn",
+          "path": "brand.logoCandidates[0].logoRole",
+          "expected": ["wordmark", "icon_mark", "fallback_icon"],
+          "severity": "required"
+        },
+        {
+          "type": "countGte",
+          "path": "metadata.pagesInspected",
+          "min": 1,
+          "severity": "required"
+        }
+      ]
+    },
+    {
       "name": "warby-parker-blocked-fetch",
       "websiteUrl": "https://www.warbyparker.com",
       "productCategory": "Trade show booth",

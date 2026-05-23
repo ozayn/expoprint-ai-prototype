@@ -14,8 +14,13 @@ import {
 import {
   isStrongDesignLogoCandidate,
   logoPrimaryDesignLabel,
-  logoRoleDesignLabel,
 } from "@/lib/logoCandidateRanking";
+import {
+  buildLogoRankingContextFromIntake,
+  logoCanvasDesignLabel,
+  logoRoleReviewLabel,
+  pickBestCanvasLogoCandidate,
+} from "@/lib/logoCanvasPreference";
 
 const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
   icon: "favicon",
@@ -27,7 +32,7 @@ const SOURCE_LABEL: Record<LogoCandidateSource, string> = {
 };
 
 const HELPER_COPY =
-  "Ranked for design use — wordmarks first, then compact icon marks. Designers should confirm or upload a production-quality logo.";
+  "Ranked for design use — full wordmarks first, then compact icon marks. When the business name is on the canvas, a compact mark may be used in the logo area by default.";
 
 const ICON_MARK_HELPER =
   "Useful for compact placement; production logo upload still recommended.";
@@ -40,6 +45,8 @@ export type LogoCandidatesReviewProps = {
   variant?: "compact" | "wide";
   /** Editor uses compact labels + tooltip; demo keeps inline helper copy. */
   helperMode?: "inline" | "tooltip";
+  businessName?: string;
+  websiteUrl?: string;
 };
 
 /**
@@ -52,6 +59,8 @@ export function LogoCandidatesReview({
   onSelect,
   variant = "compact",
   helperMode = "inline",
+  businessName = "",
+  websiteUrl = "",
 }: LogoCandidatesReviewProps) {
   const previewHeight = variant === "wide" ? "h-28" : "h-24";
   const [failedPreviewUrls, setFailedPreviewUrls] = useState<Set<string>>(
@@ -66,6 +75,20 @@ export function LogoCandidatesReview({
       return next;
     });
   }, []);
+
+  const rankingCtx = useMemo(
+    () =>
+      buildLogoRankingContextFromIntake({
+        businessName,
+        websiteUrl,
+      }),
+    [businessName, websiteUrl],
+  );
+
+  const bestForCanvasUrl = useMemo(() => {
+    if (!businessName.trim()) return null;
+    return pickBestCanvasLogoCandidate(candidates, rankingCtx)?.url ?? null;
+  }, [candidates, rankingCtx, businessName]);
 
   const displayCandidates = useMemo(() => {
     const hasNonFailed = candidates.some((c) => !failedPreviewUrls.has(c.url));
@@ -87,6 +110,11 @@ export function LogoCandidatesReview({
   }, [candidates, failedPreviewUrls]);
 
   const hiddenCount = candidates.length - displayCandidates.length;
+  const overallBestUrl = displayCandidates[0]?.url ?? null;
+  const canvasBadgeUrl =
+    bestForCanvasUrl && bestForCanvasUrl !== overallBestUrl
+      ? bestForCanvasUrl
+      : null;
   const countLabel =
     displayCandidates.length === 0
       ? "No logo candidates to show"
@@ -158,27 +186,43 @@ export function LogoCandidatesReview({
             </p>
           ) : null}
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {displayCandidates.map((c, index) => (
+            {displayCandidates.map((c, index) => {
+              const primaryLabel = logoPrimaryDesignLabel(index, c);
+              return (
               <LogoCandidateCard
                 key={c.url}
                 candidate={c}
                 selected={c.url === selectedUrl}
                 onSelect={onSelect}
                 previewHeightClass={previewHeight}
-                primaryLabel={logoPrimaryDesignLabel(index)}
-                roleLabel={logoRoleDesignLabel(c)}
-                isBestMatch={index === 0}
+                primaryLabel={primaryLabel}
+                canvasLabel={logoCanvasDesignLabel(c.url, canvasBadgeUrl)}
+                roleLabel={logoRoleReviewLabel(c)}
+                isBestMatch={Boolean(primaryLabel)}
                 isDeemphasized={
                   index > 0 &&
                   (c.logoRole === "fallback_icon" ||
                     c.logoRole === "social_preview" ||
                     c.logoRole === "marketing_image" ||
-                    isProductAppIconPenalty(c.reason))
+                    isProductAppIconPenalty(c.reason) ||
+                    isSocialMediaThumbnailPenalty(c.reason))
                 }
                 onPreviewFailed={markPreviewFailed}
               />
-            ))}
+              );
+            })}
           </ul>
+          {!selectedUrl && bestForCanvasUrl ? (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs leading-snug text-zinc-600">
+              <p className="font-medium text-zinc-800">
+                Canvas preview uses the compact mark by default when no logo is selected.
+              </p>
+              <p className="mt-1 text-zinc-500">
+                Choose a candidate below to override, or upload a production-quality logo for
+                print.
+              </p>
+            </div>
+          ) : null}
           {selectedUrl ? (
             <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2.5 text-xs leading-snug">
               <p className="font-medium text-emerald-800">
@@ -224,6 +268,7 @@ type LogoCandidateCardProps = {
   onSelect: (url: string) => void;
   previewHeightClass: string;
   primaryLabel: string | null;
+  canvasLabel: string | null;
   roleLabel: string;
   isBestMatch: boolean;
   isDeemphasized: boolean;
@@ -236,6 +281,7 @@ function LogoCandidateCard({
   onSelect,
   previewHeightClass,
   primaryLabel,
+  canvasLabel,
   roleLabel,
   isBestMatch,
   isDeemphasized,
@@ -252,7 +298,8 @@ function LogoCandidateCard({
 
   const showTransparentBadge =
     candidate.transparency === "likely_transparent" &&
-    !isProductAppIconPenalty(candidate.reason);
+    !isProductAppIconPenalty(candidate.reason) &&
+    !isSocialMediaThumbnailPenalty(candidate.reason);
   const showIconMarkHelper = candidate.logoRole === "icon_mark";
 
   const handlePreviewError = () => {
@@ -319,6 +366,11 @@ function LogoCandidateCard({
               {primaryLabel}
             </span>
           ) : null}
+          {canvasLabel ? (
+            <span className="rounded-full bg-sky-700 px-2 py-0.5 text-[10px] font-medium text-white">
+              {canvasLabel}
+            </span>
+          ) : null}
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
               roleLabel === "Fallback icon" || roleLabel === "Social preview"
@@ -333,8 +385,13 @@ function LogoCandidateCard({
               Transparent likely
             </span>
           ) : null}
-          {isProductAppIconPenalty(candidate.reason) ? (
-            <span className="text-[10px] text-zinc-400">Less likely logo</span>
+          {isProductAppIconPenalty(candidate.reason) ||
+          isSocialMediaThumbnailPenalty(candidate.reason) ? (
+            <span className="text-[10px] text-zinc-400">
+              {isSocialMediaThumbnailPenalty(candidate.reason)
+                ? "Not a logo asset"
+                : "Less likely logo"}
+            </span>
           ) : null}
         </div>
 
@@ -360,6 +417,10 @@ function LogoCandidateCard({
 
 function isProductAppIconPenalty(reason: string | undefined): boolean {
   return /penalized:\s*product\/app icon/i.test(reason ?? "");
+}
+
+function isSocialMediaThumbnailPenalty(reason: string | undefined): boolean {
+  return /social media thumbnail|not a logo asset/i.test(reason ?? "");
 }
 
 function truncateMiddle(text: string, maxLen: number): string {

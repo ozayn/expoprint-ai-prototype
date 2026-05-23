@@ -13,6 +13,10 @@ import type {
 } from "@/lib/designIntakeApiSchema";
 import { getSelectedProductComponents } from "@/lib/designIntakeState";
 import {
+  buildLogoRankingContextFromIntake,
+  pickBestCanvasLogoCandidate,
+} from "@/lib/logoCanvasPreference";
+import {
   mapExtractApiResponseToIntake,
   type ExtractApiFormContext,
 } from "@/lib/mapExtractApiResponseToIntake";
@@ -148,7 +152,19 @@ export function DesignIntakeApiTester() {
     return surfaces[0] ?? null;
   }, [previewIntake]);
 
-  const logoCandidates = successResponse?.brand.logoCandidates ?? [];
+  const logoCandidates = useMemo(
+    () => successResponse?.brand.logoCandidates ?? [],
+    [successResponse],
+  );
+
+  const bestForCanvasPreviewUrl = useMemo(() => {
+    if (!successResponse) return null;
+    const ctx = buildLogoRankingContextFromIntake({
+      businessName: successResponse.business.name,
+      websiteUrl: successResponse.business.website,
+    });
+    return pickBestCanvasLogoCandidate(logoCandidates, ctx)?.url ?? null;
+  }, [successResponse, logoCandidates]);
 
   const onCategoryChange = useCallback((next: ProductCategory) => {
     setProductCategory(next);
@@ -232,8 +248,7 @@ export function DesignIntakeApiTester() {
       setResponse(typed);
 
       if (typed.ok === true) {
-        const topLogo = typed.brand.logoCandidates[0]?.url?.trim() ?? "";
-        setSelectedPreviewLogoUrl(topLogo);
+        setSelectedPreviewLogoUrl("");
         setPreviewSessionKey((k) => k + 1);
       } else {
         setSelectedPreviewLogoUrl("");
@@ -501,10 +516,16 @@ export function DesignIntakeApiTester() {
                     onChange={(e) => setSelectedPreviewLogoUrl(e.target.value)}
                     className={inputClass}
                   >
+                    <option value="">
+                      Auto — best for canvas
+                      {bestForCanvasPreviewUrl ? " (compact mark)" : ""}
+                    </option>
                     {logoCandidates.map((candidate, index) => (
                       <option key={candidate.url} value={candidate.url}>
-                        {index === 0 ? "Top ranked — " : ""}
+                        {index === 0 ? "Best match — " : ""}
                         {candidate.source}
+                        {candidate.logoRole === "icon_mark" ? " · compact mark" : ""}
+                        {candidate.logoRole === "wordmark" ? " · full wordmark" : ""}
                         {candidate.alt ? ` (${candidate.alt})` : ""}
                       </option>
                     ))}

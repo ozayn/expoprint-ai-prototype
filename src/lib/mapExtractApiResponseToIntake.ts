@@ -188,10 +188,7 @@ export function mapExtractApiResponseToIntake(
   const components = resolveComponents(response, form);
   const style = resolveStylePreference(response, form);
   const logoCandidates = response.brand.logoCandidates ?? [];
-  const selectedLogoCandidateUrl =
-    options.selectedLogoUrl?.trim() ||
-    logoCandidates[0]?.url?.trim() ||
-    "";
+  const selectedLogoCandidateUrl = options.selectedLogoUrl?.trim() ?? "";
 
   const websiteUrl =
     response.business.website?.trim() ||

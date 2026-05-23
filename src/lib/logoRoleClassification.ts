@@ -14,6 +14,68 @@ function looksLikeFailoverLogoUrl(candidate: LogoCandidate): boolean {
   }
 }
 
+function socialContentCdnHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (SOCIAL_CONTENT_CDN_HOST_RE.test(host)) return true;
+  if (/^scontent[-.]/.test(host) || host.includes("scontent-")) return true;
+  return false;
+}
+
+/**
+ * Scraped feed/preview thumbnails from Instagram and similar social CDNs —
+ * not usable logo assets even when they appear in header/og:image slots.
+ */
+export function looksLikeSocialMediaContentThumbnail(
+  candidate: LogoCandidate,
+): boolean {
+  let host = "";
+  let path = "";
+  try {
+    const u = new URL(candidate.url);
+    host = u.hostname.toLowerCase();
+    path = `${u.pathname}${u.search}`.toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const onSocialCdn = socialContentCdnHost(host);
+
+  if (
+    (candidate.source === "icon" || candidate.source === "apple-touch-icon") &&
+    !host.includes("scontent") &&
+    !SOCIAL_MEDIA_THUMBNAIL_PATH_RE.test(path)
+  ) {
+    return false;
+  }
+
+  if (ICON_ONLY_PATH_RE.test(path) || /\/images\/ico\//i.test(path)) {
+    return false;
+  }
+
+  if (pathHasStrongLogoEvidence(path) && !onSocialCdn) {
+    return false;
+  }
+
+  if (SOCIAL_MEDIA_THUMBNAIL_PATH_RE.test(path) && onSocialCdn) {
+    return true;
+  }
+
+  if (!onSocialCdn) return false;
+
+  if (
+    (candidate.source === "og:image" || candidate.source === "header-image") &&
+    !pathHasStrongLogoEvidence(path)
+  ) {
+    return true;
+  }
+
+  if (SOCIAL_RANDOM_RASTER_EXT_RE.test(path) && !pathHasStrongLogoEvidence(path)) {
+    return true;
+  }
+
+  return false;
+}
+
 const LOGOISH_PATH_RE = /logo|brand|mark|identity|wordmark|primary[_-]?logo/i;
 
 const LOGOISH_ALT_RE = /\blogo\b|wordmark/i;
@@ -30,6 +92,15 @@ const ICON_ONLY_PATH_RE =
 
 const MARKETING_PATH_RE =
   /enterprise-accordion|nav-bg|testimonial|hero-?bg|case-study|customer-story|sessions-\d/i;
+
+/** User-generated / feed media on social CDNs — not brand logo assets. */
+const SOCIAL_CONTENT_CDN_HOST_RE =
+  /(?:^|\.)cdninstagram\.com$|(?:^|\.)fbcdn\.net$|(?:^|\.)twimg\.com$/i;
+
+const SOCIAL_MEDIA_THUMBNAIL_PATH_RE =
+  /\/(?:media|photos?|videos?|stories|reels?|p\/|t51\.|t52\.|e15\/|e35\/)/i;
+
+const SOCIAL_RANDOM_RASTER_EXT_RE = /\.(?:webp|jpe?g)(?:$|\?)/i;
 
 /** Promo / hero copy in alt — not brand wordmarks. */
 const MARKETING_ALT_RE =
@@ -183,6 +254,7 @@ function ogImageLooksLogoLike(
   ctx: LogoRankingContext,
 ): boolean {
   if (candidate.source !== "og:image") return false;
+  if (looksLikeSocialMediaContentThumbnail(candidate)) return false;
   const alt = candidate.alt ?? "";
   if (altLooksLikeMarketingCopy(alt)) return false;
   if (altHasLogoKeyword(alt)) return true;
@@ -209,6 +281,7 @@ function ogImageLooksLogoLike(
 export function candidateLooksLikeMarketingImage(
   candidate: LogoCandidate,
 ): boolean {
+  if (looksLikeSocialMediaContentThumbnail(candidate)) return true;
   const path = candidatePath(candidate.url);
   const alt = candidate.alt ?? "";
   if (MARKETING_PATH_RE.test(path)) return true;
@@ -230,6 +303,7 @@ export function hasStrongWordmarkEvidence(
   candidate: LogoCandidate,
   ctx: LogoRankingContext = { brandTokens: [] },
 ): boolean {
+  if (looksLikeSocialMediaContentThumbnail(candidate)) return false;
   if (candidateLooksLikeMarketingImage(candidate)) return false;
   if (looksLikeFailoverLogoUrl(candidate)) return false;
 
@@ -305,6 +379,10 @@ export function classifyLogoRole(
   const alt = candidate.alt ?? "";
 
   if (looksLikeFailoverLogoUrl(candidate)) {
+    return "social_preview";
+  }
+
+  if (looksLikeSocialMediaContentThumbnail(candidate)) {
     return "social_preview";
   }
 

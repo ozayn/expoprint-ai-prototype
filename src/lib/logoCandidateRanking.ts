@@ -11,6 +11,7 @@ import {
   classifyLogoRole,
   hasStrongWordmarkEvidence,
   logoRoleUiLabel,
+  looksLikeSocialMediaContentThumbnail,
   pathHasStrongLogoEvidence,
 } from "@/lib/logoRoleClassification";
 
@@ -487,6 +488,17 @@ export function scoreLogoCandidate(
     reasons.push("penalized: marketing image");
   }
 
+  if (logoRole === "social_preview") {
+    score -= 150;
+    reasons.push("penalized: social preview");
+  }
+
+  if (looksLikeSocialMediaContentThumbnail(candidate)) {
+    score -= 180;
+    reasons.push("social media thumbnail");
+    reasons.push("not a logo asset");
+  }
+
   if (
     candidate.source === "header-image" &&
     strongWordmark
@@ -682,6 +694,7 @@ export function isStrongDesignLogoCandidate(
 
   if (scored.logoRole === "marketing_image") return false;
   if (scored.logoRole === "social_preview") return false;
+  if (looksLikeSocialMediaContentThumbnail(scored)) return false;
   if (looksLikeProductAppIcon(scored)) return false;
   if (looksLikeMarketingOrCustomerImage(scored)) return false;
   if (candidateLooksLikeMarketingImage(scored)) return false;
@@ -726,6 +739,7 @@ function shouldHideWhenStrongCandidatesExist(
   hasHeaderWordmark: boolean,
 ): boolean {
   if (isStrongDesignLogoCandidate(candidate, ctx)) return false;
+  if (looksLikeSocialMediaContentThumbnail(candidate)) return true;
   if (looksLikeProductAppIcon(candidate)) return true;
   if (looksLikeMarketingOrCustomerImage(candidate)) return true;
   if (looksLikeNavDecorNotLogo(candidate)) return true;
@@ -791,7 +805,15 @@ export function filterLogoCandidatesForDesignUi(
   max = 6,
 ): ScoredLogoCandidate[] {
   const sorted = resortScoredCandidates(candidates);
-  const strongList = sorted.filter((c) => isStrongDesignLogoCandidate(c, ctx));
+  const hasNonThumbnail = sorted.some(
+    (c) => !looksLikeSocialMediaContentThumbnail(c),
+  );
+  let pool = sorted;
+  if (hasNonThumbnail) {
+    pool = sorted.filter((c) => !looksLikeSocialMediaContentThumbnail(c));
+  }
+
+  const strongList = pool.filter((c) => isStrongDesignLogoCandidate(c, ctx));
   const hasStrong = strongList.length > 0;
   const hasHeaderWordmark = strongList.some(
     (c) =>
@@ -799,9 +821,8 @@ export function filterLogoCandidatesForDesignUi(
       (c.logoRole === "icon_mark" && hasStrongWordmarkEvidence(c, ctx)),
   );
 
-  let pool = sorted;
   if (hasStrong) {
-    const filtered = sorted.filter(
+    const filtered = pool.filter(
       (c) => !shouldHideWhenStrongCandidatesExist(c, ctx, hasHeaderWordmark),
     );
     if (filtered.length > 0) pool = filtered;
@@ -810,9 +831,22 @@ export function filterLogoCandidatesForDesignUi(
   return pool.slice(0, max);
 }
 
-/** Primary badge: only the top-ranked card (index 0). */
-export function logoPrimaryDesignLabel(index: number): string | null {
-  return index === 0 ? "Best match" : null;
+/** Primary badge: only the top-ranked card (index 0) when it is a usable logo asset. */
+export function logoPrimaryDesignLabel(
+  index: number,
+  candidate?: LogoCandidate,
+): string | null {
+  if (index !== 0) return null;
+  if (candidate) {
+    if (looksLikeSocialMediaContentThumbnail(candidate)) return null;
+    if (
+      candidate.logoRole === "social_preview" ||
+      candidate.logoRole === "marketing_image"
+    ) {
+      return null;
+    }
+  }
+  return "Best match";
 }
 
 /** Role badge for each card (wordmark, icon mark, etc.). */
@@ -825,7 +859,7 @@ export function logoDesignLabel(
   candidate: LogoCandidate,
   index: number,
 ): string | null {
-  const primary = logoPrimaryDesignLabel(index);
+  const primary = logoPrimaryDesignLabel(index, candidate);
   if (primary) return primary;
   return logoRoleDesignLabel(candidate);
 }

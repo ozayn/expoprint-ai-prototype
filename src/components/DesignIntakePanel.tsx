@@ -264,6 +264,8 @@ export function DesignIntakePanel({
                 key={intake.logoCandidates.map((c) => c.url).join("|")}
                 candidates={intake.logoCandidates}
                 selectedUrl={intake.selectedLogoCandidateUrl}
+                businessName={intake.businessName}
+                websiteUrl={intake.websiteUrl}
                 onSelect={(url) =>
                   onIntakeChange({ selectedLogoCandidateUrl: url })
                 }

@@ -18,6 +18,7 @@ export interface DesignSpecMetadata {
   /** Internal canvas debug — not shown in main UI. */
   selectedLogoFitMode?: string;
   selectedLogoRenderedMaxPx?: number;
+  canvasLogoAutoSelected?: boolean;
   colorPlanMode?: string;
   colorPlanExtractionMode?: string;
   colorBackground?: string;
