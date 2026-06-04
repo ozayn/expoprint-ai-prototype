@@ -1,0 +1,10 @@
+ds_id,ds_number,project_id,project_title,project_status,project_type,turnaround_type,shop_code,first_req_description,first_req_note,first_req_created_at,ds_age_days,website_url
+10001,DS-10001,5001,Acme Booth,completed,trade_show_booth,standard,,"Backdrop for https://Example.COM/booth?ref=1).","",2024-01-15T10:00:00Z,120,
+10002,DS-10002,5002,Note URL Project,draft,trade_show_booth,rush,,"Plain text only","See https://shop.partner.io/catalog for colors.",2024-02-01T08:00:00Z,90,
+10003,DS-10003,5003,Direct Column Tent,completed,outdoor_tent,standard,partner.example,,,2024-03-10T12:00:00Z,45,https://www.partner.example/tent
+10004,DS-10004,5004,No URL Project,draft,trade_show_booth,rush,,"No website mentioned","Internal note only",2024-04-01T08:00:00Z,60,
+10005,DS-10005,5005,HTTPS explicit,draft,trade_show_booth,standard,,"Client site https://example.com for colors","",2024-05-01T10:00:00Z,30,
+10006,DS-10006,5006,WWW bare domain,draft,trade_show_booth,standard,,"Graphics for www.example.org booth","",2024-05-02T10:00:00Z,29,
+10007,DS-10007,5007,Bare TLD domain,draft,trade_show_booth,standard,,"Use branding from example.net","",2024-05-03T10:00:00Z,28,
+10008,DS-10008,5008,Email only negative,draft,trade_show_booth,standard,,"Contact user@example.com for approvals","",2024-05-04T10:00:00Z,27,
+10009,DS-10009,5009,Mixed one row,draft,trade_show_booth,standard,,"See https://example.com and also example.net","Email user@example.com",2024-05-05T10:00:00Z,26,

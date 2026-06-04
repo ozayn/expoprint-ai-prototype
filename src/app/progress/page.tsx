@@ -590,6 +590,20 @@ const stages: Stage[] = [
       "Does not change extract API schema, scraping, or Fabric behavior — validation tooling only.",
     ],
   },
+  {
+    id: 37,
+    title: "Historical extraction evaluation (Metabase CSV)",
+    status: "Complete",
+    completed: "2026-05-22",
+    summary:
+      "Internal harness to evaluate website extraction against historical design-service rows exported from Metabase — local CSV only, no DB or new API routes.",
+    accomplishments: [
+      "`docs/evaluation/historical-extraction-evaluation.md` — benchmark modes (website-only vs website + requirement text), scoring rubric, and gitignore rules for partner data.",
+      "`data/eval/` — example CSV, README, `runs/` and `results/` folders; real exports and outputs stay untracked.",
+      "`scripts/eval/` — `normalizeMetabaseRows`, `runHistoricalExtractionEval`, `scoreHistoricalExtraction`; `npm run eval:historical` (default dry-run).",
+      "`runDesignIntakeExtract` shared with `POST /api/design-intake/extract` — API contract unchanged.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -629,8 +643,9 @@ export default function ProgressPage() {
             canvas bullet layout, fixture-based evaluation, reliability/quality metadata,
             large-site partial extraction, stale intake reset on URL change, logo contain-fit
             and role-aware ranking, social footer/export polish, and blocked-site warnings; Stages
-            31–36 add canvas social display filtering, export filename polish, logo classification
-            and role-aware sizing, contextual color fallbacks, and expanded evaluation checks; the
+            31–37 add canvas social display filtering, export filename polish, logo classification
+            and role-aware sizing, contextual color fallbacks, expanded evaluation checks, and
+            historical Metabase CSV eval scaffolding; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">

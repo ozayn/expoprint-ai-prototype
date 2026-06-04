@@ -15,7 +15,12 @@
     "api:test": "bash scripts/test-design-intake-api.sh",
     "api:compare": "bash scripts/compare-analyze-api-routes.sh",
     "api:evaluate": "node scripts/evaluate-design-intake-api.mjs",
-    "api:logo-debug": "node scripts/debug-logo-candidates.mjs"
+    "api:logo-debug": "node scripts/debug-logo-candidates.mjs",
+    "eval:historical": "tsx scripts/eval/runHistoricalExtractionEval.ts --dry-run",
+    "eval:urls": "tsx scripts/eval/extractHistoricalUrlCandidates.ts",
+    "eval:urls:test": "tsx scripts/eval/lib/urlCandidates.test.ts",
+    "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
+    "check:partner-data": "bash scripts/check-partner-data-git.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -36,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.20.5",
     "typescript": "5.9.3"
   }
 }

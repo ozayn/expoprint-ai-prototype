@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildDesignIntakeExtractResponse } from "@/lib/buildDesignIntakeApiResponse";
 import { parseDesignIntakeExtractRequest } from "@/lib/designIntakeApiSchema";
-import { runClaudeWebsiteAnalyze } from "@/lib/server/claudeWebsiteAnalyze";
+import { runDesignIntakeExtract } from "@/lib/runDesignIntakeExtract";
 
 export const runtime = "nodejs";
 
@@ -68,19 +67,7 @@ export async function POST(req: Request) {
 
   const { body } = parsed;
 
-  // Shared scrape + Claude pipeline; this route only maps to integration JSON.
-  const pipeline = await runClaudeWebsiteAnalyze({
-    websiteUrl: body.websiteUrl,
-    productCategory: body.productCategory,
-    stylePreference: body.stylePreference,
-    customerInstructions: body.customerInstructions,
-  });
-
-  const response = buildDesignIntakeExtractResponse(
-    body,
-    pipeline,
-    Date.now() - t0,
-  );
+  const { response } = await runDesignIntakeExtract(body);
 
   devLog("response", {
     ok: response.ok,

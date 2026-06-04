@@ -43,3 +43,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Historical eval — partner data and outputs stay local (never push to GitHub)
+data/private/
+data/private/**
+
+data/eval/runs/**
+!data/eval/runs/.gitkeep
+data/eval/results/**
+!data/eval/results/.gitkeep
+
+# Eval artifact filename patterns (any folder under data/)
+data/**/url_candidates_*.csv
+data/**/extraction_summary_*.csv
+data/**/extraction_run_*.jsonl
+data/**/run_*.jsonl
+data/**/results_*.csv
+**/*basic_design_service_query*.csv
+
+*.local.csv
+
+# Other eval CSVs except the tracked fake example
+data/eval/*.csv
+!data/eval/metabase_sample.example.csv

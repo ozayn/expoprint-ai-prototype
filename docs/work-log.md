@@ -259,6 +259,9 @@ Empty/missing brand colors no longer silently use ExpoPrint navy/teal on unrelat
 **Evaluation coverage for logo and canvas regressions (Stage 36)**  
 Shopify fixture checks top logo URL (`shopify-logo-primary-logo`) and `logoRole: wordmark`. `npm run api:evaluate` — 52/52 required checks passing on current fixtures. Harness only — no browser automation; API schema unchanged.
 
+**Historical extraction evaluation harness (Stage 37)**  
+Added initial design/docs/scaffolding for historical extraction evaluation using Metabase CSV exports: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/` layout (gitignored partner CSVs and run outputs), `scripts/eval/` normalize/run/score CLIs, shared `runDesignIntakeExtract` helper, `npm run eval:historical` (default dry-run on example CSV). No Metabase/DB/API/UI changes.
+
 ---
 
 ## Deployment — Vercel on `main` (current)

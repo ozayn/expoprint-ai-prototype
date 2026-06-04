@@ -12,6 +12,16 @@ import type {
   SpecOriginY,
   TextLayer,
 } from "./designSpec";
+import {
+  isLogoCanvasDebugEnabled,
+  logLogoRenderFit,
+} from "@/lib/logoCanvasDebug";
+import {
+  decideTransparentPaddingTrim,
+  fabricImageElement,
+  measureVisibleContentBounds,
+  type VisibleContentBounds,
+} from "@/lib/logoVisibleBounds";
 import { SOCIAL_PLATFORM_MARKS } from "./socialPlatformDisplay";
 
 export type FabricModule = typeof import("fabric");
@@ -290,6 +300,14 @@ function logoLayerUrlBlob(layer: ImageLayer): string {
 }
 
 function isCompactPrimaryLogoLayer(layer: ImageLayer): boolean {
+  if (layer.fitHint === "wordmark" || layer.fitHint === "contain") return false;
+  if (layer.logoRole === "wordmark") return false;
+  if (
+    layer.logoSource === "header-image" ||
+    layer.logoSource === "img-logo"
+  ) {
+    return layer.fitHint === "icon";
+  }
   if (layer.fitHint === "icon") return true;
   if (typeof layer.logoMaxRenderedPx === "number") return true;
   return COMPACT_PRIMARY_LOGO_PATH_RE.test(logoLayerUrlBlob(layer));
@@ -316,13 +334,29 @@ function resolveLogoFitMode(
 
   if (hint === "icon") return "icon";
   if (role === "icon_mark" || role === "fallback_icon") return "icon";
-  if (role === "marketing_image" || role === "social_preview" || role === "unknown") {
-    return "icon";
+  if (role === "marketing_image" || role === "social_preview") return "icon";
+
+  if (hint === "wordmark" || role === "wordmark") {
+    return isWideWordmarkAspect(natW, natH) ? "wordmark" : "contain";
+  }
+
+  if (
+    layer.logoSource === "header-image" ||
+    layer.logoSource === "img-logo"
+  ) {
+    if (isSquareishAspect(natW, natH)) return "icon";
+    return isWideWordmarkAspect(natW, natH) ? "wordmark" : "contain";
+  }
+
+  if (role === "unknown") {
+    if (isSquareishAspect(natW, natH)) return "icon";
+    if (isWideWordmarkAspect(natW, natH)) return "wordmark";
+    return "contain";
   }
 
   if (isSquareishAspect(natW, natH)) return "icon";
 
-  if (hint === "wordmark" || role === "wordmark" || natW / natH > 2.4) {
+  if (natW / natH > 2.4) {
     return isWideWordmarkAspect(natW, natH) ? "wordmark" : "contain";
   }
 
@@ -374,10 +408,34 @@ function fitImageContainInLayerBox(img: FabricImageLike, layer: ImageLayer): boo
     typeof img.getOriginalSize === "function"
       ? img.getOriginalSize()
       : { width: img.width ?? 0, height: img.height ?? 0 };
-  const natW = natural.width;
-  const natH = natural.height;
+  let natW = natural.width;
+  let natH = natural.height;
   if (!Number.isFinite(natW) || !Number.isFinite(natH) || natW <= 0 || natH <= 0) {
     return false;
+  }
+
+  const element = fabricImageElement(img);
+  const visibleBounds = measureVisibleContentBounds(element);
+  const trimDecision = decideTransparentPaddingTrim(visibleBounds, layer, {
+    forceDisable: isLogoCanvasDebugEnabled(),
+  });
+  const trimmed = trimDecision.trim;
+  if (trimmed && visibleBounds) {
+    natW = visibleBounds.width;
+    natH = visibleBounds.height;
+    img.set({
+      cropX: visibleBounds.x,
+      cropY: visibleBounds.y,
+      width: visibleBounds.width,
+      height: visibleBounds.height,
+    });
+  } else {
+    img.set({
+      cropX: 0,
+      cropY: 0,
+      width: natW,
+      height: natH,
+    });
   }
 
   let scale = Math.min(boxW / natW, boxH / natH);
@@ -419,8 +477,6 @@ function fitImageContainInLayerBox(img: FabricImageLike, layer: ImageLayer): boo
   const centerY = layer.top + layer.height / 2;
 
   img.set({
-    cropX: 0,
-    cropY: 0,
     originX: "center",
     originY: "center",
     left: centerX,
@@ -430,7 +486,80 @@ function fitImageContainInLayerBox(img: FabricImageLike, layer: ImageLayer): boo
     ...(typeof layer.opacity === "number" ? { opacity: layer.opacity } : {}),
   });
   img.setCoords?.();
+
+  if (process.env.NODE_ENV === "development" && layer.id === "logo-image") {
+    logLogoRenderFit({
+      layerId: layer.id,
+      fitMode,
+      naturalWidth: natural.width,
+      naturalHeight: natural.height,
+      visibleBounds,
+      trimDecision,
+      scaleX: scale,
+      scaleY: scale,
+      renderedWidth: natW * scale,
+      renderedHeight: natH * scale,
+      fabricLeft: centerX,
+      fabricTop: centerY,
+      fabricObjectWidth: img.width,
+      fabricObjectHeight: img.height,
+      box: { left: layer.left, top: layer.top, width: layer.width, height: layer.height },
+    });
+  }
+
   return true;
+}
+
+function addLogoDebugOverlays(
+  canvas: Canvas,
+  fabric: FabricModule,
+  layer: ImageLayer,
+  img: FabricImageLike,
+  visibleBounds: VisibleContentBounds | null,
+  trimmed: boolean,
+): void {
+  if (!isLogoCanvasDebugEnabled() || layer.id !== "logo-image") return;
+
+  const { Rect } = fabric;
+
+  const boxRect = new Rect({
+    left: layer.left,
+    top: layer.top,
+    width: layer.width,
+    height: layer.height,
+    fill: "transparent",
+    stroke: "#ef4444",
+    strokeWidth: 2,
+    strokeDashArray: [6, 4],
+    selectable: false,
+    evented: false,
+    originX: "left",
+    originY: "top",
+  });
+  applyLayerId(boxRect, "logo-debug-box");
+  canvas.add(boxRect);
+
+  if (trimmed && visibleBounds && typeof img.scaleX === "number") {
+    const scale = img.scaleX;
+    const cropLeft = layer.left + layer.width / 2 - (visibleBounds.width * scale) / 2;
+    const cropTop = layer.top + layer.height / 2 - (visibleBounds.height * scale) / 2;
+    const cropRect = new Rect({
+      left: cropLeft,
+      top: cropTop,
+      width: visibleBounds.width * scale,
+      height: visibleBounds.height * scale,
+      fill: "transparent",
+      stroke: "#22c55e",
+      strokeWidth: 2,
+      strokeDashArray: [4, 3],
+      selectable: false,
+      evented: false,
+      originX: "left",
+      originY: "top",
+    });
+    applyLayerId(cropRect, "logo-debug-crop");
+    canvas.add(cropRect);
+  }
 }
 
 /**
@@ -472,6 +601,14 @@ function scheduleImageLoad(
       }
 
       canvas.add(img);
+
+      const element = fabricImageElement(img);
+      const bounds = measureVisibleContentBounds(element);
+      const trimmed = decideTransparentPaddingTrim(bounds, layer, {
+        forceDisable: isLogoCanvasDebugEnabled(),
+      }).trim;
+      addLogoDebugOverlays(canvas, fabric, layer, img, bounds, trimmed);
+
       canvas.requestRenderAll();
     })
     .catch(() => {

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Block push if partner / eval outputs are in the commit range.
+# Enable with: ./scripts/install-git-hooks.sh  (or git config core.hooksPath .githooks)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+"$ROOT/scripts/check-partner-data-git.sh" --push

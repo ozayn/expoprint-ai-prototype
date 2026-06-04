@@ -21,6 +21,7 @@ import {
 import { buildConceptColorPlan } from "./designStyleGuide";
 import { buildFabricTypographyFromSignals } from "@/lib/typographyMapping";
 import { normalizeBulletPhrasesForDisplay } from "@/lib/supportingBulletText";
+import { logLogoCanvasSelection } from "@/lib/logoCanvasDebug";
 import { resolveCanvasLogo } from "@/lib/logoCanvasPreference";
 
 const CANVAS = { width: 1000, height: 600 } as const;
@@ -544,20 +545,51 @@ function isCompactPrimaryLogoAsset(
   return false;
 }
 
+function isHeaderOrTaggedLogoSource(
+  source: DesignIntakeState["logoCandidates"][number]["source"] | undefined,
+): boolean {
+  return source === "header-image" || source === "img-logo";
+}
+
 function resolveSelectedLogoFitHint(
   remote: string,
   selected: DesignIntakeState["logoCandidates"][number] | undefined,
+  manualSelection: boolean,
 ): "contain" | "wordmark" | "icon" {
-  if (isCompactPrimaryLogoAsset(remote, selected)) return "icon";
   const role = selected?.logoRole;
+  const source = selected?.source;
+
   if (role === "icon_mark" || role === "fallback_icon") return "icon";
-  if (role === "marketing_image" || role === "social_preview" || role === "unknown") {
-    return "icon";
-  }
+  if (role === "marketing_image" || role === "social_preview") return "icon";
+
   if (role === "wordmark") {
     if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
     return "wordmark";
   }
+
+  /** User-picked header/nav wordmarks should fill the logo box — not icon-capped. */
+  if (manualSelection && isHeaderOrTaggedLogoSource(source)) {
+    if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
+    return "wordmark";
+  }
+
+  if (manualSelection) {
+    if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
+    const w = selected?.width;
+    const h = selected?.height;
+    if (typeof w === "number" && typeof h === "number" && h > 0 && w / h > 1.55) {
+      return "wordmark";
+    }
+    return "contain";
+  }
+
+  if (isCompactPrimaryLogoAsset(remote, selected)) return "icon";
+
+  if (isHeaderOrTaggedLogoSource(source)) {
+    if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
+    return "wordmark";
+  }
+
   if (isSquareishLogoDimensions(selected?.width, selected?.height)) return "icon";
   const w = selected?.width;
   const h = selected?.height;
@@ -588,19 +620,38 @@ function compactLogoMaxRenderedPx(
 function buildSelectedLogoImageLayer(
   intake: DesignIntakeState,
 ): ImageLayer[] {
-  const { url: remote, candidate: selected } = resolveCanvasLogo(intake);
+  const manualSelection = intake.selectedLogoCandidateUrl.trim().length > 0;
+  const { url: remote, candidate: selected, autoSelected } = resolveCanvasLogo(intake);
   if (!remote || !/^https?:\/\//i.test(remote)) return [];
   const role = selected?.logoRole;
-  const fitHint = resolveSelectedLogoFitHint(remote, selected);
+  const fitHint = resolveSelectedLogoFitHint(remote, selected, manualSelection);
   const logoMaxRenderedPx = compactLogoMaxRenderedPx(remote, fitHint);
   const iconPadding =
     fitHint === "icon" || role === "icon_mark" || role === "fallback_icon" ? 20 : 15;
+  const proxied = proxiedLogoUrl(remote);
+
+  if (process.env.NODE_ENV === "development") {
+    logLogoCanvasSelection({
+      selectedLogoCandidateUrl: intake.selectedLogoCandidateUrl,
+      logoRemoteUrl: remote,
+      proxiedSrc: proxied,
+      sidebarThumbnailUrl: remote,
+      logoSource: selected?.source,
+      logoRole: role,
+      fitHint,
+      logoMaxRenderedPx,
+      candidateWidth: selected?.width,
+      candidateHeight: selected?.height,
+      autoSelected,
+      box: { left: 72, top: 72, width: 132, height: 132, padding: iconPadding },
+    });
+  }
 
   return [
     {
       type: "image",
       id: "logo-image",
-      src: proxiedLogoUrl(remote),
+      src: proxied,
       left: 72,
       top: 72,
       width: 132,
