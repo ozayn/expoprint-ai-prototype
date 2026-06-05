@@ -15,6 +15,16 @@ function shortName(name: string): string {
   return name.replace(/^score_summary_/, "").replace(/\.csv$/, "");
 }
 
+function filePillClass(active: boolean): string {
+  return [
+    "rounded-sm px-1.5 py-0.5 font-mono text-xs transition-colors",
+    "outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
+    active
+      ? "text-zinc-900 underline decoration-zinc-300 underline-offset-4"
+      : "text-zinc-500 hover:text-zinc-700",
+  ].join(" ");
+}
+
 export function ScoreSummaryPanel({
   basePath,
   files,
@@ -33,7 +43,7 @@ export function ScoreSummaryPanel({
   };
 
   return (
-    <section className="mt-8 border-t border-zinc-200/80 pt-6">
+    <section className="mb-12">
       <h2 className="text-sm font-medium text-zinc-900">Score summaries</h2>
       <p className="mt-1 text-xs text-zinc-500">
         From <code className="font-mono text-zinc-600">npm run eval:score</code>{" "}
@@ -49,11 +59,7 @@ export function ScoreSummaryPanel({
               <Link
                 key={f.name}
                 href={buildHref(f.name)}
-                className={`rounded px-2 py-1 font-mono transition-colors ${
-                  active
-                    ? "bg-zinc-200/80 text-zinc-900"
-                    : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
-                }`}
+                className={filePillClass(active)}
               >
                 {shortName(f.name)}
               </Link>

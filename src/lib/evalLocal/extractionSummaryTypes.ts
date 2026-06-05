@@ -14,13 +14,11 @@ export const EXTRACTION_SUMMARY_TABLE_COLUMNS = [
   "logo_candidate_count",
 ] as const;
 
-/** Primary review columns shown in /dev/eval table. */
+/** Primary columns shown in /dev/eval extraction table (secondary section). */
 export const EXTRACTION_SUMMARY_VISIBLE_COLUMNS = [
   "ds_number",
   "project_title",
-  "project_type",
   "normalized_url",
-  "extracted_business_name",
   "status",
   "elapsed_ms",
 ] as const;

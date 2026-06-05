@@ -44,6 +44,16 @@ function buildEvalHref(
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
+function filePillClass(active: boolean): string {
+  return [
+    "rounded-sm px-1.5 py-0.5 font-mono text-xs transition-colors",
+    "outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
+    active
+      ? "text-zinc-900 underline decoration-zinc-300 underline-offset-4"
+      : "text-zinc-500 hover:text-zinc-700",
+  ].join(" ");
+}
+
 function FilePicker({
   basePath,
   param,
@@ -68,7 +78,7 @@ function FilePicker({
   const stripSuffix = /\.csv$/;
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+    <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
       <span className="text-zinc-400">{label}</span>
       {files.map((f) => {
         const active = f.name === activeName;
@@ -81,11 +91,7 @@ function FilePicker({
           <Link
             key={f.name}
             href={href}
-            className={`rounded px-2 py-1 font-mono transition-colors ${
-              active
-                ? "bg-zinc-200/80 text-zinc-900"
-                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
-            }`}
+            className={filePillClass(active)}
           >
             {shortName || f.name}
           </Link>
@@ -95,35 +101,27 @@ function FilePicker({
   );
 }
 
-function EmptySummaryState({ showCliHints }: { showCliHints: boolean }) {
-  return (
-    <div className="py-10 text-center">
-      <p className="text-sm text-zinc-500">No extraction summary yet.</p>
-      {showCliHints ? (
-        <p className="mt-3 font-mono text-xs leading-relaxed text-zinc-400">
-          npm run eval:extract -- data/eval/results/url_candidates_&lt;timestamp&gt;.csv
-          --limit 5
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function SectionIntro({ title, description }: { title: string; description: string }) {
   return (
     <>
       <h2 className="text-sm font-medium text-zinc-900">{title}</h2>
-      <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{description}</p>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{description}</p>
     </>
+  );
+}
+
+function EmptySummaryState() {
+  return (
+    <p className="py-6 text-sm text-zinc-500">No extraction summary yet.</p>
   );
 }
 
 function EmptyReviewState({ showCliHints }: { showCliHints: boolean }) {
   return (
-    <div className="py-10 text-center">
+    <div className="py-8">
       <p className="text-sm text-zinc-500">No review queue yet.</p>
       {showCliHints ? (
-        <p className="mt-3 font-mono text-xs leading-relaxed text-zinc-400">
+        <p className="mt-2 font-mono text-xs leading-relaxed text-zinc-400">
           npm run eval:review -- data/eval/runs/extraction_run_&lt;timestamp&gt;.jsonl
         </p>
       ) : null}
@@ -148,7 +146,7 @@ export function EvalViewer({
   return (
     <div className="min-h-full bg-white text-zinc-900">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="mb-10">
+        <header className="mb-8">
           <nav className="text-sm text-zinc-500">
             <Link href="/" className="hover:text-zinc-800">
               Back to editor
@@ -159,14 +157,14 @@ export function EvalViewer({
             </Link>
           </nav>
 
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <div className="mt-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
                 Historical evaluation
               </h1>
               <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
             </div>
-            <p className="text-xs text-zinc-400">{safetyNote}</p>
+            <p className="text-[11px] text-zinc-400">{safetyNote}</p>
           </div>
         </header>
 
@@ -179,78 +177,38 @@ export function EvalViewer({
           activeReviewName={reviewName}
         />
 
-        <div className="grid gap-12 pt-2 lg:grid-cols-2 lg:gap-10">
-          <section>
-            <SectionIntro
-              title="Websites processed by ExpoPrint"
-              description="Each row is a historical URL from the Metabase export that was run through the ExpoPrint website extraction pipeline. This table shows whether extraction succeeded, how long it took, and the basic extracted output."
-            />
+        <section className="mb-12">
+          <SectionIntro
+            title="Comparison rows for manual scoring"
+            description="Historical project data beside ExpoPrint output. Fill scores in the review_queue CSV."
+          />
 
-            {index.extractionSummaries.length === 0 ? (
-              <EmptySummaryState showCliHints={showCliHints} />
-            ) : (
-              <>
-                <FilePicker
-                  basePath={basePath}
-                  param="summary"
-                  files={index.extractionSummaries}
-                  activeName={summaryName}
-                  label="Run"
-                  currentParams={searchParams}
+          {index.reviewQueues.length === 0 ? (
+            <EmptyReviewState showCliHints={showCliHints} />
+          ) : (
+            <>
+              <FilePicker
+                basePath={basePath}
+                param="review"
+                files={index.reviewQueues}
+                activeName={reviewName}
+                label="Queue"
+                currentParams={searchParams}
+              />
+
+              {reviewData && reviewData.rows.length > 0 ? (
+                <ReviewQueueTable
+                  filename={reviewData.filename}
+                  rows={reviewData.rows}
                 />
-
-                {summaryData && summaryData.rows.length > 0 ? (
-                  <ExtractionSummaryTable
-                    filename={summaryData.filename}
-                    rows={summaryData.rows}
-                  />
-                ) : (
-                  <p className="mt-6 text-sm text-zinc-500">
-                    Selected summary has no data rows.
-                  </p>
-                )}
-              </>
-            )}
-          </section>
-
-          <section>
-            <SectionIntro
-              title="Comparison rows for manual scoring"
-              description="Each row combines historical project/request data with ExpoPrint’s extracted fields. Use this table to review whether the extracted business name, category, logo, and brief are correct enough to use."
-            />
-            {showCliHints ? (
-              <p className="mt-2 text-xs text-zinc-400">
-                Scores are blank until filled manually in the review_queue CSV.
-              </p>
-            ) : null}
-
-            {index.reviewQueues.length === 0 ? (
-              <EmptyReviewState showCliHints={showCliHints} />
-            ) : (
-              <>
-                <FilePicker
-                  basePath={basePath}
-                  param="review"
-                  files={index.reviewQueues}
-                  activeName={reviewName}
-                  label="Queue"
-                  currentParams={searchParams}
-                />
-
-                {reviewData && reviewData.rows.length > 0 ? (
-                  <ReviewQueueTable
-                    filename={reviewData.filename}
-                    rows={reviewData.rows}
-                  />
-                ) : (
-                  <p className="mt-6 text-sm text-zinc-500">
-                    Selected review queue has no data rows.
-                  </p>
-                )}
-              </>
-            )}
-          </section>
-        </div>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-500">
+                  Selected review queue has no data rows.
+                </p>
+              )}
+            </>
+          )}
+        </section>
 
         <ScoreSummaryPanel
           basePath={basePath}
@@ -259,6 +217,53 @@ export function EvalViewer({
           data={scoreData}
           searchParams={searchParams}
         />
+
+        <section className="mt-14">
+          <details className="group">
+            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+              <div className="flex items-start justify-between gap-4">
+                <SectionIntro
+                  title="Websites processed by ExpoPrint"
+                  description="Historical URLs that were run through the extraction pipeline."
+                />
+                <span className="shrink-0 pt-0.5 text-[11px] text-zinc-400 group-open:hidden">
+                  Show
+                </span>
+                <span className="hidden shrink-0 pt-0.5 text-[11px] text-zinc-400 group-open:inline">
+                  Hide
+                </span>
+              </div>
+            </summary>
+
+            <div className="mt-6">
+              {index.extractionSummaries.length === 0 ? (
+                <EmptySummaryState />
+              ) : (
+                <>
+                  <FilePicker
+                    basePath={basePath}
+                    param="summary"
+                    files={index.extractionSummaries}
+                    activeName={summaryName}
+                    label="Run"
+                    currentParams={searchParams}
+                  />
+
+                  {summaryData && summaryData.rows.length > 0 ? (
+                    <ExtractionSummaryTable
+                      filename={summaryData.filename}
+                      rows={summaryData.rows}
+                    />
+                  ) : (
+                    <p className="text-sm text-zinc-500">
+                      Selected summary has no data rows.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+        </section>
       </div>
     </div>
   );

@@ -13,15 +13,13 @@ const DETAIL_GROUPS: {
   {
     title: "Historical",
     fields: [
-      { key: "shop_code", label: "shop_code" },
       { key: "project_type", label: "project_type" },
-      { key: "ds_number", label: "ds_number" },
+      { key: "shop_code", label: "shop_code" },
     ],
   },
   {
     title: "Input",
     fields: [
-      { key: "normalized_url", label: "normalized_url" },
       { key: "domain", label: "domain" },
       { key: "canonical_domain", label: "canonical_domain" },
     ],
@@ -95,10 +93,6 @@ function formatCell(
     return { display, title };
   }
 
-  if (col === "extracted_business_name") {
-    return { display: v, title: v };
-  }
-
   if (col === "elapsed_ms") {
     return { display: `${v} ms` };
   }
@@ -138,7 +132,7 @@ export function ExtractionSummaryTable({ filename, rows }: Props) {
 
   return (
     <div>
-      <dl className="mb-6 flex flex-wrap gap-x-8 gap-y-2 text-xs text-zinc-500">
+      <dl className="mb-4 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-zinc-500">
         <div>
           <dt className="inline text-zinc-400">Rows </dt>
           <dd className="inline font-medium text-zinc-800">{stats.rows}</dd>
@@ -158,7 +152,7 @@ export function ExtractionSummaryTable({ filename, rows }: Props) {
       </dl>
 
       <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1">
-        <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
+        <table className="w-full min-w-[480px] border-collapse text-left text-[13px]">
           <thead>
             <tr className="border-b border-zinc-200 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
               <th className="w-7 pb-2 pr-1 font-normal" aria-label="Expand" />
@@ -216,12 +210,12 @@ function RowGroup({
         {EXTRACTION_SUMMARY_VISIBLE_COLUMNS.map((col) => {
           const raw = row[col] ?? "";
           const { display, title } = formatCell(col, raw);
-          const isBusinessName = col === "extracted_business_name";
+          const isTitle = col === "project_title";
           return (
             <td
               key={col}
               className={`py-2.5 pr-3 text-zinc-800 last:pr-0 ${
-                isBusinessName ? "max-w-[14rem] whitespace-normal break-words" : "whitespace-nowrap"
+                isTitle ? "max-w-[14rem] whitespace-normal break-words" : "whitespace-nowrap"
               }`}
               title={title}
             >
