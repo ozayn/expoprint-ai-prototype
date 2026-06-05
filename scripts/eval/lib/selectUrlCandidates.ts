@@ -1,4 +1,7 @@
-import type { UrlCandidateOutputRow } from "./urlCandidates.js";
+import {
+  canonicalDomainForRow,
+  type UrlCandidateOutputRow,
+} from "./urlCandidates.js";
 
 export type SelectUrlCandidatesOptions = {
   allowDuplicateDomains: boolean;
@@ -7,9 +10,7 @@ export type SelectUrlCandidatesOptions = {
 };
 
 function domainDedupeKey(row: UrlCandidateOutputRow): string {
-  const domain = row.domain.trim().toLowerCase();
-  if (domain) return domain;
-  return row.normalized_url.trim().toLowerCase();
+  return canonicalDomainForRow(row);
 }
 
 export function selectUrlCandidatesForExtraction(

@@ -595,13 +595,26 @@ const stages: Stage[] = [
     title: "Historical extraction evaluation (Metabase CSV)",
     status: "Complete",
     completed: "2026-05-22",
+    lastUpdated: "2026-06-04",
     summary:
-      "Internal harness to evaluate website extraction against historical design-service rows exported from Metabase — local CSV only, no DB or new API routes.",
+      "Historical evaluation workflow lives inside this ExpoPrint prototype (not a separate repo): local Metabase CSV exports → URL candidate extraction → limited website extraction via the same pipeline as `POST /api/design-intake/extract`. Partner exports and run outputs stay gitignored; no Metabase/DB connection.",
     accomplishments: [
-      "`docs/evaluation/historical-extraction-evaluation.md` — benchmark modes (website-only vs website + requirement text), scoring rubric, and gitignore rules for partner data.",
-      "`data/eval/` — example CSV, README, `runs/` and `results/` folders; real exports and outputs stay untracked.",
-      "`scripts/eval/` — `normalizeMetabaseRows`, `runHistoricalExtractionEval`, `scoreHistoricalExtraction`; `npm run eval:historical` (default dry-run).",
-      "`runDesignIntakeExtract` shared with `POST /api/design-intake/extract` — API contract unchanged.",
+      "**Milestone 1 (URL candidates)** — `npm run eval:urls` scans `first_req_description`, `first_req_note`, and `project_title` (plus direct URL columns when present); conservative bare-domain parsing; email masking to reduce false positives; per design-service row dedupe on normalized URL. On a real local export: 15,228 rows read; 1,522 rows with URL candidates; 13,706 without; 2,226 total candidates; 2,001 unique domains (aggregate counts only — no partner URLs in docs).",
+      "**Milestone 2 (limited extraction)** — `npm run eval:extract` selects a capped sample (domain dedupe, offset/limit, delay between requests), calls shared `runDesignIntakeExtract`, writes `data/eval/runs/extraction_run_<timestamp>.jsonl` and `data/eval/results/extraction_summary_<timestamp>.csv`. Smoke test: 3 historical URLs, all successful, ~41s total.",
+      "**Partner-data safety** — `data/private/**`, `data/eval/runs/**`, and `data/eval/results/**` gitignored; `npm run check:partner-data`; optional `./scripts/install-git-hooks.sh` pre-push guard. Only fake example CSV committed under `data/eval/`.",
+      "`docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.md`, `scripts/eval/` (normalize/run/score CLIs, `eval:historical` dry-run harness). Extract API contract unchanged.",
+    ],
+  },
+  {
+    id: 38,
+    title: "Historical extraction comparison and scoring",
+    status: "Planned",
+    summary:
+      "Compare ExpoPrint extraction outputs to historical project and design-service fields from Metabase exports — automated scoring plus human review using the existing rubric in `docs/evaluation/historical-extraction-evaluation.md`.",
+    accomplishments: [
+      "Build on Milestones 1–2: URL candidates CSV → limited `eval:extract` runs → field-level comparison against stored historical values.",
+      "Extend `scripts/eval/` scoring workflow (`scoreHistoricalExtraction`, `eval:historical`) beyond dry-run scaffolding.",
+      "No Metabase/DB integration; partner CSVs and scored outputs remain local and gitignored.",
     ],
   },
 ];
@@ -645,7 +658,8 @@ export default function ProgressPage() {
             and role-aware ranking, social footer/export polish, and blocked-site warnings; Stages
             31–37 add canvas social display filtering, export filename polish, logo classification
             and role-aware sizing, contextual color fallbacks, expanded evaluation checks, and
-            historical Metabase CSV eval scaffolding; the
+            historical Metabase CSV evaluation (URL candidates + limited extraction); Stage 38
+            plans comparison/scoring against historical fields; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">

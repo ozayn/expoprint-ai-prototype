@@ -39,6 +39,7 @@ export type UrlCandidateExtractionInput = Pick<
   | "source_column"
   | "normalized_url"
   | "domain"
+  | "canonical_domain"
   | "first_req_description"
   | "first_req_note"
 >;
@@ -58,6 +59,7 @@ export type ExtractionSummaryRow = {
   shop_code: string;
   normalized_url: string;
   domain: string;
+  canonical_domain: string;
   status: ExtractionRunStatus;
   elapsed_ms: number;
   error_message: string;
@@ -86,6 +88,7 @@ function toExtractionInput(row: UrlCandidateOutputRow): UrlCandidateExtractionIn
     source_column: row.source_column,
     normalized_url: row.normalized_url,
     domain: row.domain,
+    canonical_domain: row.canonical_domain,
     first_req_description: row.first_req_description,
     first_req_note: row.first_req_note,
   };
@@ -247,6 +250,7 @@ function extractionSummaryToCsv(rows: ExtractionSummaryRow[]): string {
     "shop_code",
     "normalized_url",
     "domain",
+    "canonical_domain",
     "status",
     "elapsed_ms",
     "error_message",
@@ -360,6 +364,7 @@ export async function runHistoricalWebsiteExtraction(
       shop_code: r.input.shop_code,
       normalized_url: r.input.normalized_url,
       domain: r.input.domain,
+      canonical_domain: r.input.canonical_domain,
       status: r.status,
       elapsed_ms: r.elapsed_ms,
       error_message: r.error_message ?? "",
@@ -407,7 +412,7 @@ export async function runHistoricalWebsiteExtractionCli(): Promise<void> {
   console.log(`  Input:  ${inputPath}`);
   console.log(`  Limit:  ${limit} (offset ${offset})`);
   console.log(
-    `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per domain"}`,
+    `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per canonical_domain (www. stripped)"}`,
   );
   console.log(`  Delay:  ${delayMs}ms between requests`);
   if (apiUrl) console.log(`  API:    ${apiUrl}`);

@@ -56,6 +56,7 @@ data/eval/results/**
 # Eval artifact filename patterns (any folder under data/)
 data/**/url_candidates_*.csv
 data/**/extraction_summary_*.csv
+data/**/review_queue_*.csv
 data/**/extraction_run_*.jsonl
 data/**/run_*.jsonl
 data/**/results_*.csv

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DeployPlatformBadge } from "@/components/DeployPlatformBadge";
+import { DevEvalNavLink } from "@/components/DevEvalNavLink";
 import { FabricDesignEditor } from "@/components/FabricDesignEditor";
 
 export default function Home() {
@@ -32,6 +33,7 @@ export default function Home() {
           >
             View progress
           </Link>
+          <DevEvalNavLink />
         </header>
         <FabricDesignEditor />
       </main>

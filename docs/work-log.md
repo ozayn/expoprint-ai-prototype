@@ -259,8 +259,16 @@ Empty/missing brand colors no longer silently use ExpoPrint navy/teal on unrelat
 **Evaluation coverage for logo and canvas regressions (Stage 36)**  
 Shopify fixture checks top logo URL (`shopify-logo-primary-logo`) and `logoRole: wordmark`. `npm run api:evaluate` — 52/52 required checks passing on current fixtures. Harness only — no browser automation; API schema unchanged.
 
-**Historical extraction evaluation harness (Stage 37)**  
-Added initial design/docs/scaffolding for historical extraction evaluation using Metabase CSV exports: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/` layout (gitignored partner CSVs and run outputs), `scripts/eval/` normalize/run/score CLIs, shared `runDesignIntakeExtract` helper, `npm run eval:historical` (default dry-run on example CSV). No Metabase/DB/API/UI changes.
+**Historical extraction evaluation (Stage 37)**  
+Workflow is part of this ExpoPrint prototype, not a separate project. Local-only Metabase CSV exports under `data/private/` (gitignored); scripts in `docs/evaluation/historical-extraction-evaluation.md` and `scripts/eval/`.
+
+**Milestone 1 — URL candidates (`npm run eval:urls`):** Extract http(s) and conservative bare domains from `first_req_description`, `first_req_note`, and `project_title`; email masking; per-row dedupe on normalized URL. Real local export aggregates: 15,228 rows read; 1,522 rows with URL candidates; 13,706 without; 2,226 total candidates; 2,001 unique domains (no partner URLs in committed docs).
+
+**Milestone 2 — limited extraction (`npm run eval:extract`):** Domain-deduped sample runs through shared `runDesignIntakeExtract` (same pipeline as `POST /api/design-intake/extract`); JSONL raw runs and CSV summaries under gitignored `data/eval/runs/` and `data/eval/results/`. Test run: 3 historical URLs, all successful, ~41s.
+
+**Partner-data safety:** `data/private/**`, `data/eval/runs/**`, `data/eval/results/**` ignored; `npm run check:partner-data`; optional pre-push hook via `./scripts/install-git-hooks.sh`.
+
+**Next (Stage 38):** Comparison/scoring between ExpoPrint outputs and historical project/design-service fields (`eval:historical` / `scoreHistoricalExtraction` beyond scaffolding). No Metabase/DB/API contract changes.
 
 ---
 
@@ -277,4 +285,4 @@ Added initial design/docs/scaffolding for historical extraction evaluation using
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

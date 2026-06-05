@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DesignIntakeApiTester } from "@/components/DesignIntakeApiTester";
+import { DevEvalNavLink } from "@/components/DevEvalNavLink";
 
 export const metadata: Metadata = {
   title: "Design-intake API test",
@@ -44,6 +45,7 @@ export default function ApiTestPage() {
             <Link href="/progress" className={linkClass}>
               Progress
             </Link>
+            <DevEvalNavLink className={linkClass} />
           </nav>
         </header>
 

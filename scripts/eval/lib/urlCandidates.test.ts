@@ -6,11 +6,15 @@
  */
 import assert from "node:assert/strict";
 import {
+  canonicalDomainFromHost,
+  canonicalDomainForRow,
   extractUrlsFromText,
   isValidBareDomainHost,
   maskUrlAndEmailSpans,
   normalizeUrl,
+  type UrlCandidateOutputRow,
 } from "./urlCandidates.js";
+import { selectUrlCandidatesForExtraction } from "./selectUrlCandidates.js";
 
 function testNormalizeUrl(): void {
   assert.equal(normalizeUrl("https://Example.COM/path"), "https://example.com/path");
@@ -56,12 +60,60 @@ function testDecimalNotDomain(): void {
   assert.equal(found.length, 0);
 }
 
+function testCanonicalDomain(): void {
+  assert.equal(canonicalDomainFromHost("www.Example.com"), "example.com");
+  assert.equal(canonicalDomainFromHost("example.com"), "example.com");
+  assert.equal(canonicalDomainFromHost(""), "");
+}
+
+function testSelectDedupeByCanonicalDomain(): void {
+  const base = {
+    ds_id: "1",
+    ds_number: "DS-1",
+    project_id: "",
+    project_title: "T",
+    project_status: "",
+    project_type: "",
+    turnaround_type: "",
+    shop_code: "",
+    source_column: "first_req_description",
+    raw_url: "",
+    first_req_description: "",
+    first_req_note: "",
+  };
+  const rows: UrlCandidateOutputRow[] = [
+    {
+      ...base,
+      normalized_url: "https://www.example.com/",
+      domain: "www.example.com",
+      canonical_domain: "example.com",
+    },
+    {
+      ...base,
+      ds_number: "DS-2",
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+    },
+  ];
+  assert.equal(canonicalDomainForRow(rows[0]), "example.com");
+  const selected = selectUrlCandidatesForExtraction(rows, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+  });
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0]?.domain, "www.example.com");
+}
+
 function main(): void {
   testNormalizeUrl();
   testBareDomainExtraction();
   testEmailMasking();
   testInvalidBareHosts();
   testDecimalNotDomain();
+  testCanonicalDomain();
+  testSelectDedupeByCanonicalDomain();
   console.log("urlCandidates.test.ts: all checks passed");
 }
 

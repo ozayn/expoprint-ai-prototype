@@ -20,6 +20,8 @@
     "eval:urls": "tsx scripts/eval/extractHistoricalUrlCandidates.ts",
     "eval:urls:test": "tsx scripts/eval/lib/urlCandidates.test.ts",
     "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
+    "eval:review": "tsx scripts/eval/buildHistoricalReviewQueue.ts",
+    "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",
     "check:partner-data": "bash scripts/check-partner-data-git.sh"
   },
   "dependencies": {

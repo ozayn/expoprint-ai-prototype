@@ -45,9 +45,40 @@ Outputs (gitignored):
 
 In-process extraction loads `.env.local` for `ANTHROPIC_API_KEY` when present. If in-process import fails, start `npm run dev` and pass `--api-url http://localhost:3000`.
 
-### 3. Comparison and scoring (later)
+### 3. Review queue (Milestone 3b)
 
-Compare generated fields to stored historical values. See `npm run eval:historical` and related scripts under `scripts/eval/`.
+Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
+
+```bash
+npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
+```
+
+Writes `data/eval/results/review_queue_<timestamp>.csv` with historical input fields, ExpoPrint output fields, blank score columns (`business_name_score`, `category_score`, `logo_score`, `brief_score`, `overall_score`, `reviewer_notes`), and helper similarity hints.
+
+View locally at `/dev/eval` (development only) or on deployed builds at `/internal/eval` (password + sample data only).
+
+**Scoring rubric** (assign in CSV or spreadsheet):
+
+| Score | Meaning |
+| --- | --- |
+| **3** | Correct / usable as-is |
+| **2** | Mostly correct / minor edit |
+| **1** | Partially useful / major edit |
+| **0** | Wrong or missing |
+| **N/A** | Not available or not applicable |
+
+### 4. Automated comparison (later)
+
+See `npm run eval:historical` and `scoreHistoricalExtraction` for additional harness work.
+
+## Evaluation viewers
+
+| Route | When | Data source |
+| --- | --- | --- |
+| **`/dev/eval`** | `NODE_ENV === development` only | Local gitignored `data/eval/runs/` and `results/` |
+| **`/internal/eval`** | Deployed builds | Password (`INTERNAL_EVAL_PASSWORD`) + committed `data/eval/internal-sample/` |
+
+`/dev/eval` never reads partner files in production. `/internal/eval` starts with sanitized sample CSVs only; private storage can be wired in later without changing the local workflow.
 
 ## Where to put real data
 
@@ -56,7 +87,8 @@ Compare generated fields to stored historical values. See `npm run eval:historic
 | `data/private/eval/*.csv` | **No** — entire `data/private/` is gitignored | Real Metabase exports |
 | `data/eval/metabase_sample.example.csv` | Yes | Fake example rows for smoke tests |
 | `data/eval/runs/` | `.gitkeep` only | JSONL run outputs |
-| `data/eval/results/` | `.gitkeep` only | URL candidates, extraction summaries, scores |
+| `data/eval/results/` | `.gitkeep` only | URL candidates, extraction summaries, review queues |
+| `data/eval/internal-sample/` | Yes | Fake artifacts for `/internal/eval` only |
 
 Never commit partner CSVs, run outputs, or `*.local.csv` files.
 
@@ -92,6 +124,9 @@ npm run eval:urls -- data/eval/metabase_sample.example.csv
 
 # Limited extraction sample (after eval:urls on real or example data)
 npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
+
+# Review queue from extraction run
+npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 
 # Normalize Metabase rows (URL column heuristics)
 npx tsx scripts/eval/normalizeMetabaseRows.ts --input data/eval/metabase_sample.example.csv

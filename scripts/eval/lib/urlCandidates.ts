@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
+import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
+
+export { canonicalDomainFromHost };
 
 /** Columns scanned for embedded http(s) URLs and bare domains. */
 export const TEXT_SOURCE_COLUMNS = [
@@ -43,6 +46,8 @@ export type UrlCandidateOutputRow = {
   raw_url: string;
   normalized_url: string;
   domain: string;
+  /** Hostname with leading `www.` removed — dedupe/comparison only. */
+  canonical_domain: string;
   first_req_description: string;
   first_req_note: string;
 };
@@ -151,6 +156,29 @@ export function domainFromNormalizedUrl(normalized: string): string {
   }
 }
 
+export function canonicalDomainForRow(
+  row: Pick<UrlCandidateOutputRow, "domain" | "canonical_domain" | "normalized_url">,
+): string {
+  const fromColumn = row.canonical_domain?.trim().toLowerCase();
+  if (fromColumn) return fromColumn;
+  const fromDomain = canonicalDomainFromHost(row.domain);
+  if (fromDomain) return fromDomain;
+  return row.normalized_url.trim().toLowerCase();
+}
+
+function withCanonicalDomain(
+  row: Omit<UrlCandidateOutputRow, "canonical_domain"> & {
+    canonical_domain?: string;
+  },
+): UrlCandidateOutputRow {
+  const domain = row.domain;
+  const canonical_domain =
+    row.canonical_domain?.trim() ||
+    canonicalDomainFromHost(domain) ||
+    "";
+  return { ...row, domain, canonical_domain };
+}
+
 /** Second-level label must include a letter (avoids numeric-only fragments). */
 export function isValidBareDomainHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^www\./, "");
@@ -232,7 +260,8 @@ export function buildUrlExtractionSummary(
   for (const row of candidates) {
     const rk = row.ds_id || row.ds_number;
     if (rk) rowKeys.add(rk);
-    if (row.domain) domains.add(row.domain);
+    const canon = canonicalDomainForRow(row);
+    if (canon) domains.add(canon);
     for (const col of row.source_column.split("; ").map((s) => s.trim())) {
       if (!col) continue;
       bySourceColumn[col] = (bySourceColumn[col] ?? 0) + 1;
@@ -288,13 +317,14 @@ export function extractUrlCandidatesFromRecords(
         );
         return;
       }
-      const row: UrlCandidateOutputRow = {
+      const domain = domainFromNormalizedUrl(normalized);
+      const row: UrlCandidateOutputRow = withCanonicalDomain({
         ...base,
         source_column: sourceColumn,
         raw_url: raw.trim(),
         normalized_url: normalized,
-        domain: domainFromNormalizedUrl(normalized),
-      };
+        domain,
+      });
       seenPerRow.set(dedupeKey, row);
       out.push(row);
     };
@@ -316,6 +346,49 @@ export function extractUrlCandidatesFromRecords(
   return out;
 }
 
+export function urlCandidateRowsFromCsvRecords(
+  records: Record<string, string>[],
+  headers: string[],
+): UrlCandidateOutputRow[] {
+  const keyMap = headerKeyMap(headers);
+  const out: UrlCandidateOutputRow[] = [];
+
+  for (const record of records) {
+    const normalized = pickField(record, keyMap, "normalized_url");
+    if (!normalized) continue;
+
+    const domain =
+      pickField(record, keyMap, "domain") ||
+      domainFromNormalizedUrl(normalized);
+
+    out.push(
+      withCanonicalDomain({
+        ds_id: pickField(record, keyMap, "ds_id"),
+        ds_number: pickField(record, keyMap, "ds_number"),
+        project_id: pickField(record, keyMap, "project_id"),
+        project_title: pickField(record, keyMap, "project_title"),
+        project_status: pickField(record, keyMap, "project_status"),
+        project_type: pickField(record, keyMap, "project_type"),
+        turnaround_type: pickField(record, keyMap, "turnaround_type"),
+        shop_code: pickField(record, keyMap, "shop_code"),
+        source_column: pickField(record, keyMap, "source_column"),
+        raw_url: pickField(record, keyMap, "raw_url"),
+        normalized_url: normalized,
+        domain,
+        canonical_domain: pickField(record, keyMap, "canonical_domain"),
+        first_req_description: pickField(record, keyMap, "first_req_description"),
+        first_req_note: pickField(record, keyMap, "first_req_note"),
+      }),
+    );
+  }
+
+  if (out.length === 0 && records.length > 0) {
+    return extractUrlCandidatesFromRecords(records, headers);
+  }
+
+  return out;
+}
+
 export function loadUrlCandidatesFromCsv(csvPath: string): {
   candidates: UrlCandidateOutputRow[];
   summary: UrlExtractionSummary;
@@ -323,7 +396,10 @@ export function loadUrlCandidatesFromCsv(csvPath: string): {
   const text = readFileSync(csvPath, "utf8");
   const rows = parseCsv(text);
   const { headers, records } = csvRowsToObjects(rows);
-  const candidates = extractUrlCandidatesFromRecords(records, headers);
+  const keyMap = headerKeyMap(headers);
+  const candidates = keyMap.has("normalized_url")
+    ? urlCandidateRowsFromCsvRecords(records, headers)
+    : extractUrlCandidatesFromRecords(records, headers);
   const summary = buildUrlExtractionSummary(records.length, candidates);
   return { candidates, summary };
 }
@@ -349,6 +425,7 @@ export function urlCandidatesToCsv(rows: UrlCandidateOutputRow[]): string {
     "raw_url",
     "normalized_url",
     "domain",
+    "canonical_domain",
     "first_req_description",
     "first_req_note",
   ];
