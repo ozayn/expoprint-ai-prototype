@@ -2,13 +2,16 @@ import Link from "next/link";
 import { EvalFileStrip } from "./EvalFileStrip";
 import { ExtractionSummaryTable } from "./ExtractionSummaryTable";
 import { ReviewQueueTable } from "./ReviewQueueTable";
+import { ScoreSummaryPanel } from "./ScoreSummaryPanel";
 import type { LocalEvalFileIndex } from "@/lib/evalLocal/listEvalFiles";
 import type { ExtractionSummaryRow } from "@/lib/evalLocal/extractionSummaryTypes";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
 
 export type EvalViewerSearchParams = {
   summary?: string;
   review?: string;
+  score?: string;
 };
 
 export type EvalViewerProps = {
@@ -18,8 +21,10 @@ export type EvalViewerProps = {
   index: LocalEvalFileIndex;
   summaryName?: string;
   reviewName?: string;
+  scoreName?: string;
   summaryData: { filename: string; rows: ExtractionSummaryRow[] } | null;
   reviewData: { filename: string; rows: ReviewQueueRow[] } | null;
+  scoreData: ParsedScoreSummary | null;
   searchParams: EvalViewerSearchParams;
   showCliHints?: boolean;
 };
@@ -34,6 +39,7 @@ function buildEvalHref(
   const q = new URLSearchParams();
   if (next.summary) q.set("summary", next.summary);
   if (next.review) q.set("review", next.review);
+  if (next.score) q.set("score", next.score);
   const qs = q.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
@@ -103,6 +109,15 @@ function EmptySummaryState({ showCliHints }: { showCliHints: boolean }) {
   );
 }
 
+function SectionIntro({ title, description }: { title: string; description: string }) {
+  return (
+    <>
+      <h2 className="text-sm font-medium text-zinc-900">{title}</h2>
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{description}</p>
+    </>
+  );
+}
+
 function EmptyReviewState({ showCliHints }: { showCliHints: boolean }) {
   return (
     <div className="py-10 text-center">
@@ -123,8 +138,10 @@ export function EvalViewer({
   index,
   summaryName,
   reviewName,
+  scoreName,
   summaryData,
   reviewData,
+  scoreData,
   searchParams,
   showCliHints = true,
 }: EvalViewerProps) {
@@ -164,7 +181,10 @@ export function EvalViewer({
 
         <div className="grid gap-12 pt-2 lg:grid-cols-2 lg:gap-10">
           <section>
-            <h2 className="text-sm font-medium text-zinc-900">Extraction results</h2>
+            <SectionIntro
+              title="Websites processed by ExpoPrint"
+              description="Each row is a historical URL from the Metabase export that was run through the ExpoPrint website extraction pipeline. This table shows whether extraction succeeded, how long it took, and the basic extracted output."
+            />
 
             {index.extractionSummaries.length === 0 ? (
               <EmptySummaryState showCliHints={showCliHints} />
@@ -194,7 +214,15 @@ export function EvalViewer({
           </section>
 
           <section>
-            <h2 className="text-sm font-medium text-zinc-900">Review queue</h2>
+            <SectionIntro
+              title="Comparison rows for manual scoring"
+              description="Each row combines historical project/request data with ExpoPrint’s extracted fields. Use this table to review whether the extracted business name, category, logo, and brief are correct enough to use."
+            />
+            {showCliHints ? (
+              <p className="mt-2 text-xs text-zinc-400">
+                Scores are blank until filled manually in the review_queue CSV.
+              </p>
+            ) : null}
 
             {index.reviewQueues.length === 0 ? (
               <EmptyReviewState showCliHints={showCliHints} />
@@ -223,6 +251,14 @@ export function EvalViewer({
             )}
           </section>
         </div>
+
+        <ScoreSummaryPanel
+          basePath={basePath}
+          files={index.scoreSummaries}
+          activeName={scoreName}
+          data={scoreData}
+          searchParams={searchParams}
+        />
       </div>
     </div>
   );

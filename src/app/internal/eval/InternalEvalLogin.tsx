@@ -46,7 +46,7 @@ export function InternalEvalLogin() {
           Historical evaluation
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Password required. Sample data only — no partner exports on this route.
+          Password required. Sanitized sample data only.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">

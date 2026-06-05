@@ -36,7 +36,7 @@ Only the fake example `metabase_sample.example.csv` is meant to be committed und
 | Folder | Contents |
 | --- | --- |
 | `runs/` | `extraction_run_*.jsonl` (gitignored) |
-| `results/` | `url_candidates_*.csv`, `extraction_summary_*.csv` (gitignored) |
+| `results/` | `url_candidates_*.csv`, `extraction_summary_*.csv`, `review_queue_*.csv`, `score_summary_*` (gitignored) |
 
 ## URL candidates
 
@@ -52,6 +52,7 @@ After `eval:urls`, run a small sample only:
 ```bash
 npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
+npm run eval:score -- data/eval/results/review_queue_<timestamp>.csv
 ```
 
 See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/historical-extraction-evaluation.md).
@@ -61,8 +62,8 @@ See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/h
 | Route | Environment | Data |
 | --- | --- | --- |
 | [`/dev/eval`](http://localhost:3000/dev/eval) | Local dev only (`npm run dev`) | Gitignored `data/eval/runs/` + `results/` |
-| [`/internal/eval`](http://localhost:3000/internal/eval) | Deployed (password) | Committed `internal-sample/` only |
+| [`/internal/eval`](http://localhost:3000/internal/eval) | Deployed (password) | Committed `public-sample-review.json` only |
 
 `/eval-local` redirects to `/dev/eval`.
 
-Set `INTERNAL_EVAL_PASSWORD` in `.env.local` to test the internal viewer locally.
+Set `EVAL_VIEWER_PASSWORD` in `.env.local` to test the deployed viewer locally. Without it, local dev still shows the sanitized sample fixture.

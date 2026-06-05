@@ -22,6 +22,8 @@
     "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
     "eval:review": "tsx scripts/eval/buildHistoricalReviewQueue.ts",
     "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",
+    "eval:score": "tsx scripts/eval/summarizeHistoricalReviewScores.ts",
+    "eval:score:test": "tsx scripts/eval/lib/reviewScoreSummary.test.ts",
     "check:partner-data": "bash scripts/check-partner-data-git.sh"
   },
   "dependencies": {

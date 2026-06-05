@@ -5,10 +5,12 @@ import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
 import {
   listLocalEvalFiles,
   pickReviewQueueFilename,
+  pickScoreSummaryFilename,
   pickSummaryFilename,
 } from "@/lib/evalLocal/listEvalFiles";
 import { readExtractionSummaryCsv } from "@/lib/evalLocal/readExtractionSummary";
 import { readReviewQueueCsv } from "@/lib/evalLocal/readReviewQueue";
+import { readScoreSummaryCsv } from "@/lib/evalLocal/readScoreSummary";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,7 @@ function ProductionBlocked() {
 }
 
 type PageProps = {
-  searchParams: Promise<{ summary?: string; review?: string }>;
+  searchParams: Promise<{ summary?: string; review?: string; score?: string }>;
 };
 
 export default async function DevEvalPage({ searchParams }: PageProps) {
@@ -52,11 +54,17 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
     params.summary,
   );
   const reviewName = pickReviewQueueFilename(index.reviewQueues, params.review);
+  const scoreName = pickScoreSummaryFilename(
+    index.scoreSummaries,
+    params.score,
+    reviewName,
+  );
 
   const summaryData = summaryName
     ? await readExtractionSummaryCsv(summaryName)
     : null;
   const reviewData = reviewName ? await readReviewQueueCsv(reviewName) : null;
+  const scoreData = scoreName ? await readScoreSummaryCsv(scoreName) : null;
 
   return (
     <EvalViewer
@@ -66,8 +74,10 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
       index={index}
       summaryName={summaryName}
       reviewName={reviewName}
+      scoreName={scoreName}
       summaryData={summaryData}
       reviewData={reviewData}
+      scoreData={scoreData}
       searchParams={params}
       showCliHints
     />

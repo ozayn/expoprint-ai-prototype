@@ -57,6 +57,8 @@ data/eval/results/**
 data/**/url_candidates_*.csv
 data/**/extraction_summary_*.csv
 data/**/review_queue_*.csv
+data/**/score_summary_*.csv
+data/**/score_summary_*.json
 data/**/extraction_run_*.jsonl
 data/**/run_*.jsonl
 data/**/results_*.csv

@@ -6,6 +6,7 @@ export type EvalFileKind =
   | "url_candidates"
   | "extraction_summary"
   | "review_queue"
+  | "score_summary"
   | "extraction_run";
 
 export type EvalFileEntry = {
@@ -21,6 +22,7 @@ export type LocalEvalFileIndex = {
   urlCandidates: EvalFileEntry[];
   extractionSummaries: EvalFileEntry[];
   reviewQueues: EvalFileEntry[];
+  scoreSummaries: EvalFileEntry[];
   extractionRuns: EvalFileEntry[];
 };
 
@@ -36,6 +38,9 @@ function classifyFilename(name: string): EvalFileKind | null {
   }
   if (name.startsWith("review_queue_") && name.endsWith(".csv")) {
     return "review_queue";
+  }
+  if (name.startsWith("score_summary_") && name.endsWith(".csv")) {
+    return "score_summary";
   }
   if (name.startsWith("extraction_run_") && name.endsWith(".jsonl")) {
     return "extraction_run";
@@ -91,6 +96,7 @@ export async function listLocalEvalFiles(): Promise<LocalEvalFileIndex> {
       urlCandidates: [],
       extractionSummaries: [],
       reviewQueues: [],
+      scoreSummaries: [],
       extractionRuns: [],
     };
   }
@@ -103,12 +109,14 @@ export async function listLocalEvalFiles(): Promise<LocalEvalFileIndex> {
   const urlCandidates: EvalFileEntry[] = [];
   const extractionSummaries: EvalFileEntry[] = [];
   const reviewQueues: EvalFileEntry[] = [];
+  const scoreSummaries: EvalFileEntry[] = [];
   const extractionRuns: EvalFileEntry[] = [];
 
   for (const entry of resultsEntries) {
     if (entry.kind === "url_candidates") urlCandidates.push(entry);
     if (entry.kind === "extraction_summary") extractionSummaries.push(entry);
     if (entry.kind === "review_queue") reviewQueues.push(entry);
+    if (entry.kind === "score_summary") scoreSummaries.push(entry);
   }
 
   for (const entry of runsEntries) {
@@ -119,6 +127,7 @@ export async function listLocalEvalFiles(): Promise<LocalEvalFileIndex> {
     urlCandidates: sortNewestFirst(urlCandidates),
     extractionSummaries: sortNewestFirst(extractionSummaries),
     reviewQueues: sortNewestFirst(reviewQueues),
+    scoreSummaries: sortNewestFirst(scoreSummaries),
     extractionRuns: sortNewestFirst(extractionRuns),
   };
 }
@@ -166,4 +175,29 @@ export function matchingReviewQueue(
     }
   }
   return queues[0];
+}
+
+export function isSafeScoreSummaryFilename(name: string): boolean {
+  return /^score_summary_\d+\.csv$/.test(name);
+}
+
+export function pickScoreSummaryFilename(
+  summaries: EvalFileEntry[],
+  requested: string | undefined,
+  reviewName?: string,
+): string | undefined {
+  if (summaries.length === 0) return undefined;
+  const allowed = new Set(summaries.map((s) => s.name));
+  if (requested && allowed.has(requested)) return requested;
+
+  if (reviewName) {
+    const m = reviewName.match(/_(20\d{12})\.csv$/);
+    const ts = m?.[1];
+    if (ts) {
+      const match = `score_summary_${ts}.csv`;
+      if (allowed.has(match)) return match;
+    }
+  }
+
+  return summaries[0]?.name;
 }

@@ -7,16 +7,12 @@ cd "$ROOT"
 
 ALLOWED=(
   "data/eval/metabase_sample.example.csv"
+  "data/eval/public-sample-review.json"
   "data/eval/.gitkeep"
   "data/eval/runs/.gitkeep"
   "data/eval/results/.gitkeep"
   "data/extraction-eval-fixtures.json"
 )
-
-# Committed fake artifacts for /internal/eval (example.com only — no partner data).
-is_internal_sample() {
-  [[ "$1" == data/eval/internal-sample/* ]]
-}
 
 is_allowed() {
   local f="$1"
@@ -30,7 +26,6 @@ is_forbidden() {
   local f="$1"
   [[ -z "$f" ]] && return 1
   is_allowed "$f" && return 1
-  is_internal_sample "$f" && return 1
 
   case "$f" in
     data/private/*) return 0 ;;
@@ -47,6 +42,8 @@ is_forbidden() {
     data/*/url_candidates_*.csv | data/*/*/url_candidates_*.csv) return 0 ;;
     data/*/extraction_summary_*.csv | data/*/*/extraction_summary_*.csv) return 0 ;;
     data/*/review_queue_*.csv | data/*/*/review_queue_*.csv) return 0 ;;
+    data/*/score_summary_*.csv | data/*/*/score_summary_*.csv) return 0 ;;
+    data/*/score_summary_*.json | data/*/*/score_summary_*.json) return 0 ;;
     data/*/extraction_run_*.jsonl | data/*/*/extraction_run_*.jsonl) return 0 ;;
     data/*/run_*.jsonl | data/*/*/run_*.jsonl) return 0 ;;
     data/*/results_*.csv | data/*/*/results_*.csv) return 0 ;;

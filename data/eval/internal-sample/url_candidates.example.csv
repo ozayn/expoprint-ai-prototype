@@ -1,4 +1,0 @@
-ds_id,ds_number,project_id,project_title,project_status,project_type,turnaround_type,shop_code,source_column,raw_url,normalized_url,domain,canonical_domain,first_req_description,first_req_note
-10001,DS-10001,5001,Acme Booth,completed,trade_show_booth,standard,,first_req_description,https://Example.COM/booth?ref=1).,https://example.com/booth?ref=1,example.com,example.com,Backdrop for https://Example.COM/booth?ref=1).,
-10005,DS-10005,5005,HTTPS explicit,draft,trade_show_booth,standard,,first_req_description,https://example.com,https://example.com/,example.com,example.com,Client site https://example.com for colors,
-10006,DS-10006,5006,WWW bare domain,draft,trade_show_booth,standard,,first_req_description,www.example.org,https://www.example.org/,www.example.org,example.org,Graphics for www.example.org booth,

@@ -1,9 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import {
-  getInternalEvalPassword,
-  INTERNAL_EVAL_COOKIE,
-  signInternalEvalToken,
+  EVAL_VIEWER_COOKIE,
+  getEvalViewerPassword,
+  signEvalViewerToken,
 } from "@/lib/evalInternal/auth";
 
 function verifySubmittedPassword(
@@ -20,9 +20,10 @@ function verifySubmittedPassword(
 export const runtime = "nodejs";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const COOKIE_PATH = "/internal/eval";
 
 export async function POST(req: Request) {
-  const password = getInternalEvalPassword();
+  const password = getEvalViewerPassword();
   if (!password) {
     return NextResponse.json({ ok: false, reason: "not_configured" }, { status: 503 });
   }
@@ -47,11 +48,11 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(INTERNAL_EVAL_COOKIE, signInternalEvalToken(password), {
+  res.cookies.set(EVAL_VIEWER_COOKIE, signEvalViewerToken(password), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/internal",
+    path: COOKIE_PATH,
     maxAge: COOKIE_MAX_AGE,
   });
   return res;
@@ -59,11 +60,11 @@ export async function POST(req: Request) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(INTERNAL_EVAL_COOKIE, "", {
+  res.cookies.set(EVAL_VIEWER_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/internal",
+    path: COOKIE_PATH,
     maxAge: 0,
   });
   return res;

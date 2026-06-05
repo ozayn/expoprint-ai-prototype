@@ -1,4 +1,0 @@
-ds_number,project_title,project_type,shop_code,normalized_url,domain,canonical_domain,status,elapsed_ms,error_message,extracted_business_name,logo_candidate_count,pages_inspected
-DS-10001,Acme Booth,trade_show_booth,,https://example.com/booth?ref=1,example.com,example.com,success,8420,,Acme Industries,2,3
-DS-10005,HTTPS explicit,trade_show_booth,,https://example.com/,example.com,example.com,success,9100,,Example Company,1,4
-DS-10006,WWW bare domain,trade_show_booth,,https://www.example.org/,www.example.org,example.org,success,7800,,Example Foundation,3,3

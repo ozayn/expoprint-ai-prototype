@@ -67,7 +67,24 @@ View locally at `/dev/eval` (development only) or on deployed builds at `/intern
 | **0** | Wrong or missing |
 | **N/A** | Not available or not applicable |
 
-### 4. Automated comparison (later)
+### 4. Score summary (Milestone 4)
+
+After manually filling score columns in a review queue CSV, summarize results:
+
+```bash
+npm run eval:score -- data/eval/results/review_queue_<timestamp>.csv
+```
+
+Writes gitignored outputs:
+
+- `data/eval/results/score_summary_<timestamp>.csv` — metric/distribution table
+- `data/eval/results/score_summary_<timestamp>.json` — structured summary (omit with `--csv-only`)
+
+The script validates scores (`0`, `1`, `2`, `3`, `N/A`, or blank). Invalid values print warnings; pass `--strict` to fail. The input review queue CSV is never modified.
+
+View score summaries locally at `/dev/eval` (compact section below the review tables).
+
+### 5. Automated comparison (later)
 
 See `npm run eval:historical` and `scoreHistoricalExtraction` for additional harness work.
 
@@ -76,9 +93,9 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 | Route | When | Data source |
 | --- | --- | --- |
 | **`/dev/eval`** | `NODE_ENV === development` only | Local gitignored `data/eval/runs/` and `results/` |
-| **`/internal/eval`** | Deployed builds | Password (`INTERNAL_EVAL_PASSWORD`) + committed `data/eval/internal-sample/` |
+| **`/internal/eval`** | Deployed builds | Password (`EVAL_VIEWER_PASSWORD`) + committed `data/eval/public-sample-review.json` |
 
-`/dev/eval` never reads partner files in production. `/internal/eval` starts with sanitized sample CSVs only; private storage can be wired in later without changing the local workflow.
+`/dev/eval` never reads partner files in production. `/internal/eval` reads only the sanitized sample JSON fixture — never `data/eval/runs/`, `data/eval/results/`, or `data/private/`. Private storage can be wired in later without changing the local workflow.
 
 ## Where to put real data
 
@@ -88,7 +105,7 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 | `data/eval/metabase_sample.example.csv` | Yes | Fake example rows for smoke tests |
 | `data/eval/runs/` | `.gitkeep` only | JSONL run outputs |
 | `data/eval/results/` | `.gitkeep` only | URL candidates, extraction summaries, review queues |
-| `data/eval/internal-sample/` | Yes | Fake artifacts for `/internal/eval` only |
+| `data/eval/public-sample-review.json` | Yes | Sanitized review rows for `/internal/eval` only |
 
 Never commit partner CSVs, run outputs, or `*.local.csv` files.
 
