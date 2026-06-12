@@ -5,7 +5,12 @@ import type {
 } from "@/lib/evalLocal/publishedInternalEvalTypes";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import {
+  dedupeEvalUrls,
+  logEvalUrlDedupe,
+} from "@/lib/evalLocal/evalUrlDedup";
+import {
   buildUrlInventory,
+  type UrlInventoryExtractionStatus,
   type UrlInventoryRow,
 } from "@/lib/evalLocal/urlInventoryJoin";
 import { displayUrlHostOnly } from "./sanitizePublishedReview";
@@ -18,13 +23,96 @@ export type PublishUrlInventoryOptions = {
 
 export type PublishUrlInventoryStats = {
   candidatesRead: number;
+  inventoryRowsAfterDedupe: number;
+  sanitizedRows: number;
   rowsPublished: number;
   matchedCount: number;
   notRunCount: number;
   successCount: number;
   failedCount: number;
   urlDuplicatesRemoved: number;
+  publishDuplicatesRemoved: number;
 };
+
+function mergeSourceColumn(existing: string, next: string): string {
+  if (!existing.trim()) return next.trim();
+  if (!next.trim()) return existing.trim();
+  const parts = existing.split("; ").map((s) => s.trim());
+  const add = next.trim();
+  if (parts.includes(add)) return existing;
+  return `${existing}; ${add}`;
+}
+
+function extractionStatusRank(status: UrlInventoryExtractionStatus): number {
+  if (status === "success") return 3;
+  if (status === "failed") return 2;
+  return 1;
+}
+
+function publishedRowUrlForDedupe(row: PublishedUrlInventoryRow): string {
+  const normalized = row.normalized_url?.trim();
+  if (normalized) return normalized;
+  return row.canonical_domain?.trim() || row.domain?.trim() || row.row_label?.trim() || "";
+}
+
+function mergePublishedUrlInventoryRows(
+  primary: PublishedUrlInventoryRow,
+  secondary: PublishedUrlInventoryRow,
+): PublishedUrlInventoryRow {
+  const primaryRank = extractionStatusRank(primary.extraction_status);
+  const secondaryRank = extractionStatusRank(secondary.extraction_status);
+  const kept = primaryRank >= secondaryRank ? primary : secondary;
+  const other = primaryRank >= secondaryRank ? secondary : primary;
+
+  return {
+    ...kept,
+    source_column: mergeSourceColumn(
+      kept.source_column ?? "",
+      other.source_column ?? "",
+    ),
+    review: kept.review ?? other.review,
+  };
+}
+
+/** Deduplicate sanitized published rows (e.g. after host-only normalized_url collisions). */
+export function dedupePublishedUrlInventoryRows(
+  rows: PublishedUrlInventoryRow[],
+  logLabel?: string,
+): { rows: PublishedUrlInventoryRow[]; duplicatesRemoved: number } {
+  const result = dedupeEvalUrls(
+    rows,
+    publishedRowUrlForDedupe,
+    mergePublishedUrlInventoryRows,
+  );
+  if (logLabel) {
+    logEvalUrlDedupe(logLabel, result);
+  }
+  return { rows: result.items, duplicatesRemoved: result.duplicatesRemoved };
+}
+
+function statsFromPublishedRows(rows: PublishedUrlInventoryRow[]): {
+  matchedCount: number;
+  notRunCount: number;
+  successCount: number;
+  failedCount: number;
+} {
+  let notRunCount = 0;
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const row of rows) {
+    if (row.extraction_status === "not_run") notRunCount += 1;
+    else if (row.extraction_status === "success") successCount += 1;
+    else failedCount += 1;
+  }
+
+  return {
+    matchedCount: successCount + failedCount,
+    notRunCount,
+    successCount,
+    failedCount,
+  };
+}
 
 function sanitizeInventoryCandidateFields(
   candidate: UrlCandidateRow,
@@ -109,22 +197,73 @@ export function sanitizeUrlInventoryRow(
   };
 }
 
+export function logPublishUrlInventoryRowCounts(
+  label: string,
+  counts: {
+    rawInventoryRows: number;
+    afterInitialDedupe: number;
+    afterSanitization: number;
+    finalWritten: number;
+    initialDuplicatesRemoved: number;
+    publishDuplicatesRemoved: number;
+  },
+): void {
+  console.log(`${label} row counts:`);
+  console.log(`  Raw inventory rows:        ${counts.rawInventoryRows}`);
+  console.log(`  After initial URL dedupe:  ${counts.afterInitialDedupe}`);
+  console.log(`  After publish sanitization: ${counts.afterSanitization}`);
+  console.log(`  Final written rows:        ${counts.finalWritten}`);
+  if (counts.initialDuplicatesRemoved > 0) {
+    console.log(
+      `  Initial dedupe removed:    ${counts.initialDuplicatesRemoved}`,
+    );
+  }
+  if (counts.publishDuplicatesRemoved > 0) {
+    console.log(
+      `  Publish dedupe removed:    ${counts.publishDuplicatesRemoved}`,
+    );
+  }
+}
+
 export function buildPublishedUrlInventoryFile(
   sourceUrlCandidatesBasename: string,
   sourceReviewQueueBasename: string,
   candidates: UrlCandidateRow[],
   publishedReviewRows: BrandAuditRow[],
   options: PublishUrlInventoryOptions,
+  logCounts = true,
 ): {
   file: PublishedInternalEvalUrlInventoryFile;
   stats: PublishUrlInventoryStats;
 } {
-  const { rows: inventoryRows, stats: inventoryStats, urlDuplicatesRemoved } =
-    buildUrlInventory(candidates, publishedReviewRows, "Published URL inventory");
+  const { rows: inventoryRows, urlDuplicatesRemoved } = buildUrlInventory(
+    candidates,
+    publishedReviewRows,
+    "Published URL inventory",
+  );
 
-  const rows = inventoryRows.map((row, index) =>
+  const sanitizedRows = inventoryRows.map((row, index) =>
     sanitizeUrlInventoryRow(row, index, options),
   );
+
+  const { rows: finalRows, duplicatesRemoved: publishDuplicatesRemoved } =
+    dedupePublishedUrlInventoryRows(
+      sanitizedRows,
+      "Published URL inventory (post-sanitize)",
+    );
+
+  const extractionStats = statsFromPublishedRows(finalRows);
+
+  if (logCounts) {
+    logPublishUrlInventoryRowCounts("URL inventory publish", {
+      rawInventoryRows: candidates.length,
+      afterInitialDedupe: inventoryRows.length,
+      afterSanitization: sanitizedRows.length,
+      finalWritten: finalRows.length,
+      initialDuplicatesRemoved: urlDuplicatesRemoved,
+      publishDuplicatesRemoved,
+    });
+  }
 
   return {
     file: {
@@ -136,16 +275,19 @@ export function buildPublishedUrlInventoryFile(
       include_domains: options.includeDomains,
       include_project_context: options.includeProjectContext,
       include_logo_urls: options.includeLogoUrls,
-      rows,
+      rows: finalRows,
     },
     stats: {
       candidatesRead: candidates.length,
-      rowsPublished: rows.length,
-      matchedCount: inventoryStats.processedCount,
-      notRunCount: inventoryStats.notRunCount,
-      successCount: inventoryStats.successCount,
-      failedCount: inventoryStats.failedCount,
+      inventoryRowsAfterDedupe: inventoryRows.length,
+      sanitizedRows: sanitizedRows.length,
+      rowsPublished: finalRows.length,
+      matchedCount: extractionStats.matchedCount,
+      notRunCount: extractionStats.notRunCount,
+      successCount: extractionStats.successCount,
+      failedCount: extractionStats.failedCount,
       urlDuplicatesRemoved,
+      publishDuplicatesRemoved,
     },
   };
 }

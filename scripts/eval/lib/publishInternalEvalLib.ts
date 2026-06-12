@@ -200,13 +200,18 @@ export function printPublishUrlInventorySummary(result: PublishUrlInventoryResul
   console.log("Publish URL inventory");
   console.log(`  Input:                ${result.inputPath}`);
   console.log(`  Candidates read:    ${stats.candidatesRead}`);
-  console.log(`  Rows published:     ${stats.rowsPublished}`);
+  console.log(`  After initial dedupe: ${stats.inventoryRowsAfterDedupe}`);
+  console.log(`  After sanitization:   ${stats.sanitizedRows}`);
+  console.log(`  Rows published:       ${stats.rowsPublished}`);
   console.log(`  Matched (processed): ${stats.matchedCount}`);
   console.log(`  Not run:            ${stats.notRunCount}`);
   console.log(`  Success:            ${stats.successCount}`);
   console.log(`  Failed:             ${stats.failedCount}`);
   if (stats.urlDuplicatesRemoved > 0) {
-    console.log(`  URL duplicates removed: ${stats.urlDuplicatesRemoved}`);
+    console.log(`  Initial dedupe removed: ${stats.urlDuplicatesRemoved}`);
+  }
+  if (stats.publishDuplicatesRemoved > 0) {
+    console.log(`  Publish dedupe removed: ${stats.publishDuplicatesRemoved}`);
   }
   console.log(
     `  Domains included:     ${options.includeDomains ? "yes" : "no (URL N labels)"}`,

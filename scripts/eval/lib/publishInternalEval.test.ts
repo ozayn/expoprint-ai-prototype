@@ -194,6 +194,65 @@ function testPublishedUrlInventoryOmitsPartnerFields(): void {
   assert.equal(viewerRow.extractionStatus, "success");
 }
 
+function testPublishedUrlInventoryDedupesAfterSanitize(): void {
+  const { file, stats } = buildPublishedUrlInventoryFile(
+    "url_candidates_test.csv",
+    "review_queue_test.csv",
+    [
+      {
+        ds_id: "a",
+        ds_number: "",
+        project_id: "",
+        project_title: "",
+        project_status: "",
+        project_type: "",
+        turnaround_type: "",
+        shop_code: "",
+        source_column: "first_req",
+        raw_url: "https://client.com/page-one",
+        normalized_url: "https://client.com/page-one",
+        domain: "client.com",
+        canonical_domain: "client.com",
+        first_req_description: "",
+        first_req_note: "",
+      },
+      {
+        ds_id: "b",
+        ds_number: "",
+        project_id: "",
+        project_title: "",
+        project_status: "",
+        project_type: "",
+        turnaround_type: "",
+        shop_code: "",
+        source_column: "website_url",
+        raw_url: "https://client.com/page-two",
+        normalized_url: "https://client.com/page-two?utm_source=x",
+        domain: "client.com",
+        canonical_domain: "client.com",
+        first_req_description: "",
+        first_req_note: "",
+      },
+    ],
+    [],
+    {
+      includeDomains: true,
+      includeProjectContext: false,
+      includeLogoUrls: true,
+    },
+    false,
+  );
+
+  assert.equal(stats.inventoryRowsAfterDedupe, 2);
+  assert.equal(stats.sanitizedRows, 2);
+  assert.equal(stats.rowsPublished, 1);
+  assert.equal(stats.publishDuplicatesRemoved, 1);
+  assert.equal(file.rows.length, 1);
+  assert.equal(file.rows[0].normalized_url, "https://client.com");
+  assert.ok(file.rows[0].source_column?.includes("first_req"));
+  assert.ok(file.rows[0].source_column?.includes("website_url"));
+}
+
 function run(): void {
   testDisplayUrlHostOnly();
   testSanitizeOmitsPartnerFields();
@@ -201,6 +260,7 @@ function run(): void {
   testSanitizeContactAndOfferings();
   testBuildFile();
   testPublishedUrlInventoryOmitsPartnerFields();
+  testPublishedUrlInventoryDedupesAfterSanitize();
   console.log("publishInternalEval.test.ts: all checks passed");
 }
 
