@@ -60,13 +60,18 @@ export function EvalFilterControls({
   ].filter(Boolean);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" suppressHydrationWarning>
       <input
         type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder={searchPlaceholder}
         aria-label="Search rows"
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-form-type="other"
+        suppressHydrationWarning
         className="w-full max-w-md rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-200"
       />
 
@@ -77,6 +82,7 @@ export function EvalFilterControls({
               key={key}
               type="button"
               onClick={() => setStatusFilter(key)}
+              suppressHydrationWarning
               className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
                 statusFilter === key
                   ? "bg-zinc-200/80 text-zinc-900"
@@ -92,6 +98,7 @@ export function EvalFilterControls({
           <select
             ref={selectRef}
             value=""
+            suppressHydrationWarning
             onChange={(e) => {
               const id = e.target.value as FieldFilterId;
               if (id) addFieldFilter(id);

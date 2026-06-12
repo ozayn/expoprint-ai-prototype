@@ -4,9 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
@@ -32,15 +31,13 @@ type EvalColumnVisibilityContextValue = {
 const EvalColumnVisibilityContext =
   createContext<EvalColumnVisibilityContextValue | null>(null);
 
-function readInitialVisibleColumns(): EvalTableColumnId[] {
-  if (typeof window === "undefined") return [...EVAL_TABLE_DEFAULT_VISIBLE];
+function readStoredVisibleColumns(): EvalTableColumnId[] | null {
   try {
-    const stored = parseStoredVisibleColumns(
+    return parseStoredVisibleColumns(
       localStorage.getItem(EVAL_TABLE_COLUMN_STORAGE_KEY),
     );
-    return stored ?? [...EVAL_TABLE_DEFAULT_VISIBLE];
   } catch {
-    return [...EVAL_TABLE_DEFAULT_VISIBLE];
+    return null;
   }
 }
 
@@ -52,35 +49,72 @@ function persistVisibleColumns(ids: EvalTableColumnId[]) {
   }
 }
 
+const columnVisibilityListeners = new Set<() => void>();
+let columnVisibilityRevision = 0;
+let columnVisibilitySnapshot: EvalTableColumnId[] = [...EVAL_TABLE_DEFAULT_VISIBLE];
+
+function subscribeColumnVisibility(onStoreChange: () => void) {
+  columnVisibilityListeners.add(onStoreChange);
+  return () => {
+    columnVisibilityListeners.delete(onStoreChange);
+  };
+}
+
+function notifyColumnVisibilityChange() {
+  for (const listener of columnVisibilityListeners) {
+    listener();
+  }
+}
+
+function getColumnVisibilityServerSnapshot(): EvalTableColumnId[] {
+  return columnVisibilitySnapshot;
+}
+
+function getColumnVisibilityClientSnapshot(): EvalTableColumnId[] {
+  if (columnVisibilityRevision === 0) {
+    const stored = readStoredVisibleColumns();
+    columnVisibilitySnapshot = stored ?? [...EVAL_TABLE_DEFAULT_VISIBLE];
+    columnVisibilityRevision = 1;
+  }
+  return columnVisibilitySnapshot;
+}
+
+function commitColumnVisibility(ids: EvalTableColumnId[]) {
+  columnVisibilitySnapshot = ids;
+  columnVisibilityRevision += 1;
+  persistVisibleColumns(ids);
+  notifyColumnVisibilityChange();
+}
+
 export function EvalColumnVisibilityProvider({ children }: { children: ReactNode }) {
-  const [visibleColumnIds, setVisibleColumnIdsState] = useState<EvalTableColumnId[]>(
-    readInitialVisibleColumns,
+  const visibleColumnIds = useSyncExternalStore(
+    subscribeColumnVisibility,
+    getColumnVisibilityClientSnapshot,
+    getColumnVisibilityServerSnapshot,
   );
 
-  useEffect(() => {
-    persistVisibleColumns(visibleColumnIds);
-  }, [visibleColumnIds]);
-
   const setVisibleColumns = useCallback((ids: EvalTableColumnId[]) => {
-    setVisibleColumnIdsState(ids);
+    commitColumnVisibility(ids);
   }, []);
 
   const toggleColumn = useCallback((id: EvalTableColumnId) => {
-    setVisibleColumnIdsState((prev) => {
-      if (prev.includes(id)) {
-        const next = prev.filter((col) => col !== id);
-        return next.length > 0 ? next : prev;
+    const prev = getColumnVisibilityClientSnapshot();
+    if (prev.includes(id)) {
+      const next = prev.filter((col) => col !== id);
+      if (next.length > 0) {
+        commitColumnVisibility(next);
       }
-      return [...prev, id];
-    });
+      return;
+    }
+    commitColumnVisibility([...prev, id]);
   }, []);
 
   const resetColumns = useCallback(() => {
-    setVisibleColumnIdsState([...EVAL_TABLE_DEFAULT_VISIBLE]);
+    commitColumnVisibility([...EVAL_TABLE_DEFAULT_VISIBLE]);
   }, []);
 
   const minimalColumns = useCallback(() => {
-    setVisibleColumnIdsState([...EVAL_TABLE_MINIMAL_VISIBLE]);
+    commitColumnVisibility([...EVAL_TABLE_MINIMAL_VISIBLE]);
   }, []);
 
   const value = useMemo(
