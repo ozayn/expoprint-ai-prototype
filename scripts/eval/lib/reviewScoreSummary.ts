@@ -60,11 +60,11 @@ function emptyDistribution(): ScoreDistribution {
 }
 
 export function isSafeReviewQueueInputPath(path: string): boolean {
-  return /^review_queue_20\d{12}\.csv$/.test(basename(path));
+  return /^review_queue_20\d{12}(?:\d{3})?\.csv$/.test(basename(path));
 }
 
 export function timestampFromReviewQueuePath(path: string): string | undefined {
-  const m = basename(path).match(/^review_queue_(20\d{12})\.csv$/);
+  const m = basename(path).match(/^review_queue_(20\d{12}(?:\d{3})?)\.csv$/);
   return m?.[1];
 }
 

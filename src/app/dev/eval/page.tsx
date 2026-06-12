@@ -10,6 +10,7 @@ import {
   pickScoreSummaryFilename,
   pickSummaryFilename,
   pickUrlCandidatesFilename,
+  splitReviewQueueEntries,
 } from "@/lib/evalLocal/listEvalFiles";
 import { readExtractionSummaryCsv } from "@/lib/evalLocal/readExtractionSummary";
 import { readReviewQueueCsv } from "@/lib/evalLocal/readReviewQueue";
@@ -66,6 +67,9 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
     index.extractionSummaries,
     params.summary,
   );
+  const { batchQueues, combinedQueues } = splitReviewQueueEntries(
+    index.reviewQueues,
+  );
   const reviewName = pickReviewQueueFilename(index.reviewQueues, params.review);
   const candidatesName = pickUrlCandidatesFilename(
     index.urlCandidates,
@@ -104,6 +108,8 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
       dataKind="local"
       publishHint={publishHint}
       reviewFilename={reviewData?.filename}
+      batchReviewQueues={batchQueues}
+      combinedReviewQueues={combinedQueues}
       rows={reviewRows}
       urlInventoryFilename={candidatesData?.filename}
       urlInventoryRows={urlInventory?.rows}

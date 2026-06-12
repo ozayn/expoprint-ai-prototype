@@ -22,7 +22,7 @@ import {
 
 function isSafeReviewQueueInputPath(inputPath: string): boolean {
   const name = basename(inputPath);
-  if (!/^(?:review_queue_|manual_review_queue_)20\d{12}\.csv$/.test(name)) {
+  if (!/^(?:review_queue_|manual_review_queue_)20\d{12}(?:\d{3})?\.csv$/.test(name)) {
     return false;
   }
   const resolved = resolve(inputPath);

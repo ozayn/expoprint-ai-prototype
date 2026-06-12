@@ -7,7 +7,9 @@ import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
 import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
+import type { EvalFileEntry } from "@/lib/evalLocal/listEvalFiles";
 import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
+import { EvalReviewQueuePicker } from "./EvalReviewQueuePicker";
 import type {
   UrlInventoryRow,
   UrlInventoryStats,
@@ -44,6 +46,8 @@ export type BrandAuditViewerProps = {
   inventoryStats?: UrlInventoryStats | null;
   emptyMessage?: string;
   enableFieldFilters?: boolean;
+  batchReviewQueues?: EvalFileEntry[];
+  combinedReviewQueues?: EvalFileEntry[];
   children?: ReactNode;
 };
 
@@ -68,6 +72,8 @@ export function BrandAuditViewer({
   inventoryStats,
   emptyMessage,
   enableFieldFilters = true,
+  batchReviewQueues = [],
+  combinedReviewQueues = [],
   children,
 }: BrandAuditViewerProps) {
   const view = parseEvalViewMode(searchParams.view);
@@ -149,6 +155,17 @@ export function BrandAuditViewer({
           rows={rows}
           inventoryStats={inventoryStats}
         />
+
+        {dataKind === "local" &&
+        (batchReviewQueues.length > 0 || combinedReviewQueues.length > 0) ? (
+          <EvalReviewQueuePicker
+            basePath={basePath}
+            searchParams={searchParams}
+            activeReviewName={reviewFilename}
+            batchQueues={batchReviewQueues}
+            combinedQueues={combinedReviewQueues}
+          />
+        ) : null}
 
         <div className="mb-6 flex items-center justify-end">
           <EvalViewToggle

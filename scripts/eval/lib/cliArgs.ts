@@ -6,21 +6,25 @@ export const CLI_FLAGS_WITH_VALUE = [
   "--api-url",
 ] as const;
 
-export function getArg(flag: string): string | undefined {
-  const idx = process.argv.indexOf(flag);
+export function getArg(flag: string, argv: string[] = process.argv): string | undefined {
+  const idx = argv.indexOf(flag);
   if (idx === -1) return undefined;
-  return process.argv[idx + 1];
+  return argv[idx + 1];
 }
 
-export function getArgNumber(flag: string, defaultValue: number): number {
-  const raw = getArg(flag);
+export function getArgNumber(
+  flag: string,
+  defaultValue: number,
+  argv: string[] = process.argv,
+): number {
+  const raw = getArg(flag, argv);
   if (raw === undefined) return defaultValue;
   const n = Number(raw);
   return Number.isFinite(n) ? n : defaultValue;
 }
 
-export function hasFlag(flag: string): boolean {
-  return process.argv.includes(flag);
+export function hasFlag(flag: string, argv: string[] = process.argv): boolean {
+  return argv.includes(flag);
 }
 
 /** First argv token that is not a flag or a flag value (npm passes args after `--`). */

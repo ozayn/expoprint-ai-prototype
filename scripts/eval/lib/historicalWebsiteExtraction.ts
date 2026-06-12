@@ -205,31 +205,49 @@ export async function runHistoricalWebsiteExtraction(
   };
 }
 
-export async function runHistoricalWebsiteExtractionCli(): Promise<void> {
-  const inputPath = firstPositionalArg();
+export const WEBSITE_EXTRACTION_CLI_HELP_LINES = [
+  "",
+  "Options:",
+  "  --limit N                 Max sites to extract (default: 10)",
+  "  --offset N                Skip N rows after domain dedupe (default: 0)",
+  "  --allow-duplicate-domains Test multiple rows per domain",
+  "  --delay-ms N              Pause between requests (default: 1000)",
+  "  --api-url URL             Call POST /api/design-intake/extract instead of in-process",
+] as const;
 
-  if (!inputPath || hasFlag("--help") || hasFlag("-h")) {
-    printHelp("Usage: npm run eval:extract -- <url_candidates.csv> [options]", [
-      "",
-      "Options:",
-      "  --limit N                 Max sites to extract (default: 10)",
-      "  --offset N                Skip N rows after domain dedupe (default: 0)",
-      "  --allow-duplicate-domains Test multiple rows per domain",
-      "  --delay-ms N              Pause between requests (default: 1000)",
-      "  --api-url URL             Call POST /api/design-intake/extract instead of in-process",
-      "",
-      "Example:",
-      "  npm run eval:extract -- data/eval/results/url_candidates_<id>.csv --limit 5",
-    ]);
-    process.exit(inputPath || hasFlag("--help") || hasFlag("-h") ? 0 : 1);
-    return;
-  }
+export type ParsedWebsiteExtractionCli = {
+  inputPath?: string;
+  showHelp: boolean;
+  options: Omit<RunHistoricalWebsiteExtractionOptions, "inputPath">;
+};
 
-  const limit = getArgNumber("--limit", 10);
-  const offset = getArgNumber("--offset", 0);
-  const delayMs = getArgNumber("--delay-ms", 1000);
-  const allowDuplicateDomains = hasFlag("--allow-duplicate-domains");
-  const apiUrl = getArg("--api-url");
+export function parseWebsiteExtractionCli(
+  argv: string[] = process.argv,
+): ParsedWebsiteExtractionCli {
+  const inputPath = firstPositionalArg(argv);
+  const showHelp = !inputPath || hasFlag("--help", argv) || hasFlag("-h", argv);
+
+  return {
+    inputPath,
+    showHelp,
+    options: {
+      limit: getArgNumber("--limit", 10, argv),
+      offset: getArgNumber("--offset", 0, argv),
+      delayMs: getArgNumber("--delay-ms", 1000, argv),
+      allowDuplicateDomains: hasFlag("--allow-duplicate-domains", argv),
+      apiUrl: getArg("--api-url", argv),
+    },
+  };
+}
+
+export function printWebsiteExtractionRunHeader(
+  inputPath: string,
+  options: Omit<RunHistoricalWebsiteExtractionOptions, "inputPath">,
+): void {
+  const limit = options.limit ?? 10;
+  const offset = options.offset ?? 0;
+  const delayMs = options.delayMs ?? 1000;
+  const allowDuplicateDomains = options.allowDuplicateDomains ?? false;
 
   console.log("Historical website extraction");
   console.log(`  Input:  ${inputPath}`);
@@ -238,25 +256,47 @@ export async function runHistoricalWebsiteExtractionCli(): Promise<void> {
     `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per canonical_domain (www. stripped)"}`,
   );
   console.log(`  Delay:  ${delayMs}ms between requests`);
-  if (apiUrl) console.log(`  API:    ${apiUrl}`);
+  if (options.apiUrl) console.log(`  API:    ${options.apiUrl}`);
+}
 
-  const { jsonlPath, summaryPath, selectedCount, records } =
-    await runHistoricalWebsiteExtraction({
-      inputPath,
-      limit,
-      offset,
-      allowDuplicateDomains,
-      delayMs,
-      apiUrl,
-    });
-
-  const byStatus = records.reduce(
+export function countRecordsByStatus(
+  records: ExtractionJsonlRecord[],
+): Record<string, number> {
+  return records.reduce(
     (acc, r) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
       return acc;
     },
     {} as Record<string, number>,
   );
+}
+
+export async function runHistoricalWebsiteExtractionCli(): Promise<void> {
+  const parsed = parseWebsiteExtractionCli();
+
+  if (parsed.showHelp) {
+    printHelp("Usage: npm run eval:extract -- <url_candidates.csv> [options]", [
+      ...WEBSITE_EXTRACTION_CLI_HELP_LINES,
+      "",
+      "Example:",
+      "  npm run eval:extract -- data/eval/results/url_candidates_<id>.csv --limit 5",
+    ]);
+    process.exit(
+      parsed.inputPath || hasFlag("--help") || hasFlag("-h") ? 0 : 1,
+    );
+    return;
+  }
+
+  const inputPath = parsed.inputPath!;
+  printWebsiteExtractionRunHeader(inputPath, parsed.options);
+
+  const { jsonlPath, summaryPath, selectedCount, records } =
+    await runHistoricalWebsiteExtraction({
+      inputPath,
+      ...parsed.options,
+    });
+
+  const byStatus = countRecordsByStatus(records);
 
   console.log("");
   console.log(`  Selected: ${selectedCount}`);

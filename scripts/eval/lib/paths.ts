@@ -17,7 +17,7 @@ export function ensureEvalDirs(): void {
 
 export function runTimestampId(): string {
   const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (n: number, len = 2) => String(n).padStart(len, "0");
   return [
     d.getUTCFullYear(),
     pad(d.getUTCMonth() + 1),
@@ -25,5 +25,6 @@ export function runTimestampId(): string {
     pad(d.getUTCHours()),
     pad(d.getUTCMinutes()),
     pad(d.getUTCSeconds()),
+    pad(d.getUTCMilliseconds(), 3),
   ].join("");
 }

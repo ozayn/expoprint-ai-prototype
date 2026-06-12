@@ -60,6 +60,7 @@ export const REVIEW_QUEUE_ALL_COLUMNS = [
   "reviewer_notes",
   "business_name_similarity_hint",
   "title_business_name_overlap_hint",
+  "source_review_queue",
 ] as const;
 
 export type ReviewQueueRow = Record<(typeof REVIEW_QUEUE_ALL_COLUMNS)[number], string>;

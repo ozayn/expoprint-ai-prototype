@@ -93,17 +93,17 @@ export function excerptText(text: string, max = EXCERPT_MAX): string {
 export function timestampFromExtractionRunPath(path: string): string | undefined {
   const name = basename(path);
   const m = name.match(
-    /^(?:extraction_run_|manual_extraction_run_)(20\d{12})\.jsonl$/,
+    /^(?:extraction_run_|manual_extraction_run_)(20\d{12}(?:\d{3})?)\.jsonl$/,
   );
   return m?.[1];
 }
 
 export function isManualExtractionRunPath(path: string): boolean {
-  return /^manual_extraction_run_20\d{12}\.jsonl$/.test(basename(path));
+  return /^manual_extraction_run_20\d{12}(?:\d{3})?\.jsonl$/.test(basename(path));
 }
 
 export function isSafeExtractionRunPath(path: string): boolean {
-  return /(?:extraction_run_|manual_extraction_run_)20\d{12}\.jsonl$/.test(
+  return /(?:extraction_run_|manual_extraction_run_)20\d{12}(?:\d{3})?\.jsonl$/.test(
     basename(path),
   );
 }

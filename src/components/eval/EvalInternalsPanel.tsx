@@ -5,6 +5,7 @@ import { EvalFileStrip } from "./EvalFileStrip";
 import { ExtractionSummaryTable } from "./ExtractionSummaryTable";
 import { ScoreSummaryPanel } from "./ScoreSummaryPanel";
 import type { LocalEvalFileIndex } from "@/lib/evalLocal/listEvalFiles";
+import { isCombinedReviewQueueFilename } from "@/lib/evalLocal/evalReviewQueueFiles";
 import type { ExtractionSummaryRow } from "@/lib/evalLocal/extractionSummaryTypes";
 import { buildEvalViewerHref, patchEvalViewerQuery } from "@/lib/evalLocal/evalViewerQuery";
 import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
@@ -70,10 +71,12 @@ export function EvalInternalsPanel({
           activeUrlCandidatesName={urlCandidatesName}
         />
 
-        {index.reviewQueues.length > 1 ? (
+        {index.reviewQueues.filter((f) => !isCombinedReviewQueueFilename(f.name)).length > 1 ? (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-            <span className="text-zinc-400">Review queue</span>
-            {index.reviewQueues.map((f) => {
+            <span className="text-zinc-400">Review batches</span>
+            {index.reviewQueues
+              .filter((f) => !isCombinedReviewQueueFilename(f.name))
+              .map((f) => {
               const active = f.name === reviewName;
               const short = f.name.replace(/^review_queue_/, "").replace(/\.csv$/, "");
               return (

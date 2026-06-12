@@ -24,8 +24,27 @@ This writes `data/eval/results/url_candidates_<timestamp>.csv` — one row per d
 
 Run the same design-intake extraction pipeline as `POST /api/design-intake/extract` on a **small sample** from a URL candidates file.
 
+**Recommended:** run extraction and review queue generation in one step so `/dev/eval` always loads the review queue from that exact run:
+
+```bash
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
+```
+
+This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv`. The script prints viewer URLs for the latest batch and combined dataset.
+
+Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/dev/eval` defaults to **Combined all batches** when a combined file exists; use **Latest batch** for the most recent extraction only.
+
+To combine batches manually:
+
+```bash
+npm run eval:combine-reviews
+```
+
+You can still run the steps separately if needed:
+
 ```bash
 npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
+npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 ```
 
 **Do not** run the full candidate list initially. A full run over ~2,000 URLs can take hours and may hit rate limits. Start with `--limit 5` or `--limit 10`, review `data/eval/results/extraction_summary_<timestamp>.csv`, then increase gradually.
@@ -33,12 +52,12 @@ npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit
 **Batch large runs** with `--offset` and `--limit` so each batch is a separate run you can compare:
 
 ```bash
-npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 0
-npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 100
-npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 200
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 0
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 100
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 200
 ```
 
-Each run writes `extraction_run_<timestamp>.jsonl`, `extraction_run_meta_<timestamp>.json` (batch label / run id), and `extraction_summary_<timestamp>.csv` with matching timestamps for pairing.
+Each run writes `extraction_run_<timestamp>.jsonl`, `extraction_run_meta_<timestamp>.json` (batch label / run id), `extraction_summary_<timestamp>.csv`, and `review_queue_<timestamp>.csv` with matching timestamps for pairing.
 
 Options:
 
@@ -75,7 +94,7 @@ Manual rows use `source_column = manual_url`, `ds_number` like `MANUAL-001`, and
 
 ### 3. Review queue (Milestone 3b)
 
-Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
+Build a side-by-side review CSV from an extraction JSONL run for manual scoring. When you use `eval:extract-and-review`, this step runs automatically on the JSONL from that extraction.
 
 ```bash
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl

@@ -1,6 +1,11 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { isEvalViewerEnabled } from "./isEvalViewerEnabled";
+import { EVAL_RUN_ID_PATTERN } from "./evalRunId";
+import {
+  isCombinedReviewQueueFilename,
+  isBatchReviewQueueFilename,
+} from "./evalReviewQueueFiles";
 import { csvRowsToObjects, parseCsv } from "./parseCsv";
 
 export type EvalFileKind =
@@ -238,19 +243,51 @@ export function isSafeSummaryFilename(name: string): boolean {
   );
 }
 
+export { isCombinedReviewQueueFilename, isBatchReviewQueueFilename } from "./evalReviewQueueFiles";
+
+export function splitReviewQueueEntries(queues: EvalFileEntry[]): {
+  batchQueues: EvalFileEntry[];
+  combinedQueues: EvalFileEntry[];
+} {
+  const batchQueues: EvalFileEntry[] = [];
+  const combinedQueues: EvalFileEntry[] = [];
+  for (const entry of queues) {
+    if (isCombinedReviewQueueFilename(entry.name)) {
+      combinedQueues.push(entry);
+    } else if (entry.name.startsWith("manual_review_queue_")) {
+      batchQueues.push(entry);
+    } else {
+      batchQueues.push(entry);
+    }
+  }
+  return { batchQueues, combinedQueues };
+}
+
 export function pickReviewQueueFilename(
   queues: EvalFileEntry[],
   requested: string | undefined,
 ): string | undefined {
   if (queues.length === 0) return undefined;
+
   const allowed = new Set(queues.map((q) => q.name));
+  const { batchQueues, combinedQueues } = splitReviewQueueEntries(queues);
+
+  if (requested === "combined" || requested === "_combined") {
+    return combinedQueues[0]?.name;
+  }
+  if (requested === "latest" || requested === "_latest") {
+    return batchQueues[0]?.name;
+  }
   if (requested && allowed.has(requested)) return requested;
-  return queues[0]?.name;
+
+  if (combinedQueues.length > 0) return combinedQueues[0].name;
+  return batchQueues[0]?.name;
 }
 
 export function isSafeReviewQueueFilename(name: string): boolean {
   return (
-    /^review_queue_\d+\.csv$/.test(name) ||
+    isBatchReviewQueueFilename(name) ||
+    isCombinedReviewQueueFilename(name) ||
     /^manual_review_queue_\d+\.csv$/.test(name)
   );
 }
@@ -271,7 +308,7 @@ export function pickScoreSummaryFilename(
   if (requested && allowed.has(requested)) return requested;
 
   if (reviewName) {
-    const m = reviewName.match(/_(20\d{12})\.csv$/);
+    const m = reviewName.match(new RegExp(`_(${EVAL_RUN_ID_PATTERN})\\.csv$`));
     const ts = m?.[1];
     if (ts) {
       const match = `score_summary_${ts}.csv`;

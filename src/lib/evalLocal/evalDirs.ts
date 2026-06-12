@@ -9,11 +9,9 @@ export function ensureEvalDirs(): void {
   mkdirSync(EVAL_RUNS_DIR, { recursive: true });
 }
 
-/** Local timestamp id shared with eval CLI scripts (YYYYMMDDHHmmss). */
+import { runTimestampIdUtc } from "./evalRunId";
+
+/** UTC timestamp id shared with eval CLI scripts (YYYYMMDDHHmmssSSS). */
 export function runTimestampId(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(
-    d.getHours(),
-  )}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return runTimestampIdUtc();
 }
