@@ -10,6 +10,7 @@ import {
   AddressCell,
   EmailListCell,
   PhoneListCell,
+  OfferingsListCell,
   SocialLinksCell,
 } from "./ContactTableCells";
 import { EvalSourceLink, EvalUrlDetailField } from "./EvalExternalLink";
@@ -20,6 +21,11 @@ import {
   socialLinksForRow,
   addressesForRow,
 } from "@/lib/evalLocal/contactExtractionParse";
+import {
+  offeringsForRow,
+  productsForRow,
+  servicesForRow,
+} from "@/lib/evalLocal/offeringsExtractionParse";
 import {
   type ReviewQueueAuditColumn,
   type ReviewQueueRow,
@@ -32,7 +38,8 @@ type TableColumn =
   | { kind: "emails" }
   | { kind: "phones" }
   | { kind: "social" }
-  | { kind: "address" };
+  | { kind: "address" }
+  | { kind: "offerings" };
 
 const TABLE_COLUMNS: TableColumn[] = [
   { kind: "text", col: "domain" },
@@ -43,6 +50,7 @@ const TABLE_COLUMNS: TableColumn[] = [
   { kind: "phones" },
   { kind: "social" },
   { kind: "address" },
+  { kind: "offerings" },
   { kind: "text", col: "status" },
 ];
 
@@ -77,8 +85,10 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function columnLabel(column: TableColumn): string {
+  if (column.kind === "offerings") return "products / services";
   if (column.kind !== "text") return column.kind;
   if (column.col === "domain") return "source";
+  if (column.col === "extracted_business_name") return "business name";
   return column.col.replace(/_/g, " ");
 }
 
@@ -245,6 +255,13 @@ function RowGroup({
               </td>
             );
           }
+          if (column.kind === "offerings") {
+            return (
+              <td key={index} className="max-w-[12rem] py-2 pr-3 align-middle">
+                <OfferingsListCell row={row} />
+              </td>
+            );
+          }
           return (
             <td
               key={index}
@@ -292,6 +309,12 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
     addresses.length > 0 ||
     contactLinks.length > 0;
 
+  const products = productsForRow(row);
+  const services = servicesForRow(row);
+  const offerings = offeringsForRow(row);
+  const hasOfferings =
+    products.length > 0 || services.length > 0 || offerings.length > 0;
+
   const hasIdentity =
     row.extracted_business_category.trim() ||
     row.extracted_summary.trim() ||
@@ -334,6 +357,46 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
               <DetailField label="category" value={row.extracted_business_category} />
               <DetailField label="summary" value={row.extracted_summary} />
               <DetailField label="tagline" value={row.extracted_tagline} />
+            </dl>
+          </div>
+        ) : null}
+
+        {hasOfferings ? (
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Offerings
+            </h4>
+            <dl className="mt-2 space-y-2 text-sm text-zinc-800">
+              {products.length > 0 ? (
+                <div>
+                  <dt className="text-[11px] text-zinc-400">products</dt>
+                  <dd className="mt-1 space-y-1">
+                    {products.map((item) => (
+                      <span key={item} className="block">{item}</span>
+                    ))}
+                  </dd>
+                </div>
+              ) : null}
+              {services.length > 0 ? (
+                <div>
+                  <dt className="text-[11px] text-zinc-400">services</dt>
+                  <dd className="mt-1 space-y-1">
+                    {services.map((item) => (
+                      <span key={item} className="block">{item}</span>
+                    ))}
+                  </dd>
+                </div>
+              ) : null}
+              {offerings.length > 0 ? (
+                <div>
+                  <dt className="text-[11px] text-zinc-400">combined</dt>
+                  <dd className="mt-1 space-y-1">
+                    {offerings.map((item) => (
+                      <span key={item} className="block">{item}</span>
+                    ))}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         ) : null}

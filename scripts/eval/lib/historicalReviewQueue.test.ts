@@ -39,8 +39,8 @@ function testParseAndReviewRow(): void {
       business: { name: "Acme Co", website: "", domain: "", canonicalUrl: "" },
       brand: { colors: [], typography: {}, logoCandidates: [{ url: "https://example.com/logo.png" }] },
       content: {
-        services: [],
-        products: [],
+        services: ["Trade show booths", "Event signage"],
+        products: ["Backdrop displays"],
         contact: {
           email: "hello@acme.co",
           phone: "(555) 010-2030",
@@ -76,6 +76,9 @@ function testParseAndReviewRow(): void {
   assert.ok(row.extracted_phone_numbers.includes("555"));
   assert.ok(row.extracted_social_links.includes("instagram"));
   assert.ok(row.extracted_addresses.includes("Austin"));
+  assert.ok(row.extracted_products.includes("Backdrop"));
+  assert.ok(row.extracted_services.includes("Trade show"));
+  assert.ok(row.extracted_products_services.includes("Backdrop"));
 }
 
 function testColorExtractionShapes(): void {

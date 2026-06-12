@@ -13,6 +13,11 @@ import {
   isPartialOrFailedStatus,
   proxiedEvalImageSrc,
 } from "@/lib/evalLocal/brandExtractionParse";
+import {
+  offeringsForRow,
+  productsForRow,
+  servicesForRow,
+} from "@/lib/evalLocal/offeringsExtractionParse";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
 
 function DetailField({
@@ -49,6 +54,12 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
     .map((v) => v.trim())
     .filter(Boolean)
     .join(" · ");
+
+  const products = productsForRow(row);
+  const services = servicesForRow(row);
+  const offerings = offeringsForRow(row);
+  const hasOfferings =
+    products.length > 0 || services.length > 0 || offerings.length > 0;
 
   const hasScores =
     row.business_name_score.trim() ||
@@ -145,6 +156,36 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
               <DetailField label="summary" value={row.extracted_summary} />
             </dl>
           </div>
+
+          {hasOfferings ? (
+            <div>
+              <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                Offerings
+              </h4>
+              <dl className="mt-2 space-y-2">
+                {products.length > 0 ? (
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">products</dt>
+                    <dd className="mt-1 space-y-1 text-sm text-zinc-800">
+                      {products.map((item) => (
+                        <span key={item} className="block">{item}</span>
+                      ))}
+                    </dd>
+                  </div>
+                ) : null}
+                {services.length > 0 ? (
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">services</dt>
+                    <dd className="mt-1 space-y-1 text-sm text-zinc-800">
+                      {services.map((item) => (
+                        <span key={item} className="block">{item}</span>
+                      ))}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </div>
+          ) : null}
 
           <div>
             <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">

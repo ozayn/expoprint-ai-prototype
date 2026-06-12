@@ -128,6 +128,10 @@ export function sanitizeReviewQueueRecord(
   row.extracted_social_links = record.extracted_social_links?.trim() ?? "";
   row.extracted_addresses = record.extracted_addresses?.trim() ?? "";
   row.extracted_contact_links = record.extracted_contact_links?.trim() ?? "";
+  row.extracted_products = record.extracted_products?.trim() ?? "";
+  row.extracted_services = record.extracted_services?.trim() ?? "";
+  row.extracted_products_services =
+    record.extracted_products_services?.trim() ?? "";
 
   row.extracted_color_hexes = record.extracted_color_hexes?.trim() ?? "";
   row.primary_color_hex = record.primary_color_hex?.trim() ?? "";

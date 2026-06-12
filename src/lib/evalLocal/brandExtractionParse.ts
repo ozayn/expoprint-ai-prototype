@@ -1,3 +1,4 @@
+import { hasOfferingsForRow } from "./offeringsExtractionParse";
 import type { ReviewQueueRow } from "./reviewQueueTypes";
 
 export type ParsedLogoCandidate = {
@@ -133,6 +134,7 @@ export type FieldCoverageSummary = {
   logosExtracted: number;
   palettesExtracted: number;
   summariesExtracted: number;
+  offeringsExtracted: number;
   errors: number;
 };
 
@@ -143,6 +145,7 @@ export function computeFieldCoverageSummary(rows: ReviewQueueRow[]): FieldCovera
   let logosExtracted = 0;
   let palettesExtracted = 0;
   let summariesExtracted = 0;
+  let offeringsExtracted = 0;
   let errors = 0;
 
   for (const row of rows) {
@@ -153,6 +156,7 @@ export function computeFieldCoverageSummary(rows: ReviewQueueRow[]): FieldCovera
     if (row.extracted_business_name?.trim()) namesExtracted += 1;
     if (row.extracted_business_category?.trim()) categoriesExtracted += 1;
     if (row.extracted_summary?.trim()) summariesExtracted += 1;
+    if (hasOfferingsForRow(row)) offeringsExtracted += 1;
     if (logoCandidatesForRow(row).length > 0) logosExtracted += 1;
     if (colorEntriesForRow(row).length > 0) palettesExtracted += 1;
   }
@@ -165,6 +169,7 @@ export function computeFieldCoverageSummary(rows: ReviewQueueRow[]): FieldCovera
     logosExtracted,
     palettesExtracted,
     summariesExtracted,
+    offeringsExtracted,
     errors,
   };
 }
@@ -178,6 +183,7 @@ export function formatFieldCoverageSummary(summary: FieldCoverageSummary): strin
     `${summary.logosExtracted} logo${summary.logosExtracted === 1 ? "" : "s"}`,
     `${summary.palettesExtracted} palette${summary.palettesExtracted === 1 ? "" : "s"}`,
     `${summary.summariesExtracted} summar${summary.summariesExtracted === 1 ? "y" : "ies"}`,
+    `${summary.offeringsExtracted} offering${summary.offeringsExtracted === 1 ? "" : "s"}`,
     `${summary.errors} error${summary.errors === 1 ? "" : "s"}`,
   ];
   return parts.join(" · ");

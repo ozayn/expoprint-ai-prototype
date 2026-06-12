@@ -6,6 +6,11 @@ import {
   collectContactFromExpo,
 } from "../../../src/lib/evalLocal/contactExtractionParse";
 import {
+  hasOfferingsForRow,
+  offeringsFieldsFromCollected,
+  collectOfferingsFromExpo,
+} from "../../../src/lib/evalLocal/offeringsExtractionParse";
+import {
   brandColorFieldsFromTokens,
   collectColorTokensFromExpo,
 } from "../../../src/lib/evalLocal/brandExtractionParse";
@@ -39,6 +44,9 @@ export const REVIEW_QUEUE_COLUMNS = [
   "extracted_social_links",
   "extracted_addresses",
   "extracted_contact_links",
+  "extracted_products",
+  "extracted_services",
+  "extracted_products_services",
   "logo_candidate_count",
   "selected_logo_url",
   "logo_candidate_urls",
@@ -68,6 +76,8 @@ export type ReviewQueueBuildResult = {
   successCount: number;
   errorCount: number;
   noColorFieldCount: number;
+  noOfferingsFieldCount: number;
+  offeringsRowCount: number;
   parseErrors: { line: number; message: string }[];
 };
 
@@ -132,6 +142,9 @@ function emptyExpoFields(): Pick<
   | "extracted_social_links"
   | "extracted_addresses"
   | "extracted_contact_links"
+  | "extracted_products"
+  | "extracted_services"
+  | "extracted_products_services"
   | "logo_candidate_count"
   | "selected_logo_url"
   | "logo_candidate_urls"
@@ -152,6 +165,9 @@ function emptyExpoFields(): Pick<
     extracted_social_links: "",
     extracted_addresses: "",
     extracted_contact_links: "",
+    extracted_products: "",
+    extracted_services: "",
+    extracted_products_services: "",
     logo_candidate_count: "",
     selected_logo_url: "",
     logo_candidate_urls: "",
@@ -222,12 +238,16 @@ function extractExpoFields(
   const colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
   const logoFields = logoFieldsFromCandidates(logos);
   const contactFields = contactFieldsFromCollected(collectContactFromExpo(expo));
+  const offeringsFields = offeringsFieldsFromCollected(
+    collectOfferingsFromExpo(expo),
+  );
 
   return {
     extracted_business_name: name,
     extracted_business_category: designIntake?.productCategory?.trim() ?? "",
     extracted_tagline: tagline,
     extracted_summary: summary,
+    ...offeringsFields,
     ...contactFields,
     ...logoFields,
     ...colorFields,
@@ -346,10 +366,17 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
 
   const reviewRows: ReviewQueueRow[] = [];
   let noColorFieldCount = 0;
+  let noOfferingsFieldCount = 0;
 
   for (const record of records) {
     const row = reviewRowFromExtractionRecord(record);
     reviewRows.push(row);
+
+    const label =
+      record.input.domain?.trim() ||
+      record.input.normalized_url?.trim() ||
+      record.input.ds_number ||
+      "row";
 
     if (
       isSuccessStatus(record.status) &&
@@ -357,14 +384,22 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
       !row.extracted_color_hexes.trim()
     ) {
       noColorFieldCount += 1;
-      const label =
-        record.input.domain?.trim() ||
-        record.input.normalized_url?.trim() ||
-        record.input.ds_number ||
-        "row";
       console.log(`  No color fields found in expo_output for ${label}`);
     }
+
+    if (
+      isSuccessStatus(record.status) &&
+      record.expo_output &&
+      !hasOfferingsForRow(row)
+    ) {
+      noOfferingsFieldCount += 1;
+      console.log(`  No products/services found in expo_output for ${label}`);
+    }
   }
+
+  const offeringsRowCount = reviewRows.filter((row) =>
+    hasOfferingsForRow(row),
+  ).length;
 
   const runTs = timestampFromExtractionRunPath(inputPath) ?? runTimestampId();
   const outputPath = join(EVAL_RESULTS_DIR, `review_queue_${runTs}.csv`);
@@ -385,6 +420,8 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     successCount,
     errorCount,
     noColorFieldCount,
+    noOfferingsFieldCount,
+    offeringsRowCount,
     parseErrors,
   };
 }
@@ -396,9 +433,17 @@ export function printReviewQueueSummary(result: ReviewQueueBuildResult): void {
   console.log(`  Review rows written: ${result.reviewRowsWritten}`);
   console.log(`  Success:             ${result.successCount}`);
   console.log(`  Errors:              ${result.errorCount}`);
+  console.log(
+    `  Rows with products/services: ${result.offeringsRowCount}/${result.reviewRowsWritten}`,
+  );
   if (result.noColorFieldCount > 0) {
     console.log(
       `  No colors in output: ${result.noColorFieldCount} success row(s)`,
+    );
+  }
+  if (result.noOfferingsFieldCount > 0) {
+    console.log(
+      `  No products/services in output: ${result.noOfferingsFieldCount} success row(s)`,
     );
   }
   console.log(`  Output: ${result.outputPath}`);

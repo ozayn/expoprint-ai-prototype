@@ -8,6 +8,7 @@ import {
   safeTelHref,
   socialLinksForRow,
 } from "@/lib/evalLocal/contactExtractionParse";
+import { offeringsForRow } from "@/lib/evalLocal/offeringsExtractionParse";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
 
 const LINK_CLASS =
@@ -127,6 +128,37 @@ export function SocialLinksCell({
         >
           {link.label}
         </a>
+      ))}
+      {extra > 0 ? (
+        <span className="text-[10px] text-zinc-400">+{extra}</span>
+      ) : null}
+    </div>
+  );
+}
+
+export function OfferingsListCell({
+  row,
+  max = 3,
+  emptyLabel = "No products/services",
+}: {
+  row: ReviewQueueRow;
+  max?: number;
+  emptyLabel?: string;
+}) {
+  const items = offeringsForRow(row);
+  if (items.length === 0) {
+    return <span className="text-[11px] text-zinc-400">{emptyLabel}</span>;
+  }
+
+  const shown = items.slice(0, max);
+  const extra = items.length - shown.length;
+
+  return (
+    <div className="flex flex-col gap-0.5 text-[11px] text-zinc-700">
+      {shown.map((item) => (
+        <span key={item} className="truncate" title={item}>
+          {item}
+        </span>
       ))}
       {extra > 0 ? (
         <span className="text-[10px] text-zinc-400">+{extra}</span>
