@@ -5,6 +5,8 @@ import { ReviewQueueTable } from "./ReviewQueueTable";
 import type { EvalViewerDataKind } from "./BrandAuditViewer";
 import type { EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
+import { UrlInventoryTable } from "./UrlInventoryTable";
 
 type Props = {
   view: EvalViewMode;
@@ -12,6 +14,8 @@ type Props = {
   reviewFilename?: string;
   emptyMessage?: string;
   dataKind?: EvalViewerDataKind;
+  urlInventoryFilename?: string;
+  urlInventoryRows?: UrlInventoryRow[];
 };
 
 export function EvalAuditMain({
@@ -20,8 +24,19 @@ export function EvalAuditMain({
   reviewFilename,
   emptyMessage,
   dataKind = "local",
+  urlInventoryFilename,
+  urlInventoryRows,
 }: Props) {
   const omitPartnerFields = dataKind !== "local";
+
+  if (view === "inventory") {
+    return (
+      <UrlInventoryTable
+        filename={urlInventoryFilename}
+        rows={urlInventoryRows ?? []}
+      />
+    );
+  }
 
   if (view === "gallery") {
     return (

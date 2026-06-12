@@ -2,19 +2,28 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { BrandAuditCoverageSummary } from "./BrandAuditCoverageSummary";
 import { EvalAuditMain } from "./EvalAuditMain";
+import { EvalColumnVisibilityProvider } from "./EvalColumnVisibilityContext";
+import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
 import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
+import type {
+  UrlInventoryRow,
+  UrlInventoryStats,
+} from "@/lib/evalLocal/urlInventoryJoin";
 
 export type EvalViewerSearchParams = {
   summary?: string;
   review?: string;
   score?: string;
+  candidates?: string;
   view?: string;
 };
 
 export function parseEvalViewMode(view: string | undefined): EvalViewMode {
-  return view === "table" ? "table" : "gallery";
+  if (view === "table") return "table";
+  if (view === "inventory") return "inventory";
+  return "gallery";
 }
 
 export type EvalViewerDataKind = "local" | InternalEvalDataSource;
@@ -35,7 +44,11 @@ export type BrandAuditViewerProps = {
   searchParams?: EvalViewerSearchParams;
   reviewFilename?: string;
   rows: BrandAuditRow[];
+  urlInventoryFilename?: string;
+  urlInventoryRows?: UrlInventoryRow[];
+  inventoryStats?: UrlInventoryStats | null;
   emptyMessage?: string;
+  enableFieldFilters?: boolean;
   children?: ReactNode;
 };
 
@@ -55,12 +68,19 @@ export function BrandAuditViewer({
   searchParams = {},
   reviewFilename,
   rows,
+  urlInventoryFilename,
+  urlInventoryRows,
+  inventoryStats,
   emptyMessage,
+  enableFieldFilters = true,
   children,
 }: BrandAuditViewerProps) {
   const view = parseEvalViewMode(searchParams.view);
+  const showUrlInventory =
+    Boolean(urlInventoryFilename) ||
+    Boolean(inventoryStats && inventoryStats.totalCandidates > 0);
 
-  return (
+  const content = (
     <div className="min-h-full bg-zinc-50/30 text-zinc-900">
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-8">
@@ -130,13 +150,17 @@ export function BrandAuditViewer({
           <div className="mb-6">{prependContent}</div>
         ) : null}
 
-        <BrandAuditCoverageSummary rows={rows} />
+        <BrandAuditCoverageSummary
+          rows={rows}
+          inventoryStats={inventoryStats}
+        />
 
         <div className="mb-6 flex items-center justify-end">
           <EvalViewToggle
             basePath={basePath}
             searchParams={searchParams}
             view={view}
+            showInventoryTab={showUrlInventory}
           />
         </div>
 
@@ -146,10 +170,21 @@ export function BrandAuditViewer({
           reviewFilename={reviewFilename}
           emptyMessage={emptyMessage}
           dataKind={dataKind}
+          urlInventoryFilename={urlInventoryFilename}
+          urlInventoryRows={urlInventoryRows}
         />
 
         {children}
       </div>
     </div>
   );
+
+  const wrapped = (
+    <EvalColumnVisibilityProvider>{content}</EvalColumnVisibilityProvider>
+  );
+
+  if (enableFieldFilters) {
+    return <EvalViewerFilterProvider>{wrapped}</EvalViewerFilterProvider>;
+  }
+  return wrapped;
 }

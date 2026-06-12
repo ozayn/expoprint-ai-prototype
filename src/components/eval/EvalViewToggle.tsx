@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { EvalViewerSearchParams } from "./BrandAuditViewer";
 
-export type EvalViewMode = "gallery" | "table";
+export type EvalViewMode = "gallery" | "table" | "inventory";
 
 function buildEvalHref(
   basePath: string,
@@ -14,7 +14,9 @@ function buildEvalHref(
   if (current.summary) q.set("summary", current.summary);
   if (current.review) q.set("review", current.review);
   if (current.score) q.set("score", current.score);
+  if (current.candidates) q.set("candidates", current.candidates);
   if (view === "table") q.set("view", "table");
+  if (view === "inventory") q.set("view", "inventory");
   const qs = q.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
@@ -33,11 +35,18 @@ type Props = {
   basePath: string;
   searchParams: EvalViewerSearchParams;
   view: EvalViewMode;
+  showInventoryTab?: boolean;
 };
 
-export function EvalViewToggle({ basePath, searchParams, view }: Props) {
+export function EvalViewToggle({
+  basePath,
+  searchParams,
+  view,
+  showInventoryTab = false,
+}: Props) {
   const galleryHref = buildEvalHref(basePath, searchParams, "gallery");
   const tableHref = buildEvalHref(basePath, searchParams, "table");
+  const inventoryHref = buildEvalHref(basePath, searchParams, "inventory");
 
   return (
     <div className="flex rounded-lg bg-zinc-100/80 p-0.5">
@@ -53,8 +62,17 @@ export function EvalViewToggle({ basePath, searchParams, view }: Props) {
         className={viewToggleClass(view === "table")}
         aria-current={view === "table" ? "page" : undefined}
       >
-        Table
+        Extracted table
       </Link>
+      {showInventoryTab ? (
+        <Link
+          href={inventoryHref}
+          className={viewToggleClass(view === "inventory")}
+          aria-current={view === "inventory" ? "page" : undefined}
+        >
+          All URLs
+        </Link>
+      ) : null}
     </div>
   );
 }

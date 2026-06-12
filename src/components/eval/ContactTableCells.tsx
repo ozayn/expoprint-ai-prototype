@@ -3,6 +3,7 @@
 import type { MouseEvent } from "react";
 import {
   addressesForRow,
+  contactLinksForRow,
   emailsForRow,
   phonesForRow,
   safeTelHref,
@@ -159,6 +160,44 @@ export function OfferingsListCell({
         <span key={item} className="truncate" title={item}>
           {item}
         </span>
+      ))}
+      {extra > 0 ? (
+        <span className="text-[10px] text-zinc-400">+{extra}</span>
+      ) : null}
+    </div>
+  );
+}
+
+export function ContactLinksCell({
+  row,
+  max = 2,
+  emptyLabel = "No links",
+}: {
+  row: ReviewQueueRow;
+  max?: number;
+  emptyLabel?: string;
+}) {
+  const links = contactLinksForRow(row);
+  if (links.length === 0) {
+    return <span className="text-[11px] text-zinc-400">{emptyLabel}</span>;
+  }
+
+  const shown = links.slice(0, max);
+  const extra = links.length - shown.length;
+
+  return (
+    <div className="flex flex-col gap-0.5 text-[11px]">
+      {shown.map((link) => (
+        <a
+          key={link.url}
+          href={link.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={`break-all text-zinc-700 ${LINK_CLASS}`}
+          onClick={stopRowExpand}
+        >
+          {link.label ? `${link.label}: ` : ""}{link.url}
+        </a>
       ))}
       {extra > 0 ? (
         <span className="text-[10px] text-zinc-400">+{extra}</span>

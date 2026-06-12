@@ -143,6 +143,20 @@ export async function listLocalEvalFiles(): Promise<LocalEvalFileIndex> {
   };
 }
 
+export function pickUrlCandidatesFilename(
+  candidates: EvalFileEntry[],
+  requested: string | undefined,
+): string | undefined {
+  if (candidates.length === 0) return undefined;
+  const allowed = new Set(candidates.map((c) => c.name));
+  if (requested && allowed.has(requested)) return requested;
+  return candidates[0]?.name;
+}
+
+export function isSafeUrlCandidatesFilename(name: string): boolean {
+  return /^url_candidates_\d+\.csv$/.test(name);
+}
+
 export function pickSummaryFilename(
   summaries: EvalFileEntry[],
   requested: string | undefined,

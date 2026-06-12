@@ -1,19 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ColorSwatchRow,
   LogoCandidateDetailList,
-  LogoThumbnailRow,
 } from "./BrandExtractionCells";
-import {
-  AddressCell,
-  EmailListCell,
-  PhoneListCell,
-  OfferingsListCell,
-  SocialLinksCell,
-} from "./ContactTableCells";
-import { EvalSourceLink, EvalUrlDetailField } from "./EvalExternalLink";
+import { EvalDetailField } from "./EvalViewerField";
+import { EvalUrlDetailField } from "./EvalExternalLink";
 import {
   contactLinksForRow,
   emailsForRow,
@@ -27,104 +20,26 @@ import {
   servicesForRow,
 } from "@/lib/evalLocal/offeringsExtractionParse";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
-import type { ReviewQueueAuditColumn } from "@/lib/evalLocal/reviewQueueTypes";
-import { EvalDetailField } from "./EvalViewerField";
+import { brandAuditSearchHaystack, matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
+import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
+import {
+  evalTableColumnHeaderLabel,
+  type EvalTableColumnId,
+} from "@/lib/evalLocal/evalTableColumns";
+import { EvalColumnPicker } from "./EvalColumnPicker";
+import { useOrderedVisibleEvalColumns } from "./EvalColumnVisibilityContext";
+import {
+  EvalReviewTableColumnCell,
+  evalReviewTableCellClass,
+} from "./EvalReviewTableCells";
+import { EvalFilterControls } from "./EvalFilterControls";
+import { useOptionalEvalViewerFilters } from "./EvalViewerFilterContext";
 
-type TableTextColumn = ReviewQueueAuditColumn | "extracted_summary";
-
-type TableColumn =
-  | { kind: "text"; col: TableTextColumn }
-  | { kind: "logos" }
-  | { kind: "colors" }
-  | { kind: "emails" }
-  | { kind: "phones" }
-  | { kind: "social" }
-  | { kind: "address" }
-  | { kind: "offerings" };
-
-const TABLE_COLUMNS: TableColumn[] = [
-  { kind: "text", col: "domain" },
-  { kind: "text", col: "extracted_business_name" },
-  { kind: "logos" },
-  { kind: "colors" },
-  { kind: "emails" },
-  { kind: "phones" },
-  { kind: "social" },
-  { kind: "address" },
-  { kind: "offerings" },
-  { kind: "text", col: "extracted_summary" },
-  { kind: "text", col: "status" },
-];
-
-function isErrorStatus(status: string): boolean {
-  return (
-    status === "fetch_error" ||
-    status === "extraction_error" ||
-    status === "skipped"
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const v = status.trim() || "—";
-  if (v === "—") return <span className="text-zinc-400">—</span>;
-
-  const success = v === "success";
-  const error = isErrorStatus(v);
-
-  return (
-    <span
-      className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
-        success
-          ? "bg-emerald-50 text-emerald-700"
-          : error
-            ? "bg-red-50 text-red-700"
-            : "bg-zinc-100 text-zinc-600"
-      }`}
-    >
-      {v}
-    </span>
-  );
-}
-
-function columnLabel(column: TableColumn): string {
-  if (column.kind === "offerings") return "products / services";
-  if (column.kind !== "text") return column.kind;
-  if (column.col === "domain") return "source";
-  if (column.col === "extracted_business_name") return "business name";
-  if (column.col === "extracted_summary") return "summary";
-  return column.col.replace(/_/g, " ");
-}
-
-function TextCell({
-  col,
-  row,
-}: {
-  col: TableTextColumn;
-  row: BrandAuditRow;
-}) {
-  if (col === "domain") {
-    return (
-      <EvalSourceLink
-        row={row}
-        className="text-[12px] text-zinc-700"
-        mono
-        stopPropagation
-      />
-    );
-  }
-
-  if (col === "status") {
-    return <StatusPill status={row.status ?? ""} />;
-  }
-
-  const v = (row[col] ?? "").trim();
-  const display =
-    col === "extracted_summary" && v.length > 80 ? `${v.slice(0, 77)}…` : v;
-  return (
-    <span className="text-zinc-800" title={v || undefined}>
-      {display || "—"}
-    </span>
-  );
+function reviewRowStatusCategory(row: BrandAuditRow): "success" | "failed" | "not_run" {
+  const status = row.status?.trim() ?? "";
+  if (status === "success") return "success";
+  if (!status) return "not_run";
+  return "failed";
 }
 
 type Props = {
@@ -138,9 +53,60 @@ export function ReviewQueueTable({
   rows,
   omitPartnerFields = false,
 }: Props) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const filterCtx = useOptionalEvalViewerFilters();
+  const paginationKey = filterCtx?.paginationKey ?? 0;
+  const [expandedRow, setExpandedRow] = useState<{
+    paginationKey: number;
+    index: number;
+  } | null>(null);
 
-  const colSpan = TABLE_COLUMNS.length + 1; /* expand */
+  const visibleColumns = useOrderedVisibleEvalColumns({
+    omitPartnerFields,
+  });
+
+  const colSpan = visibleColumns.length + 1; /* expand */
+  const expandedIndex =
+    expandedRow?.paginationKey === paginationKey ? expandedRow.index : null;
+
+  const filtered = useMemo(() => {
+    if (!filterCtx) return rows;
+
+    const { search, statusFilter, fieldFilters } = filterCtx;
+
+    return rows.filter((row) => {
+      const category = reviewRowStatusCategory(row);
+      if (statusFilter !== "all" && category !== statusFilter) {
+        return false;
+      }
+      if (!matchesSearchQuery(brandAuditSearchHaystack(row), search)) {
+        return false;
+      }
+      if (
+        !matchesFieldFilters(row, fieldFilters, {
+          extractionStatus:
+            category === "success"
+              ? "success"
+              : category === "failed"
+                ? "failed"
+                : "not_run",
+        })
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [rows, filterCtx]);
+
+  const successfulInFiltered = filtered.filter(
+    (r) => r.status?.trim() === "success",
+  ).length;
+
+  const processedMatchLine =
+    filterCtx &&
+    filterCtx.fieldFilters.length > 0 &&
+    successfulInFiltered > 0
+      ? `${successfulInFiltered.toLocaleString()} successful rows match field filters`
+      : undefined;
 
   if (rows.length === 0) {
     return (
@@ -150,20 +116,40 @@ export function ReviewQueueTable({
 
   return (
     <div>
+      {filterCtx ? (
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <EvalFilterControls
+                showNotRunStatus={false}
+                searchPlaceholder="Search domain, URL, project, business…"
+                resultCountLine={`Showing ${filtered.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`}
+                processedMatchLine={processedMatchLine}
+              />
+            </div>
+            <EvalColumnPicker omitPartnerFields={omitPartnerFields} />
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 flex justify-end">
+          <EvalColumnPicker omitPartnerFields={omitPartnerFields} />
+        </div>
+      )}
+
       <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1">
-        <table className="w-full min-w-[1080px] border-collapse text-left text-[13px]">
+        <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
           <thead>
             <tr className="border-b border-zinc-200 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
               <th className="w-7 pb-2 pr-1 font-normal" aria-label="Expand" />
-              {TABLE_COLUMNS.map((column, index) => (
-                <th key={index} className="pb-2 pr-3 font-normal">
-                  {columnLabel(column)}
+              {visibleColumns.map((columnId) => (
+                <th key={columnId} className="pb-2 pr-3 font-normal">
+                  {evalTableColumnHeaderLabel(columnId)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => {
+            {filtered.map((row, i) => {
               const expanded = expandedIndex === i;
               return (
                 <RowGroup
@@ -171,8 +157,13 @@ export function ReviewQueueTable({
                   row={row}
                   expanded={expanded}
                   colSpan={colSpan}
+                  visibleColumns={visibleColumns}
                   omitPartnerFields={omitPartnerFields}
-                  onToggle={() => setExpandedIndex(expanded ? null : i)}
+                  onToggle={() =>
+                    setExpandedRow(
+                      expandedIndex === i ? null : { paginationKey, index: i },
+                    )
+                  }
                 />
               );
             })}
@@ -193,12 +184,14 @@ function RowGroup({
   row,
   expanded,
   colSpan,
+  visibleColumns,
   omitPartnerFields,
   onToggle,
 }: {
   row: BrandAuditRow;
   expanded: boolean;
   colSpan: number;
+  visibleColumns: EvalTableColumnId[];
   omitPartnerFields: boolean;
   onToggle: () => void;
 }) {
@@ -214,76 +207,11 @@ function RowGroup({
         <td className="py-2 pr-1 text-[10px] text-zinc-300">
           {expanded ? "▾" : "▸"}
         </td>
-        {TABLE_COLUMNS.map((column, index) => {
-          if (column.kind === "logos") {
-            return (
-              <td key={index} className="max-w-[7rem] py-2 pr-3 align-middle">
-                <LogoThumbnailRow
-                  row={row}
-                  max={3}
-                  showExtraCount
-                  size="sm"
-                  emptyLabel="No logo"
-                />
-              </td>
-            );
-          }
-          if (column.kind === "colors") {
-            return (
-              <td key={index} className="max-w-[14rem] py-2 pr-3 align-middle">
-                <ColorSwatchRow
-                  row={row}
-                  max={5}
-                  compact
-                  emptyLabel="No palette"
-                />
-              </td>
-            );
-          }
-          if (column.kind === "emails") {
-            return (
-              <td key={index} className="max-w-[10rem] py-2 pr-3 align-middle">
-                <EmailListCell row={row} />
-              </td>
-            );
-          }
-          if (column.kind === "phones") {
-            return (
-              <td key={index} className="max-w-[9rem] py-2 pr-3 align-middle">
-                <PhoneListCell row={row} />
-              </td>
-            );
-          }
-          if (column.kind === "social") {
-            return (
-              <td key={index} className="max-w-[9rem] py-2 pr-3 align-middle">
-                <SocialLinksCell row={row} />
-              </td>
-            );
-          }
-          if (column.kind === "address") {
-            return (
-              <td key={index} className="max-w-[11rem] py-2 pr-3 align-middle">
-                <AddressCell row={row} />
-              </td>
-            );
-          }
-          if (column.kind === "offerings") {
-            return (
-              <td key={index} className="max-w-[12rem] py-2 pr-3 align-middle">
-                <OfferingsListCell row={row} />
-              </td>
-            );
-          }
-          return (
-            <td
-              key={index}
-              className="max-w-[12rem] py-2 pr-3 whitespace-normal break-words align-middle"
-            >
-              <TextCell col={column.col} row={row} />
-            </td>
-          );
-        })}
+        {visibleColumns.map((columnId) => (
+          <td key={columnId} className={evalReviewTableCellClass(columnId)}>
+            <EvalReviewTableColumnCell columnId={columnId} row={row} />
+          </td>
+        ))}
       </tr>
       {expanded ? (
         <tr className="border-b border-zinc-100 bg-zinc-50/40">
@@ -296,12 +224,12 @@ function RowGroup({
   );
 }
 
-function ExpandedRowDetails({
+export function ExpandedRowDetails({
   row,
-  omitPartnerFields,
+  omitPartnerFields = false,
 }: {
   row: BrandAuditRow;
-  omitPartnerFields: boolean;
+  omitPartnerFields?: boolean;
 }) {
   const hasScores =
     row.business_name_score.trim() ||
@@ -565,4 +493,3 @@ function ExpandedRowDetails({
     </div>
   );
 }
-

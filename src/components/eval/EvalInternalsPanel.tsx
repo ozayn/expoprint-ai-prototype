@@ -30,7 +30,9 @@ function buildEvalHref(
   if (next.summary) q.set("summary", next.summary);
   if (next.review) q.set("review", next.review);
   if (next.score) q.set("score", next.score);
+  if (next.candidates) q.set("candidates", next.candidates);
   if (next.view === "table") q.set("view", "table");
+  if (next.view === "inventory") q.set("view", "inventory");
   const qs = q.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }

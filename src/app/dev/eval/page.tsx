@@ -9,10 +9,13 @@ import {
   pickReviewQueueFilename,
   pickScoreSummaryFilename,
   pickSummaryFilename,
+  pickUrlCandidatesFilename,
 } from "@/lib/evalLocal/listEvalFiles";
 import { readExtractionSummaryCsv } from "@/lib/evalLocal/readExtractionSummary";
 import { readReviewQueueCsv } from "@/lib/evalLocal/readReviewQueue";
 import { readScoreSummaryCsv } from "@/lib/evalLocal/readScoreSummary";
+import { readUrlCandidatesCsv } from "@/lib/evalLocal/readUrlCandidates";
+import { buildUrlInventory } from "@/lib/evalLocal/urlInventoryJoin";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +48,7 @@ type PageProps = {
     summary?: string;
     review?: string;
     score?: string;
+    candidates?: string;
     view?: string;
   }>;
 };
@@ -61,6 +65,10 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
     params.summary,
   );
   const reviewName = pickReviewQueueFilename(index.reviewQueues, params.review);
+  const candidatesName = pickUrlCandidatesFilename(
+    index.urlCandidates,
+    params.candidates,
+  );
   const scoreName = pickScoreSummaryFilename(
     index.scoreSummaries,
     params.score,
@@ -72,6 +80,14 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
     : null;
   const reviewData = reviewName ? await readReviewQueueCsv(reviewName) : null;
   const scoreData = scoreName ? await readScoreSummaryCsv(scoreName) : null;
+  const candidatesData = candidatesName
+    ? await readUrlCandidatesCsv(candidatesName)
+    : null;
+
+  const reviewRows = reviewData?.rows ?? [];
+  const urlInventory = candidatesData
+    ? buildUrlInventory(candidatesData.rows, reviewRows)
+    : null;
 
   const publishHint = reviewName
     ? `npm run eval:publish-internal -- data/eval/results/${reviewName} --include-domains`
@@ -86,7 +102,10 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
       dataKind="local"
       publishHint={publishHint}
       reviewFilename={reviewData?.filename}
-      rows={reviewData?.rows ?? []}
+      rows={reviewRows}
+      urlInventoryFilename={candidatesData?.filename}
+      urlInventoryRows={urlInventory?.rows}
+      inventoryStats={urlInventory?.stats}
       emptyMessage={
         index.reviewQueues.length === 0
           ? "No review queue yet. Run npm run eval:review on an extraction JSONL or use Add URLs."
