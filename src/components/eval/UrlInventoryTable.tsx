@@ -37,15 +37,8 @@ function searchHaystackForRow(row: UrlInventoryRow): string {
     .join(" ");
 }
 
-function formatResultCount(
-  visibleCount: number,
-  filteredCount: number,
-  totalCount: number,
-): string {
-  if (visibleCount < filteredCount) {
-    return `Showing ${visibleCount.toLocaleString()} of ${filteredCount.toLocaleString()} URLs (${totalCount.toLocaleString()} total)`;
-  }
-  return `Showing ${filteredCount.toLocaleString()} of ${totalCount.toLocaleString()} URLs`;
+function formatResultCount(visibleCount: number, filteredCount: number): string {
+  return `Showing ${visibleCount.toLocaleString()} of ${filteredCount.toLocaleString()} URLs`;
 }
 
 function CandidateExpandedDetails({ candidate }: { candidate: UrlCandidateRow }) {
@@ -95,7 +88,7 @@ export function UrlInventoryTable({ filename, rows }: Props) {
     paginationKey,
   } = useEvalViewerFilters();
 
-  const visibleColumns = useOrderedVisibleEvalColumns({ inventoryMode: true });
+  const visibleColumns = useOrderedVisibleEvalColumns();
 
   const [visibleLimit, setVisibleLimit] = useState({
     paginationKey,
@@ -154,19 +147,24 @@ export function UrlInventoryTable({ filename, rows }: Props) {
   return (
     <div>
       <div className="mb-4 space-y-3">
+        {filename ? (
+          <p className="text-xs text-zinc-500">
+            <span className="font-mono text-zinc-600">{filename}</span>
+            <span className="text-zinc-400">
+              {" "}
+              · {rows.length.toLocaleString()} URLs in inventory
+            </span>
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <EvalFilterControls
               showNotRunStatus
-              resultCountLine={formatResultCount(
-                visible.length,
-                filtered.length,
-                rows.length,
-              )}
+              resultCountLine={formatResultCount(visible.length, filtered.length)}
               processedMatchLine={processedMatchLine}
             />
           </div>
-          <EvalColumnPicker inventoryMode />
+          <EvalColumnPicker />
         </div>
       </div>
 
@@ -250,11 +248,6 @@ export function UrlInventoryTable({ filename, rows }: Props) {
         </button>
       ) : null}
 
-      {filename ? (
-        <p className="mt-4 text-[11px] text-zinc-400">
-          URL inventory: <span className="font-mono text-zinc-500">{filename}</span>
-        </p>
-      ) : null}
     </div>
   );
 }

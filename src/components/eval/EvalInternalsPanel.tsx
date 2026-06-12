@@ -6,6 +6,7 @@ import { ExtractionSummaryTable } from "./ExtractionSummaryTable";
 import { ScoreSummaryPanel } from "./ScoreSummaryPanel";
 import type { LocalEvalFileIndex } from "@/lib/evalLocal/listEvalFiles";
 import type { ExtractionSummaryRow } from "@/lib/evalLocal/extractionSummaryTypes";
+import { buildEvalViewerHref, patchEvalViewerQuery } from "@/lib/evalLocal/evalViewerQuery";
 import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
 import type { EvalViewerSearchParams } from "./BrandAuditViewer";
 
@@ -19,22 +20,12 @@ function filePillClass(active: boolean): string {
   ].join(" ");
 }
 
-function buildEvalHref(
-  basePath: string,
-  current: EvalViewerSearchParams,
-  key: "summary" | "review",
-  value: string,
-): string {
-  const next = { ...current, [key]: value };
-  const q = new URLSearchParams();
-  if (next.summary) q.set("summary", next.summary);
-  if (next.review) q.set("review", next.review);
-  if (next.score) q.set("score", next.score);
-  if (next.candidates) q.set("candidates", next.candidates);
-  if (next.view === "table") q.set("view", "table");
-  if (next.view === "inventory") q.set("view", "inventory");
-  const qs = q.toString();
-  return qs ? `${basePath}?${qs}` : basePath;
+function formatUrlCandidatesPillLabel(name: string, rowCount?: number): string {
+  const short = name.replace(/^url_candidates_/, "").replace(/\.csv$/, "");
+  if (rowCount !== undefined) {
+    return `${short} (${rowCount.toLocaleString()})`;
+  }
+  return short;
 }
 
 type Props = {
@@ -43,6 +34,7 @@ type Props = {
   summaryName?: string;
   reviewName?: string;
   scoreName?: string;
+  urlCandidatesName?: string;
   summaryData: { filename: string; rows: ExtractionSummaryRow[] } | null;
   scoreData: ParsedScoreSummary | null;
   searchParams: EvalViewerSearchParams;
@@ -55,6 +47,7 @@ export function EvalInternalsPanel({
   summaryName,
   reviewName,
   scoreName,
+  urlCandidatesName,
   summaryData,
   scoreData,
   searchParams,
@@ -74,6 +67,7 @@ export function EvalInternalsPanel({
           extractionRuns={index.extractionRuns}
           activeSummaryName={summaryName}
           activeReviewName={reviewName}
+          activeUrlCandidatesName={urlCandidatesName}
         />
 
         {index.reviewQueues.length > 1 ? (
@@ -85,10 +79,34 @@ export function EvalInternalsPanel({
               return (
                 <Link
                   key={f.name}
-                  href={buildEvalHref(basePath, searchParams, "review", f.name)}
+                  href={buildEvalViewerHref(
+                    basePath,
+                    patchEvalViewerQuery(searchParams, { review: f.name }),
+                  )}
                   className={filePillClass(active)}
                 >
                   {short}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {index.urlCandidates.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+            <span className="text-zinc-400">URL inventory</span>
+            {index.urlCandidates.map((f) => {
+              const active = f.name === urlCandidatesName;
+              return (
+                <Link
+                  key={f.name}
+                  href={buildEvalViewerHref(
+                    basePath,
+                    patchEvalViewerQuery(searchParams, { urls: f.name }),
+                  )}
+                  className={filePillClass(active)}
+                >
+                  {formatUrlCandidatesPillLabel(f.name, f.rowCount)}
                 </Link>
               );
             })}
@@ -120,7 +138,10 @@ export function EvalInternalsPanel({
                     return (
                       <Link
                         key={f.name}
-                        href={buildEvalHref(basePath, searchParams, "summary", f.name)}
+                        href={buildEvalViewerHref(
+                          basePath,
+                          patchEvalViewerQuery(searchParams, { summary: f.name }),
+                        )}
                         className={filePillClass(active)}
                       >
                         {short}

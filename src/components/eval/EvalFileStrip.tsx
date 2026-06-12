@@ -19,7 +19,15 @@ function formatMtime(ms: number): string {
   });
 }
 
-function FileLine({ label, file }: { label: string; file?: EvalFileEntry }) {
+function FileLine({
+  label,
+  file,
+  rowLabel,
+}: {
+  label: string;
+  file?: EvalFileEntry;
+  rowLabel?: string;
+}) {
   return (
     <div className="min-w-0">
       <span className="text-zinc-400">{label}</span>
@@ -28,10 +36,13 @@ function FileLine({ label, file }: { label: string; file?: EvalFileEntry }) {
           {" "}
           <code
             className="font-mono text-zinc-600"
-            title={`${file.name} · ${formatMtime(file.mtimeMs)} · ${formatBytes(file.sizeBytes)}`}
+            title={`${file.name} · ${formatMtime(file.mtimeMs)} · ${formatBytes(file.sizeBytes)}${file.rowCount !== undefined ? ` · ${file.rowCount.toLocaleString()} rows` : ""}`}
           >
             {file.name}
           </code>
+          {rowLabel ? (
+            <span className="ml-1.5 text-zinc-400">{rowLabel}</span>
+          ) : null}
         </>
       ) : (
         <span className="text-zinc-400"> —</span>
@@ -48,6 +59,9 @@ function FileList({ files }: { files: EvalFileEntry[] }) {
         <li key={f.relativePath} className="font-mono text-zinc-600">
           {f.name}
           <span className="ml-2 font-sans text-zinc-400">
+            {f.rowCount !== undefined
+              ? `${f.rowCount.toLocaleString()} rows · `
+              : ""}
             {formatMtime(f.mtimeMs)} · {formatBytes(f.sizeBytes)}
           </span>
         </li>
@@ -63,6 +77,7 @@ type Props = {
   extractionRuns: EvalFileEntry[];
   activeSummaryName?: string;
   activeReviewName?: string;
+  activeUrlCandidatesName?: string;
 };
 
 export function EvalFileStrip({
@@ -72,6 +87,7 @@ export function EvalFileStrip({
   extractionRuns,
   activeSummaryName,
   activeReviewName,
+  activeUrlCandidatesName,
 }: Props) {
   const activeSummary =
     extractionSummaries.find((f) => f.name === activeSummaryName) ??
@@ -80,6 +96,9 @@ export function EvalFileStrip({
   const activeReview =
     reviewQueues.find((f) => f.name === activeReviewName) ??
     matchingReviewQueue(reviewQueues, activeSummary?.name, activeRun?.name);
+  const activeUrlCandidates =
+    urlCandidates.find((f) => f.name === activeUrlCandidatesName) ??
+    urlCandidates[0];
 
   const previousSummaries = extractionSummaries.filter(
     (f) => f.name !== activeSummary?.name,
@@ -87,20 +106,32 @@ export function EvalFileStrip({
   const previousReviews = reviewQueues.filter(
     (f) => f.name !== activeReview?.name,
   );
+  const previousUrlCandidates = urlCandidates.filter(
+    (f) => f.name !== activeUrlCandidates?.name,
+  );
   const previousFiles = [
-    ...urlCandidates,
+    ...previousUrlCandidates,
     ...previousSummaries,
     ...previousReviews,
     ...extractionRuns.filter((f) => f.name !== activeRun?.name),
   ];
 
   const hasTechnical = urlCandidates.length > 0 || extractionRuns.length > 0;
+  const urlCandidatesRowLabel =
+    activeUrlCandidates?.rowCount !== undefined
+      ? `(${activeUrlCandidates.rowCount.toLocaleString()} URLs)`
+      : undefined;
 
   return (
     <section className="mb-10 text-xs text-zinc-500">
       <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-10">
         <FileLine label="Review queue" file={activeReview} />
         <FileLine label="Extraction summary" file={activeSummary} />
+        <FileLine
+          label="URL inventory"
+          file={activeUrlCandidates}
+          rowLabel={urlCandidatesRowLabel}
+        />
       </div>
 
       {hasTechnical ? (

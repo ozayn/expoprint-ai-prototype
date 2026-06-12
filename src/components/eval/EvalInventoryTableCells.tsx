@@ -60,12 +60,33 @@ function CandidateTextCell({ value }: { value: string | undefined }) {
   return <span className="text-zinc-800">{v || "—"}</span>;
 }
 
+function NotRunDataPlaceholder() {
+  return <span className="text-[11px] text-zinc-400">No data yet</span>;
+}
+
 const CANDIDATE_TEXT_COLUMNS: EvalTableColumnId[] = [
   "ds_number",
   "project_title",
   "project_type",
   "shop_code",
   "source_column",
+];
+
+const EXTRACTED_COLUMNS: EvalTableColumnId[] = [
+  "extracted_business_name",
+  "logos",
+  "colors",
+  "emails",
+  "phones",
+  "social",
+  "address",
+  "contact_links",
+  "offerings",
+  "extracted_summary",
+  "pages_inspected",
+  "elapsed_ms",
+  "provider_model",
+  "error_message",
 ];
 
 function candidateFieldForColumn(
@@ -87,23 +108,6 @@ function candidateFieldForColumn(
       return undefined;
   }
 }
-
-const REVIEW_COLUMNS: EvalTableColumnId[] = [
-  "extracted_business_name",
-  "logos",
-  "colors",
-  "emails",
-  "phones",
-  "social",
-  "address",
-  "contact_links",
-  "offerings",
-  "extracted_summary",
-  "pages_inspected",
-  "elapsed_ms",
-  "provider_model",
-  "error_message",
-];
 
 export function evalInventoryTableCellClass(columnId: EvalTableColumnId): string {
   if (columnId === "logos") return "max-w-[7rem] py-2 pr-3 align-middle";
@@ -152,9 +156,9 @@ export function EvalInventoryTableColumnCell({
     return <InventoryStatusPill status={extractionStatus} />;
   }
 
-  if (REVIEW_COLUMNS.includes(columnId)) {
+  if (EXTRACTED_COLUMNS.includes(columnId)) {
     if (!review) {
-      return <span className="text-zinc-400">—</span>;
+      return <NotRunDataPlaceholder />;
     }
     return <EvalReviewTableColumnCell columnId={columnId} row={review} />;
   }

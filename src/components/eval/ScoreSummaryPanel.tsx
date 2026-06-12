@@ -1,4 +1,8 @@
 import Link from "next/link";
+import {
+  buildEvalViewerHref,
+  patchEvalViewerQuery,
+} from "@/lib/evalLocal/evalViewerQuery";
 import type { EvalFileEntry } from "@/lib/evalLocal/listEvalFiles";
 import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
 import type { EvalViewerSearchParams } from "./BrandAuditViewer";
@@ -34,13 +38,11 @@ export function ScoreSummaryPanel({
 }: Props) {
   if (files.length === 0) return null;
 
-  const buildHref = (name: string) => {
-    const q = new URLSearchParams();
-    if (searchParams.summary) q.set("summary", searchParams.summary);
-    if (searchParams.review) q.set("review", searchParams.review);
-    q.set("score", name);
-    return `${basePath}?${q.toString()}`;
-  };
+  const buildHref = (name: string) =>
+    buildEvalViewerHref(
+      basePath,
+      patchEvalViewerQuery(searchParams, { score: name }),
+    );
 
   return (
     <section className="mb-12">

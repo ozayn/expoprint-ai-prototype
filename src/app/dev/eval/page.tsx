@@ -15,6 +15,7 @@ import { readExtractionSummaryCsv } from "@/lib/evalLocal/readExtractionSummary"
 import { readReviewQueueCsv } from "@/lib/evalLocal/readReviewQueue";
 import { readScoreSummaryCsv } from "@/lib/evalLocal/readScoreSummary";
 import { readUrlCandidatesCsv } from "@/lib/evalLocal/readUrlCandidates";
+import { resolveUrlCandidatesParam } from "@/lib/evalLocal/evalViewerQuery";
 import { buildUrlInventory } from "@/lib/evalLocal/urlInventoryJoin";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,7 @@ type PageProps = {
     summary?: string;
     review?: string;
     score?: string;
+    urls?: string;
     candidates?: string;
     view?: string;
   }>;
@@ -67,7 +69,7 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
   const reviewName = pickReviewQueueFilename(index.reviewQueues, params.review);
   const candidatesName = pickUrlCandidatesFilename(
     index.urlCandidates,
-    params.candidates,
+    resolveUrlCandidatesParam(params),
   );
   const scoreName = pickScoreSummaryFilename(
     index.scoreSummaries,
@@ -119,6 +121,7 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
         summaryName={summaryName}
         reviewName={reviewName}
         scoreName={scoreName}
+        urlCandidatesName={candidatesName}
         summaryData={summaryData}
         scoreData={scoreData}
         searchParams={params}

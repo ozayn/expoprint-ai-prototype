@@ -9,6 +9,12 @@ import {
   type UrlCandidateRow,
 } from "./urlCandidateTypes";
 
+/** Count data rows in a URL candidates CSV (handles multiline fields). */
+export function countUrlCandidatesCsvRows(text: string): number {
+  const { records } = csvRowsToObjects(parseCsv(text));
+  return records.length;
+}
+
 const EVAL_RESULTS_DIR = join(process.cwd(), "data", "eval", "results");
 
 export async function readUrlCandidatesFromDir(

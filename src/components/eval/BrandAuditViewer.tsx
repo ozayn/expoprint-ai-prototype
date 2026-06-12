@@ -7,18 +7,13 @@ import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
 import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
+import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import type {
   UrlInventoryRow,
   UrlInventoryStats,
 } from "@/lib/evalLocal/urlInventoryJoin";
 
-export type EvalViewerSearchParams = {
-  summary?: string;
-  review?: string;
-  score?: string;
-  candidates?: string;
-  view?: string;
-};
+export type EvalViewerSearchParams = EvalViewerQueryParams;
 
 export function parseEvalViewMode(view: string | undefined): EvalViewMode {
   if (view === "table") return "table";

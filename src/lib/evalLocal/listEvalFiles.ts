@@ -1,6 +1,7 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { isEvalViewerEnabled } from "./isEvalViewerEnabled";
+import { csvRowsToObjects, parseCsv } from "./parseCsv";
 
 export type EvalFileKind =
   | "url_candidates"
@@ -16,7 +17,12 @@ export type EvalFileEntry = {
   relativePath: string;
   mtimeMs: number;
   sizeBytes: number;
+  /** Parsed CSV data rows (url_candidates files only). */
+  rowCount?: number;
 };
+
+/** Smoke-test / example URL candidate files are tiny and should not win default selection. */
+export const MIN_SUBSTANTIAL_URL_CANDIDATES_ROWS = 50;
 
 export type LocalEvalFileIndex = {
   urlCandidates: EvalFileEntry[];
@@ -134,13 +140,68 @@ export async function listLocalEvalFiles(): Promise<LocalEvalFileIndex> {
     if (entry.kind === "extraction_run") extractionRuns.push(entry);
   }
 
+  const urlCandidatesWithCounts = await enrichUrlCandidateRowCounts(urlCandidates);
+
   return {
-    urlCandidates: sortNewestFirst(urlCandidates),
+    urlCandidates: sortNewestFirst(urlCandidatesWithCounts),
     extractionSummaries: sortNewestFirst(extractionSummaries),
     reviewQueues: sortNewestFirst(reviewQueues),
     scoreSummaries: sortNewestFirst(scoreSummaries),
     extractionRuns: sortNewestFirst(extractionRuns),
   };
+}
+
+function countUrlCandidatesRowsInText(text: string): number {
+  const { records } = csvRowsToObjects(parseCsv(text));
+  return records.length;
+}
+
+async function enrichUrlCandidateRowCounts(
+  entries: EvalFileEntry[],
+): Promise<EvalFileEntry[]> {
+  return Promise.all(
+    entries.map(async (entry) => {
+      try {
+        const text = await readFile(join(EVAL_RESULTS_DIR, entry.name), "utf8");
+        return {
+          ...entry,
+          rowCount: countUrlCandidatesRowsInText(text),
+        };
+      } catch {
+        return entry;
+      }
+    }),
+  );
+}
+
+export function isSmokeTestUrlCandidatesFile(entry: EvalFileEntry): boolean {
+  const lower = entry.name.toLowerCase();
+  if (
+    lower.includes("example") ||
+    lower.includes("smoke") ||
+    lower.includes("test")
+  ) {
+    return true;
+  }
+  if (
+    entry.rowCount !== undefined &&
+    entry.rowCount < MIN_SUBSTANTIAL_URL_CANDIDATES_ROWS
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function pickLargestUrlCandidatesFile(candidates: EvalFileEntry[]): EvalFileEntry {
+  return candidates.reduce((best, cur) => {
+    const bestRows = best.rowCount ?? 0;
+    const curRows = cur.rowCount ?? 0;
+    if (curRows !== bestRows) return curRows > bestRows ? cur : best;
+    if (cur.sizeBytes !== best.sizeBytes) {
+      return cur.sizeBytes > best.sizeBytes ? cur : best;
+    }
+    return cur.mtimeMs > best.mtimeMs ? cur : best;
+  });
 }
 
 export function pickUrlCandidatesFilename(
@@ -150,7 +211,10 @@ export function pickUrlCandidatesFilename(
   if (candidates.length === 0) return undefined;
   const allowed = new Set(candidates.map((c) => c.name));
   if (requested && allowed.has(requested)) return requested;
-  return candidates[0]?.name;
+
+  const substantial = candidates.filter((c) => !isSmokeTestUrlCandidatesFile(c));
+  const pool = substantial.length > 0 ? substantial : candidates;
+  return pickLargestUrlCandidatesFile(pool).name;
 }
 
 export function isSafeUrlCandidatesFilename(name: string): boolean {
