@@ -1,11 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { BrandAuditCoverageSummary } from "./BrandAuditCoverageSummary";
 import { EvalAuditMain } from "./EvalAuditMain";
 import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
-import {
-  computeFieldCoverageSummary,
-  formatFieldCoverageSummary,
-} from "@/lib/evalLocal/brandExtractionParse";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
 
@@ -62,10 +59,6 @@ export function BrandAuditViewer({
   children,
 }: BrandAuditViewerProps) {
   const view = parseEvalViewMode(searchParams.view);
-  const coverageLine =
-    rows.length > 0
-      ? formatFieldCoverageSummary(computeFieldCoverageSummary(rows))
-      : null;
 
   return (
     <div className="min-h-full bg-zinc-50/30 text-zinc-900">
@@ -83,16 +76,9 @@ export function BrandAuditViewer({
 
           <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-                  {title}
-                </h1>
-                <EvalViewToggle
-                  basePath={basePath}
-                  searchParams={searchParams}
-                  view={view}
-                />
-              </div>
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+                {title}
+              </h1>
               <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
               {dataSourceLabel ? (
                 <p className="mt-2 text-[11px] font-medium text-zinc-500">
@@ -140,13 +126,19 @@ export function BrandAuditViewer({
           ) : null}
         </header>
 
-        {coverageLine ? (
-          <p className="mb-6 text-sm text-zinc-600">{coverageLine}</p>
-        ) : null}
-
         {prependContent ? (
           <div className="mb-6">{prependContent}</div>
         ) : null}
+
+        <BrandAuditCoverageSummary rows={rows} />
+
+        <div className="mb-6 flex items-center justify-end">
+          <EvalViewToggle
+            basePath={basePath}
+            searchParams={searchParams}
+            view={view}
+          />
+        </div>
 
         <EvalAuditMain
           view={view}

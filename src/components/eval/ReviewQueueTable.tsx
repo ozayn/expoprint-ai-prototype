@@ -30,8 +30,10 @@ import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { ReviewQueueAuditColumn } from "@/lib/evalLocal/reviewQueueTypes";
 import { EvalDetailField } from "./EvalViewerField";
 
+type TableTextColumn = ReviewQueueAuditColumn | "extracted_summary";
+
 type TableColumn =
-  | { kind: "text"; col: ReviewQueueAuditColumn }
+  | { kind: "text"; col: TableTextColumn }
   | { kind: "logos" }
   | { kind: "colors" }
   | { kind: "emails" }
@@ -50,6 +52,7 @@ const TABLE_COLUMNS: TableColumn[] = [
   { kind: "social" },
   { kind: "address" },
   { kind: "offerings" },
+  { kind: "text", col: "extracted_summary" },
   { kind: "text", col: "status" },
 ];
 
@@ -88,6 +91,7 @@ function columnLabel(column: TableColumn): string {
   if (column.kind !== "text") return column.kind;
   if (column.col === "domain") return "source";
   if (column.col === "extracted_business_name") return "business name";
+  if (column.col === "extracted_summary") return "summary";
   return column.col.replace(/_/g, " ");
 }
 
@@ -95,7 +99,7 @@ function TextCell({
   col,
   row,
 }: {
-  col: ReviewQueueAuditColumn;
+  col: TableTextColumn;
   row: BrandAuditRow;
 }) {
   if (col === "domain") {
@@ -114,9 +118,11 @@ function TextCell({
   }
 
   const v = (row[col] ?? "").trim();
+  const display =
+    col === "extracted_summary" && v.length > 80 ? `${v.slice(0, 77)}…` : v;
   return (
     <span className="text-zinc-800" title={v || undefined}>
-      {v || "—"}
+      {display || "—"}
     </span>
   );
 }
