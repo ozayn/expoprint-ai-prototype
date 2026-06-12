@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ApiDocsCommandBuilder } from "@/components/ApiDocsCommandBuilder";
-import { DevEvalNavLink } from "@/components/DevEvalNavLink";
+import { DevEvalNavLink, InternalEvalNavLink } from "@/components/DevEvalNavLink";
 
 export const metadata: Metadata = {
   title: "Design-intake API — local docs",
@@ -42,6 +42,7 @@ export default function ApiDocsPage() {
             <Link href="/progress" className={linkClass}>
               Progress
             </Link>
+            <InternalEvalNavLink className={linkClass} />
             <DevEvalNavLink className={linkClass} />
           </nav>
         </header>

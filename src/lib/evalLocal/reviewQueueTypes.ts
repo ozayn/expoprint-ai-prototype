@@ -1,11 +1,8 @@
-/** Text columns in the audit table (logos/colors are visual cells between category and summary). */
+/** Text columns used in audit table helpers (contact columns are separate visual cells). */
 export const REVIEW_QUEUE_AUDIT_COLUMNS = [
   "domain",
   "extracted_business_name",
-  "extracted_business_category",
-  "extracted_summary",
   "status",
-  "pages_inspected",
 ] as const;
 
 export type ReviewQueueAuditColumn = (typeof REVIEW_QUEUE_AUDIT_COLUMNS)[number];
@@ -38,6 +35,11 @@ export const REVIEW_QUEUE_ALL_COLUMNS = [
   "extracted_business_category",
   "extracted_tagline",
   "extracted_summary",
+  "extracted_emails",
+  "extracted_phone_numbers",
+  "extracted_social_links",
+  "extracted_addresses",
+  "extracted_contact_links",
   "logo_candidate_count",
   "selected_logo_url",
   "logo_candidate_urls",

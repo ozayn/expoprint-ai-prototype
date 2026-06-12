@@ -2,6 +2,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DesignIntakeExtractResponse } from "../../../src/lib/designIntakeApiSchema";
 import {
+  contactFieldsFromCollected,
+  collectContactFromExpo,
+} from "../../../src/lib/evalLocal/contactExtractionParse";
+import {
   brandColorFieldsFromTokens,
   collectColorTokensFromExpo,
 } from "../../../src/lib/evalLocal/brandExtractionParse";
@@ -30,6 +34,11 @@ export const REVIEW_QUEUE_COLUMNS = [
   "extracted_business_category",
   "extracted_tagline",
   "extracted_summary",
+  "extracted_emails",
+  "extracted_phone_numbers",
+  "extracted_social_links",
+  "extracted_addresses",
+  "extracted_contact_links",
   "logo_candidate_count",
   "selected_logo_url",
   "logo_candidate_urls",
@@ -118,6 +127,11 @@ function emptyExpoFields(): Pick<
   | "extracted_business_category"
   | "extracted_tagline"
   | "extracted_summary"
+  | "extracted_emails"
+  | "extracted_phone_numbers"
+  | "extracted_social_links"
+  | "extracted_addresses"
+  | "extracted_contact_links"
   | "logo_candidate_count"
   | "selected_logo_url"
   | "logo_candidate_urls"
@@ -133,6 +147,11 @@ function emptyExpoFields(): Pick<
     extracted_business_category: "",
     extracted_tagline: "",
     extracted_summary: "",
+    extracted_emails: "",
+    extracted_phone_numbers: "",
+    extracted_social_links: "",
+    extracted_addresses: "",
+    extracted_contact_links: "",
     logo_candidate_count: "",
     selected_logo_url: "",
     logo_candidate_urls: "",
@@ -202,12 +221,14 @@ function extractExpoFields(
 
   const colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
   const logoFields = logoFieldsFromCandidates(logos);
+  const contactFields = contactFieldsFromCollected(collectContactFromExpo(expo));
 
   return {
     extracted_business_name: name,
     extracted_business_category: designIntake?.productCategory?.trim() ?? "",
     extracted_tagline: tagline,
     extracted_summary: summary,
+    ...contactFields,
     ...logoFields,
     ...colorFields,
     pages_inspected:

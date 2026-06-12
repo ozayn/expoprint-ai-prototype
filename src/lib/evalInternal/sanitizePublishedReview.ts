@@ -123,6 +123,11 @@ export function sanitizeReviewQueueRecord(
   row.extracted_business_category =
     record.extracted_business_category?.trim() ?? "";
   row.extracted_summary = record.extracted_summary?.trim() ?? "";
+  row.extracted_emails = record.extracted_emails?.trim() ?? "";
+  row.extracted_phone_numbers = record.extracted_phone_numbers?.trim() ?? "";
+  row.extracted_social_links = record.extracted_social_links?.trim() ?? "";
+  row.extracted_addresses = record.extracted_addresses?.trim() ?? "";
+  row.extracted_contact_links = record.extracted_contact_links?.trim() ?? "";
 
   row.extracted_color_hexes = record.extracted_color_hexes?.trim() ?? "";
   row.primary_color_hex = record.primary_color_hex?.trim() ?? "";

@@ -38,7 +38,16 @@ function testParseAndReviewRow(): void {
       ok: true,
       business: { name: "Acme Co", website: "", domain: "", canonicalUrl: "" },
       brand: { colors: [], typography: {}, logoCandidates: [{ url: "https://example.com/logo.png" }] },
-      content: { services: [], products: [], contact: {} },
+      content: {
+        services: [],
+        products: [],
+        contact: {
+          email: "hello@acme.co",
+          phone: "(555) 010-2030",
+          address: "123 Booth Ave, Austin, TX",
+          social: ["https://instagram.com/acme", "https://linkedin.com/company/acme"],
+        },
+      },
       designIntake: {
         productCategory: "Trade show booth",
         recommendedHeadline: "Acme Co",
@@ -63,6 +72,10 @@ function testParseAndReviewRow(): void {
   assert.ok(row.logo_candidate_urls.includes("example.com"));
   assert.equal(row.business_name_score, "");
   assert.ok(row.first_req_description_excerpt.length <= 240);
+  assert.ok(row.extracted_emails.includes("hello@acme.co"));
+  assert.ok(row.extracted_phone_numbers.includes("555"));
+  assert.ok(row.extracted_social_links.includes("instagram"));
+  assert.ok(row.extracted_addresses.includes("Austin"));
 }
 
 function testColorExtractionShapes(): void {

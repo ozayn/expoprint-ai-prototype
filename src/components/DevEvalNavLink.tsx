@@ -23,3 +23,15 @@ export function DevEvalNavLink({
     </Link>
   );
 }
+
+/** Deployed password-protected brand audit viewer (sanitized sample or published JSON). */
+export function InternalEvalNavLink({
+  className = devEvalNavLinkClassName,
+  children = "Internal eval",
+}: DevEvalNavLinkProps) {
+  return (
+    <Link href="/internal/eval" className={className}>
+      {children}
+    </Link>
+  );
+}
