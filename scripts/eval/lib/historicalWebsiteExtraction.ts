@@ -146,11 +146,6 @@ export async function runHistoricalWebsiteExtraction(
   );
 
   const { candidates, summary } = loadUrlCandidatesFromCsv(options.inputPath);
-  if (summary.urlDuplicatesRemoved > 0) {
-    console.log(
-      `  URL duplicates removed:    ${summary.urlDuplicatesRemoved}`,
-    );
-  }
   const selected = selectUrlCandidatesForExtraction(candidates, {
     allowDuplicateDomains,
     offset,

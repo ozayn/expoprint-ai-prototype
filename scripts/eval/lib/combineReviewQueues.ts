@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { EVAL_RUN_ID_PATTERN } from "../../../src/lib/evalLocal/evalRunId.js";
-import { normalizeEvalUrl } from "../../../src/lib/evalLocal/evalUrlDedup.js";
+import { urlDedupeKeyFromFields } from "../../../src/lib/evalLocal/evalUrlDedup.js";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
 import {
   REVIEW_QUEUE_COLUMNS,
@@ -53,7 +53,11 @@ function timestampFromReviewQueueFilename(name: string): string {
 }
 
 function urlKeyForRow(row: ReviewQueueRow): string {
-  const normalized = normalizeEvalUrl(row.normalized_url?.trim() ?? "");
+  const normalized = urlDedupeKeyFromFields(
+    row.normalized_url,
+    row.normalized_url,
+    row.canonical_domain || row.domain,
+  );
   if (normalized) return `url:${normalized}`;
   const domain = row.canonical_domain?.trim().toLowerCase() || row.domain?.trim().toLowerCase();
   if (domain) return `domain:${domain}`;

@@ -9,6 +9,7 @@ import {
   type UrlCandidateRow,
 } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
+import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
 
 export function publishedUrlInventoryRowToUrlInventoryRow(
   row: PublishedUrlInventoryRow,
@@ -39,7 +40,8 @@ export function publishedUrlInventoryRowToUrlInventoryRow(
 export function publishedUrlInventoryRowsToUrlInventoryRows(
   rows: PublishedUrlInventoryRow[],
 ): UrlInventoryRow[] {
-  return rows.map(publishedUrlInventoryRowToUrlInventoryRow);
+  const mapped = rows.map(publishedUrlInventoryRowToUrlInventoryRow);
+  return dedupeUrlInventoryRows(mapped).rows;
 }
 
 export function parsePublishedUrlInventoryFile(

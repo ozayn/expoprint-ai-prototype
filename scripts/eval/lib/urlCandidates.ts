@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
-import { normalizeEvalUrl } from "../../../src/lib/evalLocal/evalUrlDedup";
+import {
+  logEvalUrlDedupe,
+  normalizeEvalUrl,
+} from "../../../src/lib/evalLocal/evalUrlDedup";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
 
 export { canonicalDomainFromHost };
@@ -347,14 +350,19 @@ export function extractUrlCandidatesFromRecords(
     }
   });
 
-  return out;
+  const { rows } = dedupeUrlCandidateRowsByNormalizedUrl(
+    out,
+    "Metabase URL extraction",
+  );
+  return rows;
 }
 
 export function dedupeUrlCandidateRowsByNormalizedUrl(
   rows: UrlCandidateOutputRow[],
+  logLabel?: string,
 ): { rows: UrlCandidateOutputRow[]; duplicatesRemoved: number } {
+  const beforeCount = rows.length;
   const seen = new Map<string, UrlCandidateOutputRow>();
-  let duplicatesRemoved = 0;
 
   for (const row of rows) {
     const key = normalizeEvalUrl(row.normalized_url || row.raw_url);
@@ -362,7 +370,6 @@ export function dedupeUrlCandidateRowsByNormalizedUrl(
 
     const existing = seen.get(key);
     if (existing) {
-      duplicatesRemoved += 1;
       existing.source_column = appendSourceColumn(
         existing.source_column,
         row.source_column,
@@ -370,19 +377,29 @@ export function dedupeUrlCandidateRowsByNormalizedUrl(
       continue;
     }
 
-    const domain = domainFromNormalizedUrl(key);
     seen.set(
       key,
       withCanonicalDomain({
         ...row,
         normalized_url: key,
         raw_url: row.raw_url?.trim() || row.normalized_url || key,
-        domain,
+        domain: domainFromNormalizedUrl(key),
       }),
     );
   }
 
-  return { rows: [...seen.values()], duplicatesRemoved };
+  const deduped = [...seen.values()];
+  const duplicatesRemoved = beforeCount - deduped.length;
+  if (logLabel && duplicatesRemoved > 0) {
+    logEvalUrlDedupe(logLabel, {
+      items: deduped,
+      beforeCount,
+      afterCount: deduped.length,
+      duplicatesRemoved,
+    });
+  }
+
+  return { rows: deduped, duplicatesRemoved };
 }
 
 export function urlCandidateRowsFromCsvRecords(
@@ -443,7 +460,10 @@ export function loadUrlCandidatesFromCsv(csvPath: string): {
     ? urlCandidateRowsFromCsvRecords(records, headers)
     : extractUrlCandidatesFromRecords(records, headers);
   const { rows: candidates, duplicatesRemoved } =
-    dedupeUrlCandidateRowsByNormalizedUrl(rawCandidates);
+    dedupeUrlCandidateRowsByNormalizedUrl(
+      rawCandidates,
+      "URL candidates CSV",
+    );
   const summary = buildUrlExtractionSummary(records.length, candidates);
   summary.urlDuplicatesRemoved = duplicatesRemoved;
   return { candidates, summary };

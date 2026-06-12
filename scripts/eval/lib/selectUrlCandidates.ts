@@ -18,11 +18,10 @@ export function selectUrlCandidatesForExtraction(
   candidates: UrlCandidateOutputRow[],
   options: SelectUrlCandidatesOptions,
 ): UrlCandidateOutputRow[] {
-  const { rows: urlDeduped, duplicatesRemoved } =
-    dedupeUrlCandidateRowsByNormalizedUrl(candidates);
-  if (duplicatesRemoved > 0) {
-    console.log(`  URL duplicates removed:    ${duplicatesRemoved}`);
-  }
+  const { rows: urlDeduped } = dedupeUrlCandidateRowsByNormalizedUrl(
+    candidates,
+    "Extraction batch",
+  );
 
   let rows = urlDeduped;
 

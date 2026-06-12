@@ -45,10 +45,11 @@ export function EvalColumnPicker({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative" suppressHydrationWarning>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        suppressHydrationWarning
         className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:border-zinc-300 hover:text-zinc-800"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -86,6 +87,7 @@ export function EvalColumnPicker({
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-zinc-100 px-3 pt-2">
             <button
               type="button"
+              suppressHydrationWarning
               onClick={() => {
                 resetColumns();
                 setOpen(false);
@@ -96,6 +98,7 @@ export function EvalColumnPicker({
             </button>
             <button
               type="button"
+              suppressHydrationWarning
               onClick={() => {
                 setVisibleColumns(
                   allEvalTableColumnsForContext({
@@ -110,6 +113,7 @@ export function EvalColumnPicker({
             </button>
             <button
               type="button"
+              suppressHydrationWarning
               onClick={() => {
                 minimalColumns();
               }}

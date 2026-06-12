@@ -24,6 +24,7 @@ import { evalTableColumnHeaderLabel } from "@/lib/evalLocal/evalTableColumns";
 import { excerptText } from "@/lib/evalLocal/textExcerpt";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
+import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
 
 const PAGE_SIZE = 200;
 
@@ -115,9 +116,13 @@ type Props = {
 
 export function UrlInventoryTable({
   filename,
-  rows,
+  rows: inputRows,
   omitPartnerFields = false,
 }: Props) {
+  const rows = useMemo(
+    () => dedupeUrlInventoryRows(inputRows).rows,
+    [inputRows],
+  );
   const {
     search,
     statusFilter,
@@ -184,7 +189,7 @@ export function UrlInventoryTable({
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="mb-4 space-y-3">
         {filename ? (
           <p className="text-xs text-zinc-500">
@@ -289,6 +294,7 @@ export function UrlInventoryTable({
               count: visibleCount + PAGE_SIZE,
             })
           }
+          suppressHydrationWarning
           className="mt-4 text-sm text-zinc-500 hover:text-zinc-700"
         >
           Show more ({filtered.length - visibleCount} remaining)

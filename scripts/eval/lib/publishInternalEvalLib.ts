@@ -205,6 +205,9 @@ export function printPublishUrlInventorySummary(result: PublishUrlInventoryResul
   console.log(`  Not run:            ${stats.notRunCount}`);
   console.log(`  Success:            ${stats.successCount}`);
   console.log(`  Failed:             ${stats.failedCount}`);
+  if (stats.urlDuplicatesRemoved > 0) {
+    console.log(`  URL duplicates removed: ${stats.urlDuplicatesRemoved}`);
+  }
   console.log(
     `  Domains included:     ${options.includeDomains ? "yes" : "no (URL N labels)"}`,
   );

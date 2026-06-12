@@ -92,7 +92,11 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
 
   const reviewRows = reviewData?.rows ?? [];
   const urlInventory = candidatesData
-    ? buildUrlInventory(candidatesData.rows, reviewRows)
+    ? buildUrlInventory(
+        candidatesData.rows,
+        reviewRows,
+        "Dev eval URL inventory",
+      )
     : null;
 
   const publishHint = reviewName

@@ -1,5 +1,11 @@
 import type { BrandAuditRow } from "./brandAuditRow";
 import { canonicalDomainFromHost } from "./canonicalDomain";
+import {
+  dedupeEvalUrls,
+  logEvalUrlDedupe,
+  normalizeEvalUrl,
+  urlDedupeKeyFromFields,
+} from "./evalUrlDedup";
 import type { UrlCandidateRow } from "./urlCandidateTypes";
 
 export type UrlInventoryExtractionStatus = "not_run" | "success" | "failed";
@@ -36,8 +42,72 @@ function canonicalForCandidate(candidate: UrlCandidateRow): string {
   }
 }
 
-function urlKey(url: string): string {
-  return url.trim().toLowerCase();
+export type UrlInventoryBuildResult = {
+  rows: UrlInventoryRow[];
+  stats: UrlInventoryStats;
+  urlDuplicatesRemoved: number;
+};
+
+function extractionStatusRank(status: UrlInventoryExtractionStatus): number {
+  if (status === "success") return 3;
+  if (status === "failed") return 2;
+  return 1;
+}
+
+function mergeSourceColumn(existing: string, next: string): string {
+  if (!existing.trim()) return next.trim();
+  if (!next.trim()) return existing.trim();
+  const parts = existing.split("; ").map((s) => s.trim());
+  const add = next.trim();
+  if (parts.includes(add)) return existing;
+  return `${existing}; ${add}`;
+}
+
+function mergeUrlInventoryRows(
+  primary: UrlInventoryRow,
+  secondary: UrlInventoryRow,
+): UrlInventoryRow {
+  const primaryRank = extractionStatusRank(primary.extractionStatus);
+  const secondaryRank = extractionStatusRank(secondary.extractionStatus);
+  const kept = primaryRank >= secondaryRank ? primary : secondary;
+  const other = primaryRank >= secondaryRank ? secondary : primary;
+
+  return {
+    candidate: {
+      ...kept.candidate,
+      source_column: mergeSourceColumn(
+        kept.candidate.source_column,
+        other.candidate.source_column,
+      ),
+    },
+    extractionStatus: kept.extractionStatus,
+    review: kept.review ?? other.review,
+  };
+}
+
+function urlForInventoryRow(row: UrlInventoryRow): string {
+  return urlDedupeKeyFromFields(
+    row.candidate.normalized_url,
+    row.candidate.raw_url,
+    row.candidate.domain,
+  ) ?? "";
+}
+
+export function dedupeUrlInventoryRows(
+  rows: UrlInventoryRow[],
+  logLabel?: string,
+): UrlInventoryBuildResult {
+  const result = dedupeEvalUrls(rows, urlForInventoryRow, mergeUrlInventoryRows);
+  if (logLabel) {
+    logEvalUrlDedupe(logLabel, result);
+  }
+
+  const stats = computeUrlInventoryStats(result.items);
+  return {
+    rows: result.items,
+    stats,
+    urlDuplicatesRemoved: result.duplicatesRemoved,
+  };
 }
 
 function reviewExtractionStatus(review: BrandAuditRow): UrlInventoryExtractionStatus {
@@ -47,13 +117,17 @@ function reviewExtractionStatus(review: BrandAuditRow): UrlInventoryExtractionSt
   return "failed";
 }
 
+function reviewUrlKey(url: string): string | null {
+  return normalizeEvalUrl(url);
+}
+
 function buildReviewIndex(reviewRows: BrandAuditRow[]): Map<string, BrandAuditRow> {
   const index = new Map<string, BrandAuditRow>();
 
   for (const row of reviewRows) {
-    const normalized = row.normalized_url?.trim();
+    const normalized = reviewUrlKey(row.normalized_url ?? "");
     if (normalized) {
-      index.set(`url:${urlKey(normalized)}`, row);
+      index.set(`url:${normalized}`, row);
     }
     const canonical =
       row.canonical_domain?.trim() ||
@@ -70,9 +144,9 @@ function findReviewForCandidate(
   candidate: UrlCandidateRow,
   index: Map<string, BrandAuditRow>,
 ): BrandAuditRow | null {
-  const normalized = candidate.normalized_url?.trim();
+  const normalized = reviewUrlKey(candidate.normalized_url ?? "");
   if (normalized) {
-    const byUrl = index.get(`url:${urlKey(normalized)}`);
+    const byUrl = index.get(`url:${normalized}`);
     if (byUrl) return byUrl;
   }
 
@@ -88,9 +162,10 @@ function findReviewForCandidate(
 export function buildUrlInventory(
   candidates: UrlCandidateRow[],
   reviewRows: BrandAuditRow[],
-): { rows: UrlInventoryRow[]; stats: UrlInventoryStats } {
+  logLabel?: string,
+): UrlInventoryBuildResult {
   const index = buildReviewIndex(reviewRows);
-  const rows: UrlInventoryRow[] = candidates.map((candidate) => {
+  const rawRows: UrlInventoryRow[] = candidates.map((candidate) => {
     const review = findReviewForCandidate(candidate, index);
     const extractionStatus: UrlInventoryExtractionStatus = review
       ? reviewExtractionStatus(review)
@@ -98,8 +173,7 @@ export function buildUrlInventory(
     return { candidate, extractionStatus, review };
   });
 
-  const stats = computeUrlInventoryStats(rows);
-  return { rows, stats };
+  return dedupeUrlInventoryRows(rawRows, logLabel);
 }
 
 export function computeUrlInventoryStats(

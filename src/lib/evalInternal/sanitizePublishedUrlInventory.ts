@@ -23,6 +23,7 @@ export type PublishUrlInventoryStats = {
   notRunCount: number;
   successCount: number;
   failedCount: number;
+  urlDuplicatesRemoved: number;
 };
 
 function sanitizeInventoryCandidateFields(
@@ -118,10 +119,8 @@ export function buildPublishedUrlInventoryFile(
   file: PublishedInternalEvalUrlInventoryFile;
   stats: PublishUrlInventoryStats;
 } {
-  const { rows: inventoryRows, stats: inventoryStats } = buildUrlInventory(
-    candidates,
-    publishedReviewRows,
-  );
+  const { rows: inventoryRows, stats: inventoryStats, urlDuplicatesRemoved } =
+    buildUrlInventory(candidates, publishedReviewRows, "Published URL inventory");
 
   const rows = inventoryRows.map((row, index) =>
     sanitizeUrlInventoryRow(row, index, options),
@@ -146,6 +145,7 @@ export function buildPublishedUrlInventoryFile(
       notRunCount: inventoryStats.notRunCount,
       successCount: inventoryStats.successCount,
       failedCount: inventoryStats.failedCount,
+      urlDuplicatesRemoved,
     },
   };
 }

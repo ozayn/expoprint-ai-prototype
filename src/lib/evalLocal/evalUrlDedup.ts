@@ -6,6 +6,8 @@ const TRACKING_PARAMS = [
   "utm_campaign",
   "utm_term",
   "utm_content",
+  "fbclid",
+  "gclid",
 ] as const;
 
 const TRAILING_PUNCT_RE = /[.,;:!?)\]"']+$/;
@@ -17,6 +19,36 @@ function stripUrlPunctuation(url: string): string {
     u = u.replace(TRAILING_PUNCT_RE, "");
   }
   return u.replace(LEADING_PUNCT_RE, "");
+}
+
+function sortedSearchString(parsed: URL): string {
+  const entries = [...parsed.searchParams.entries()].sort((a, b) => {
+    const keyCmp = a[0].localeCompare(b[0]);
+    return keyCmp !== 0 ? keyCmp : a[1].localeCompare(b[1]);
+  });
+  if (entries.length === 0) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of entries) {
+    params.append(key, value);
+  }
+  return `?${params.toString()}`;
+}
+
+function formatNormalizedUrl(parsed: URL): string {
+  const protocol = parsed.protocol.toLowerCase();
+  const host = parsed.hostname.toLowerCase();
+
+  let pathname = parsed.pathname;
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    pathname = pathname.replace(/\/+$/, "");
+  }
+
+  const search = sortedSearchString(parsed);
+  if (pathname === "/" && !search) {
+    return `${protocol}//${host}`;
+  }
+
+  return `${protocol}//${host}${pathname}${search}`;
 }
 
 /**
@@ -38,39 +70,80 @@ export function normalizeEvalUrl(raw: string): string | null {
     const parsed = new URL(href);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
 
-    parsed.hostname = parsed.hostname.toLowerCase();
+    parsed.hash = "";
 
     for (const param of TRACKING_PARAMS) {
       parsed.searchParams.delete(param);
     }
-    const search = parsed.searchParams.toString();
-    parsed.search = search ? `?${search}` : "";
 
-    if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
-      parsed.pathname = parsed.pathname.replace(/\/+$/, "");
-    }
-
-    if (parsed.pathname === "/" && !parsed.search && !parsed.hash) {
-      return `${parsed.protocol}//${parsed.hostname}`;
-    }
-
-    return parsed.href;
+    return formatNormalizedUrl(parsed);
   } catch {
     return null;
   }
 }
 
-/** Deduplicate URL strings; returns one normalized URL per unique target. */
-export function uniqueEvalUrls(urls: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
+export type EvalUrlDedupeResult<T> = {
+  items: T[];
+  beforeCount: number;
+  afterCount: number;
+  duplicatesRemoved: number;
+};
 
-  for (const raw of urls) {
-    const normalized = normalizeEvalUrl(raw);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    out.push(normalized);
+/**
+ * Deduplicate items by normalized URL. First occurrence wins unless `merge` is provided.
+ */
+export function dedupeEvalUrls<T>(
+  items: T[],
+  getUrl: (item: T) => string,
+  merge?: (existing: T, duplicate: T) => T,
+): EvalUrlDedupeResult<T> {
+  const beforeCount = items.length;
+  const seen = new Map<string, T>();
+
+  for (const item of items) {
+    const key = normalizeEvalUrl(getUrl(item));
+    if (!key) continue;
+
+    const existing = seen.get(key);
+    if (existing) {
+      seen.set(key, merge ? merge(existing, item) : existing);
+      continue;
+    }
+
+    seen.set(key, item);
   }
 
-  return out;
+  const deduped = [...seen.values()];
+  return {
+    items: deduped,
+    beforeCount,
+    afterCount: deduped.length,
+    duplicatesRemoved: beforeCount - deduped.length,
+  };
+}
+
+export function logEvalUrlDedupe(label: string, result: EvalUrlDedupeResult<unknown>): void {
+  if (result.duplicatesRemoved <= 0) return;
+  console.log(
+    `${label}: ${result.beforeCount} URLs before dedupe, ${result.afterCount} after (${result.duplicatesRemoved} duplicates removed)`,
+  );
+}
+
+/** Deduplicate URL strings; returns one normalized URL per unique target. */
+export function uniqueEvalUrls(urls: string[]): string[] {
+  return dedupeEvalUrls(urls, (url) => url).items;
+}
+
+export function urlDedupeKeyFromFields(
+  normalizedUrl?: string,
+  rawUrl?: string,
+  domain?: string,
+): string | null {
+  const fromNormalized = normalizeEvalUrl(normalizedUrl ?? "");
+  if (fromNormalized) return fromNormalized;
+  const fromRaw = normalizeEvalUrl(rawUrl ?? "");
+  if (fromRaw) return fromRaw;
+  const fromDomain = normalizeEvalUrl(domain ?? "");
+  if (fromDomain) return fromDomain;
+  return null;
 }
