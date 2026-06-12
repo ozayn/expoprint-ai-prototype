@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { EvalFileEntry } from "@/lib/evalLocal/listEvalFiles";
 import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
-import type { EvalViewerSearchParams } from "./EvalViewer";
+import type { EvalViewerSearchParams } from "./BrandAuditViewer";
 
 type Props = {
   basePath: string;

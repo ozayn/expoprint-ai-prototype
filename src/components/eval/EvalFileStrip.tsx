@@ -1,5 +1,8 @@
+import {
+  matchingExtractionRun,
+  matchingReviewQueue,
+} from "@/lib/evalLocal/evalFileMatching";
 import type { EvalFileEntry } from "@/lib/evalLocal/listEvalFiles";
-import { matchingReviewQueue } from "@/lib/evalLocal/listEvalFiles";
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -61,25 +64,6 @@ type Props = {
   activeSummaryName?: string;
   activeReviewName?: string;
 };
-
-export function timestampFromEvalArtifact(name: string): string | null {
-  const m = name.match(/_(20\d{12})\.(csv|jsonl)$/);
-  return m?.[1] ?? null;
-}
-
-export function matchingExtractionRun(
-  runs: EvalFileEntry[],
-  summaryName?: string,
-): EvalFileEntry | undefined {
-  if (summaryName) {
-    const ts = timestampFromEvalArtifact(summaryName);
-    if (ts) {
-      const match = runs.find((r) => r.name === `extraction_run_${ts}.jsonl`);
-      if (match) return match;
-    }
-  }
-  return runs[0];
-}
 
 export function EvalFileStrip({
   urlCandidates,

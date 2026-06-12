@@ -1,8 +1,10 @@
 # Historical extraction evaluation
 
-This workflow is part of the **ExpoPrint AI prototype** repository — not a separate project. It uses historical design-service and project rows exported from Metabase to evaluate how well ExpoPrint website extraction matches real partner work already stored in ExpoPrint systems.
+This workflow is part of the **ExpoPrint AI prototype** repository — not a separate project. It uses historical design-service and project rows exported from Metabase to run ExpoPrint website extraction on partner URLs and **visually audit** extracted brand assets (logos, colors, business name).
 
-The workflow is **internal**, **local-only**, and **scripts-only** (no Metabase connection, no production database credentials, no new API routes, no UI).
+**Partner feedback (2026):** The evaluation focus shifted from comparing ExpoPrint outputs field-by-field against database records toward visual review of brand extraction quality. Metabase fields provide source URLs and project context — they are not treated as ground-truth labels for every extracted field.
+
+The workflow is **internal** and **local-first** (no Metabase connection, no production database credentials). Local review runs at `/dev/eval`; deployed `/internal/eval` shows sanitized sample data only.
 
 ## Milestones
 
@@ -26,7 +28,17 @@ Run the same design-intake extraction pipeline as `POST /api/design-intake/extra
 npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
 ```
 
-**Do not** run the full candidate list initially — thousands of domains would take hours and hit rate limits. Start with `--limit 5` or `--limit 10`, review `data/eval/results/extraction_summary_<timestamp>.csv`, then increase gradually.
+**Do not** run the full candidate list initially. A full run over ~2,000 URLs can take hours and may hit rate limits. Start with `--limit 5` or `--limit 10`, review `data/eval/results/extraction_summary_<timestamp>.csv`, then increase gradually.
+
+**Batch large runs** with `--offset` and `--limit` so each batch is a separate run you can compare:
+
+```bash
+npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 0
+npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 100
+npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 200
+```
+
+Each run writes `extraction_run_<timestamp>.jsonl`, `extraction_run_meta_<timestamp>.json` (batch label / run id), and `extraction_summary_<timestamp>.csv` with matching timestamps for pairing.
 
 Options:
 
@@ -53,9 +65,9 @@ Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 ```
 
-Writes `data/eval/results/review_queue_<timestamp>.csv` with historical input fields, ExpoPrint output fields, blank score columns (`business_name_score`, `category_score`, `logo_score`, `brief_score`, `overall_score`, `reviewer_notes`), and helper similarity hints.
+Writes `data/eval/results/review_queue_<timestamp>.csv` with historical input fields, ExpoPrint output fields, logo/color audit columns (`selected_logo_url`, `logo_candidate_urls` as JSON, `extracted_color_hexes`, `primary_color_hex`, `secondary_color_hex`), optional manual score columns, and helper similarity hints. Full `expo_output` remains in the JSONL run file.
 
-View locally at `/dev/eval` (development only) or on deployed builds at `/internal/eval` (password + sample data only).
+View locally at `/dev/eval` (development only) with **Gallery** (visual brand audit cards) or **Table** (dense field extraction audit). Both views share a field-coverage summary and expandable row details. Deployed `/internal/eval` shows the same views on sanitized sample rows only.
 
 **Scoring rubric** (assign in CSV or spreadsheet):
 
@@ -93,9 +105,37 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 | Route | When | Data source |
 | --- | --- | --- |
 | **`/dev/eval`** | `NODE_ENV === development` only | Local gitignored `data/eval/runs/` and `results/` |
-| **`/internal/eval`** | Deployed builds | Password (`EVAL_VIEWER_PASSWORD`) + committed `data/eval/public-sample-review.json` |
+| **`/internal/eval`** | Deployed builds | Password (`EVAL_VIEWER_PASSWORD`) + published `data/eval/public/internal-eval-review.json` (or sample fallback) |
 
-`/dev/eval` never reads partner files in production. `/internal/eval` reads only the sanitized sample JSON fixture — never `data/eval/runs/`, `data/eval/results/`, or `data/private/`. Private storage can be wired in later without changing the local workflow.
+`/dev/eval` never reads partner files in production. `/internal/eval` reads only committed sanitized JSON under `data/eval/public/` — never `data/eval/runs/`, `data/eval/results/`, or `data/private/`. Private storage can be wired in later without changing the local workflow.
+
+### Publish sanitized data for `/internal/eval`
+
+After building a local review queue, publish an explicit sanitized JSON artifact for the deployed viewer:
+
+```bash
+npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv --include-domains
+```
+
+Writes `data/eval/public/internal-eval-review.json` with domains, extracted brand fields, logo URLs (optional), and colors — **no** `ds_id`, requirement excerpts, shop codes, or URL paths/queries.
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--include-domains` | off | Show canonical domains; otherwise rows are labeled `Site 1`, `Site 2`, … |
+| `--no-include-logo-urls` | off | Omit logo URLs; keep logo counts only |
+
+**Review the JSON before commit.** This creates a deployable artifact. `npm run check:partner-data` allowlists only `data/eval/public/internal-eval-review.json` (not raw CSV/JSONL).
+
+Example workflow:
+
+```bash
+npm run eval:publish-internal -- data/eval/results/review_queue_20260605212708.csv --include-domains
+open data/eval/public/internal-eval-review.json
+git add data/eval/public/internal-eval-review.json
+git commit -m "Publish sanitized internal eval sample"
+```
+
+If no published file exists, `/internal/eval` falls back to `data/eval/public-sample-review.json`.
 
 ## Where to put real data
 
@@ -105,7 +145,8 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 | `data/eval/metabase_sample.example.csv` | Yes | Fake example rows for smoke tests |
 | `data/eval/runs/` | `.gitkeep` only | JSONL run outputs |
 | `data/eval/results/` | `.gitkeep` only | URL candidates, extraction summaries, review queues |
-| `data/eval/public-sample-review.json` | Yes | Sanitized review rows for `/internal/eval` only |
+| `data/eval/public-sample-review.json` | Yes | Built-in sample fallback for `/internal/eval` |
+| `data/eval/public/internal-eval-review.json` | Yes (after publish) | Sanitized published rows for `/internal/eval` |
 
 Never commit partner CSVs, run outputs, or `*.local.csv` files.
 

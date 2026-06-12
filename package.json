@@ -24,6 +24,9 @@
     "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",
     "eval:score": "tsx scripts/eval/summarizeHistoricalReviewScores.ts",
     "eval:score:test": "tsx scripts/eval/lib/reviewScoreSummary.test.ts",
+    "eval:publish-internal": "tsx scripts/eval/publishInternalEval.ts",
+    "eval:publish-internal:test": "tsx scripts/eval/lib/publishInternalEval.test.ts",
+    "eval:row-url:test": "tsx scripts/eval/lib/evalRowUrl.test.ts",
     "check:partner-data": "bash scripts/check-partner-data-git.sh"
   },
   "dependencies": {

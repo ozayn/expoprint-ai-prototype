@@ -1,7 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DesignIntakeExtractResponse } from "../../../src/lib/designIntakeApiSchema";
+import {
+  brandColorFieldsFromTokens,
+  collectColorTokensFromExpo,
+} from "../../../src/lib/evalLocal/brandExtractionParse";
 import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
+import type { LogoCandidate } from "../../../src/lib/analyzeWebsiteResponse";
 import type { ExtractionJsonlRecord } from "./historicalWebsiteExtraction.js";
 import { EVAL_RESULTS_DIR, ensureEvalDirs, runTimestampId } from "./paths.js";
 import { escapeCsvCell } from "./urlCandidates.js";
@@ -27,6 +32,10 @@ export const REVIEW_QUEUE_COLUMNS = [
   "extracted_summary",
   "logo_candidate_count",
   "selected_logo_url",
+  "logo_candidate_urls",
+  "extracted_color_hexes",
+  "primary_color_hex",
+  "secondary_color_hex",
   "pages_inspected",
   "extraction_provider",
   "extraction_model",
@@ -49,6 +58,7 @@ export type ReviewQueueBuildResult = {
   reviewRowsWritten: number;
   successCount: number;
   errorCount: number;
+  noColorFieldCount: number;
   parseErrors: { line: number; message: string }[];
 };
 
@@ -110,6 +120,10 @@ function emptyExpoFields(): Pick<
   | "extracted_summary"
   | "logo_candidate_count"
   | "selected_logo_url"
+  | "logo_candidate_urls"
+  | "extracted_color_hexes"
+  | "primary_color_hex"
+  | "secondary_color_hex"
   | "pages_inspected"
   | "extraction_provider"
   | "extraction_model"
@@ -121,9 +135,39 @@ function emptyExpoFields(): Pick<
     extracted_summary: "",
     logo_candidate_count: "",
     selected_logo_url: "",
+    logo_candidate_urls: "",
+    extracted_color_hexes: "",
+    primary_color_hex: "",
+    secondary_color_hex: "",
     pages_inspected: "",
     extraction_provider: "",
     extraction_model: "",
+  };
+}
+
+function logoFieldsFromCandidates(logos: LogoCandidate[]): Pick<
+  ReviewQueueRow,
+  "logo_candidate_count" | "selected_logo_url" | "logo_candidate_urls"
+> {
+  if (logos.length === 0) {
+    return {
+      logo_candidate_count: "",
+      selected_logo_url: "",
+      logo_candidate_urls: "",
+    };
+  }
+
+  const limited = logos.slice(0, 5).map((logo) => ({
+    url: logo.url?.trim() ?? "",
+    source: logo.source,
+    logoRole: logo.logoRole,
+  })).filter((entry) => entry.url);
+
+  return {
+    logo_candidate_count: String(logos.length),
+    selected_logo_url: limited[0]?.url ?? "",
+    logo_candidate_urls:
+      limited.length > 0 ? JSON.stringify(limited) : "",
   };
 }
 
@@ -156,14 +200,16 @@ function extractExpoFields(
     if (parts.length > 0) summary = parts.slice(0, 4).join("; ");
   }
 
+  const colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
+  const logoFields = logoFieldsFromCandidates(logos);
+
   return {
     extracted_business_name: name,
     extracted_business_category: designIntake?.productCategory?.trim() ?? "",
     extracted_tagline: tagline,
     extracted_summary: summary,
-    logo_candidate_count:
-      logos.length > 0 ? String(logos.length) : "",
-    selected_logo_url: logos[0]?.url?.trim() ?? "",
+    ...logoFields,
+    ...colorFields,
     pages_inspected:
       typeof meta?.pagesInspected === "number"
         ? String(meta.pagesInspected)
@@ -277,7 +323,27 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
   const text = readFileSync(inputPath, "utf8");
   const { records, parseErrors } = parseExtractionJsonl(text);
 
-  const reviewRows = records.map(reviewRowFromExtractionRecord);
+  const reviewRows: ReviewQueueRow[] = [];
+  let noColorFieldCount = 0;
+
+  for (const record of records) {
+    const row = reviewRowFromExtractionRecord(record);
+    reviewRows.push(row);
+
+    if (
+      isSuccessStatus(record.status) &&
+      record.expo_output &&
+      !row.extracted_color_hexes.trim()
+    ) {
+      noColorFieldCount += 1;
+      const label =
+        record.input.domain?.trim() ||
+        record.input.normalized_url?.trim() ||
+        record.input.ds_number ||
+        "row";
+      console.log(`  No color fields found in expo_output for ${label}`);
+    }
+  }
 
   const runTs = timestampFromExtractionRunPath(inputPath) ?? runTimestampId();
   const outputPath = join(EVAL_RESULTS_DIR, `review_queue_${runTs}.csv`);
@@ -297,6 +363,7 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     reviewRowsWritten: reviewRows.length,
     successCount,
     errorCount,
+    noColorFieldCount,
     parseErrors,
   };
 }
@@ -308,6 +375,11 @@ export function printReviewQueueSummary(result: ReviewQueueBuildResult): void {
   console.log(`  Review rows written: ${result.reviewRowsWritten}`);
   console.log(`  Success:             ${result.successCount}`);
   console.log(`  Errors:              ${result.errorCount}`);
+  if (result.noColorFieldCount > 0) {
+    console.log(
+      `  No colors in output: ${result.noColorFieldCount} success row(s)`,
+    );
+  }
   console.log(`  Output: ${result.outputPath}`);
 
   if (result.parseErrors.length > 0) {

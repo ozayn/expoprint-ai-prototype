@@ -160,22 +160,7 @@ export function isSafeReviewQueueFilename(name: string): boolean {
   return /^review_queue_\d+\.csv$/.test(name);
 }
 
-export function matchingReviewQueue(
-  queues: EvalFileEntry[],
-  summaryName?: string,
-  runName?: string,
-): EvalFileEntry | undefined {
-  for (const source of [summaryName, runName]) {
-    if (!source) continue;
-    const m = source.match(/_(20\d{12})\.(csv|jsonl)$/);
-    const ts = m?.[1];
-    if (ts) {
-      const match = queues.find((q) => q.name === `review_queue_${ts}.csv`);
-      if (match) return match;
-    }
-  }
-  return queues[0];
-}
+export { matchingReviewQueue } from "./evalFileMatching";
 
 export function isSafeScoreSummaryFilename(name: string): boolean {
   return /^score_summary_\d+\.csv$/.test(name);

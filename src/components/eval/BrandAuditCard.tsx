@@ -1,0 +1,199 @@
+"use client";
+
+import { useState } from "react";
+import {
+  ColorSwatch,
+  LogoCandidateDetailList,
+} from "./BrandExtractionCells";
+import { EvalSourceLink, EvalUrlDetailField } from "./EvalExternalLink";
+import {
+  bestLogoForRow,
+  colorEntriesForRow,
+  extraLogoCandidateCount,
+  isPartialOrFailedStatus,
+  proxiedEvalImageSrc,
+} from "@/lib/evalLocal/brandExtractionParse";
+import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  const v = value.trim();
+  if (!v) return null;
+  return (
+    <div>
+      <dt className="text-[11px] text-zinc-400">{label}</dt>
+      <dd className={`mt-0.5 break-all text-sm text-zinc-800 ${mono ? "font-mono text-xs" : ""}`}>
+        {v}
+      </dd>
+    </div>
+  );
+}
+
+export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
+  const [open, setOpen] = useState(false);
+  const businessName = row.extracted_business_name?.trim() || "—";
+  const bestLogo = bestLogoForRow(row);
+  const extraLogos = extraLogoCandidateCount(row);
+  const colors = colorEntriesForRow(row);
+  const status = row.status?.trim() ?? "";
+  const statusLabel = status ? status.replace(/_/g, " ") : "";
+
+  const providerModel = [row.extraction_provider, row.extraction_model]
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  const hasScores =
+    row.business_name_score.trim() ||
+    row.category_score.trim() ||
+    row.logo_score.trim() ||
+    row.brief_score.trim() ||
+    row.overall_score.trim() ||
+    row.reviewer_notes.trim();
+
+  return (
+    <article className="rounded-lg border border-zinc-200/80 bg-white p-5 shadow-sm shadow-zinc-100/50">
+      <div className="space-y-4">
+        <div>
+          <EvalSourceLink row={row} className="text-sm text-zinc-700" mono />
+          <p className="mt-1 text-base font-medium leading-snug text-zinc-900">
+            {businessName}
+          </p>
+          {statusLabel ? (
+            <p
+              className={`mt-1.5 text-xs ${
+                isPartialOrFailedStatus(status) ? "text-zinc-500" : "text-zinc-400"
+              }`}
+            >
+              {statusLabel}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col items-center justify-center py-2">
+          {bestLogo ? (
+            <>
+              <div className="flex h-20 w-full max-w-[10rem] items-center justify-center rounded border border-zinc-100 bg-zinc-50/50 p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={proxiedEvalImageSrc(bestLogo.url)}
+                  alt=""
+                  className="max-h-16 max-w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+              {extraLogos > 0 ? (
+                <p className="mt-2 text-[11px] text-zinc-400">
+                  +{extraLogos} candidate{extraLogos === 1 ? "" : "s"}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-zinc-400">No logo detected</p>
+          )}
+        </div>
+
+        <div>
+          {colors.length > 0 ? (
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-2">
+              {colors.map((entry) => (
+                <ColorSwatch key={`${entry.hex}-${entry.label ?? ""}`} entry={entry} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-sm text-zinc-400">Palette unavailable</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300"
+        >
+          {open ? "Hide details" : "Details"}
+        </button>
+      </div>
+
+      {open ? (
+        <div className="mt-5 space-y-6 border-t border-zinc-100 pt-5 text-sm">
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Source
+            </h4>
+            <dl className="mt-2 space-y-2">
+              <EvalUrlDetailField label="normalized url" value={row.normalized_url} row={row} />
+              <DetailField label="project title" value={row.project_title} />
+              <DetailField label="project type" value={row.project_type} />
+              <DetailField label="ds number" value={row.ds_number} />
+            </dl>
+          </div>
+
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Identity
+            </h4>
+            <dl className="mt-2 space-y-2">
+              <DetailField label="business name" value={row.extracted_business_name} />
+              <DetailField label="category" value={row.extracted_business_category} />
+              <DetailField label="summary" value={row.extracted_summary} />
+            </dl>
+          </div>
+
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Brand assets
+            </h4>
+            <div className="mt-2 space-y-3">
+              <LogoCandidateDetailList row={row} />
+              {colors.length > 0 ? (
+                <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                  {colors.map((entry) => (
+                    <ColorSwatch key={`d-${entry.hex}`} entry={entry} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Technical
+            </h4>
+            <dl className="mt-2 space-y-2">
+              <DetailField label="status" value={row.status} />
+              <DetailField label="pages inspected" value={row.pages_inspected} />
+              <DetailField label="elapsed ms" value={row.elapsed_ms} />
+              <DetailField label="provider / model" value={providerModel} />
+              <DetailField label="error" value={row.error_message} />
+            </dl>
+          </div>
+
+          <details>
+            <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-600">
+              Manual scores
+            </summary>
+            {hasScores ? (
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                <DetailField label="business name score" value={row.business_name_score} />
+                <DetailField label="category score" value={row.category_score} />
+                <DetailField label="logo score" value={row.logo_score} />
+                <DetailField label="brief score" value={row.brief_score} />
+                <DetailField label="overall score" value={row.overall_score} />
+                <DetailField label="reviewer notes" value={row.reviewer_notes} />
+              </dl>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-500">No manual scores in CSV.</p>
+            )}
+          </details>
+        </div>
+      ) : null}
+    </article>
+  );
+}

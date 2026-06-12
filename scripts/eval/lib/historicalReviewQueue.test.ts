@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import {
+  brandColorFieldsFromTokens,
+  collectColorTokensFromExpo,
+} from "../../../src/lib/evalLocal/brandExtractionParse";
+import {
   excerptText,
   parseExtractionJsonl,
   reviewRowFromExtractionRecord,
@@ -56,13 +60,29 @@ function testParseAndReviewRow(): void {
   assert.equal(row.ds_number, "DS-1");
   assert.equal(row.extracted_business_name, "Acme Co");
   assert.equal(row.logo_candidate_count, "1");
+  assert.ok(row.logo_candidate_urls.includes("example.com"));
   assert.equal(row.business_name_score, "");
   assert.ok(row.first_req_description_excerpt.length <= 240);
+}
+
+function testColorExtractionShapes(): void {
+  const fromArray = collectColorTokensFromExpo({
+    brand: { colors: ["#112233", "Primary #445566"] },
+  });
+  assert.ok(fromArray.some((t) => t.includes("112233")));
+
+  const fromObject = collectColorTokensFromExpo({
+    designSpec: { brandColors: { navy: "#0B2E4A", teal: "#2BB3A3" } },
+  });
+  const fields = brandColorFieldsFromTokens(fromObject);
+  assert.ok(fields.extracted_color_hexes.includes("0b2e4a"));
+  assert.equal(fields.primary_color_hex, "#0b2e4a");
 }
 
 function main(): void {
   testExcerpt();
   testParseAndReviewRow();
+  testColorExtractionShapes();
   console.log("historicalReviewQueue.test.ts: all checks passed");
 }
 

@@ -60,6 +60,7 @@ data/**/review_queue_*.csv
 data/**/score_summary_*.csv
 data/**/score_summary_*.json
 data/**/extraction_run_*.jsonl
+data/**/extraction_run_meta_*.json
 data/**/run_*.jsonl
 data/**/results_*.csv
 **/*basic_design_service_query*.csv

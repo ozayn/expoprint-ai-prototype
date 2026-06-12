@@ -1,51 +1,31 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState } from "react";
 import {
-  REVIEW_QUEUE_VISIBLE_COLUMNS,
+  ColorSwatchRow,
+  LogoCandidateDetailList,
+  LogoThumbnailRow,
+} from "./BrandExtractionCells";
+import { EvalSourceLink, EvalUrlDetailField } from "./EvalExternalLink";
+import {
+  type ReviewQueueAuditColumn,
   type ReviewQueueRow,
 } from "@/lib/evalLocal/reviewQueueTypes";
 
-const DETAIL_GROUPS: {
-  title: string;
-  fields: (keyof ReviewQueueRow)[];
-}[] = [
-  {
-    title: "Historical",
-    fields: [
-      "project_title",
-      "project_type",
-      "shop_code",
-      "first_req_description_excerpt",
-      "first_req_note_excerpt",
-    ],
-  },
-  {
-    title: "Input",
-    fields: ["normalized_url", "domain", "canonical_domain"],
-  },
-  {
-    title: "ExpoPrint",
-    fields: [
-      "extracted_business_name",
-      "extracted_business_category",
-      "extracted_summary",
-      "logo_candidate_count",
-      "pages_inspected",
-      "error_message",
-    ],
-  },
-  {
-    title: "Review",
-    fields: [
-      "business_name_score",
-      "category_score",
-      "logo_score",
-      "brief_score",
-      "overall_score",
-      "reviewer_notes",
-    ],
-  },
+type TableColumn =
+  | { kind: "text"; col: ReviewQueueAuditColumn }
+  | { kind: "logos" }
+  | { kind: "colors" };
+
+const TABLE_COLUMNS: TableColumn[] = [
+  { kind: "text", col: "domain" },
+  { kind: "text", col: "extracted_business_name" },
+  { kind: "text", col: "extracted_business_category" },
+  { kind: "logos" },
+  { kind: "colors" },
+  { kind: "text", col: "extracted_summary" },
+  { kind: "text", col: "status" },
+  { kind: "text", col: "pages_inspected" },
 ];
 
 function isErrorStatus(status: string): boolean {
@@ -78,33 +58,46 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function truncate(value: string, max: number): { display: string; title?: string } {
+function truncateCell(value: string, max = 48): string {
   const v = value.trim();
-  if (!v) return { display: "—" };
-  if (v.length <= max) return { display: v, title: v };
-  return { display: `${v.slice(0, max)}…`, title: v };
+  if (!v) return "—";
+  if (v.length <= max) return v;
+  return `${v.slice(0, max - 1)}…`;
 }
 
-function formatCell(
-  col: (typeof REVIEW_QUEUE_VISIBLE_COLUMNS)[number],
-  value: string,
-): { display: ReactNode; title?: string } {
-  const v = value.trim();
-  if (!v) return { display: "—" };
+function columnLabel(col: ReviewQueueAuditColumn): string {
+  if (col === "domain") return "source";
+  return col.replace(/_/g, " ");
+}
 
-  if (col === "status") return { display: <StatusPill status={v} /> };
-  if (col === "project_title") return truncate(v, 28);
-  if (col === "extracted_business_name") return { display: v, title: v };
-  if (col === "extracted_business_category") return truncate(v, 20);
-  if (col === "reviewer_notes") return truncate(v, 32);
-  if (col === "overall_score") {
-    return {
-      display: v || "—",
-      title: v ? `Score: ${v}` : undefined,
-    };
+function TextCell({
+  col,
+  row,
+}: {
+  col: ReviewQueueAuditColumn;
+  row: ReviewQueueRow;
+}) {
+  if (col === "domain") {
+    return (
+      <EvalSourceLink
+        row={row}
+        className="text-[12px] text-zinc-700"
+        mono
+        stopPropagation
+      />
+    );
   }
 
-  return { display: v, title: v.length > 20 ? v : undefined };
+  if (col === "status") {
+    return <StatusPill status={row.status ?? ""} />;
+  }
+
+  const v = (row[col] ?? "").trim();
+  return (
+    <span className="text-zinc-800" title={v || undefined}>
+      {truncateCell(v)}
+    </span>
+  );
 }
 
 type Props = {
@@ -115,41 +108,26 @@ type Props = {
 export function ReviewQueueTable({ filename, rows }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  const stats = useMemo(() => {
-    let scored = 0;
-    let unscored = 0;
-    for (const row of rows) {
-      if (row.overall_score.trim()) scored += 1;
-      else unscored += 1;
-    }
-    return { rows: rows.length, scored, unscored };
-  }, [rows]);
+  const colSpan = TABLE_COLUMNS.length + 1; /* expand */
+
+  if (rows.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-zinc-500">No review rows to display.</p>
+    );
+  }
 
   return (
     <div>
-      <dl className="mb-6 flex flex-wrap gap-x-8 gap-y-2 text-xs text-zinc-500">
-        <div>
-          <dt className="inline text-zinc-400">Rows </dt>
-          <dd className="inline font-medium text-zinc-800">{stats.rows}</dd>
-        </div>
-        <div>
-          <dt className="inline text-zinc-400">Scored </dt>
-          <dd className="inline font-medium text-zinc-800">{stats.scored}</dd>
-        </div>
-        <div>
-          <dt className="inline text-zinc-400">Unscored </dt>
-          <dd className="inline font-medium text-zinc-800">{stats.unscored}</dd>
-        </div>
-      </dl>
-
       <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1">
-        <table className="w-full min-w-[560px] border-collapse text-left text-[13px]">
+        <table className="w-full min-w-[880px] border-collapse text-left text-[13px]">
           <thead>
             <tr className="border-b border-zinc-200 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
               <th className="w-7 pb-2 pr-1 font-normal" aria-label="Expand" />
-              {REVIEW_QUEUE_VISIBLE_COLUMNS.map((col) => (
-                <th key={col} className="pb-2 pr-3 font-normal last:pr-0">
-                  {col.replace(/_/g, " ")}
+              {TABLE_COLUMNS.map((column, index) => (
+                <th key={index} className="pb-2 pr-3 font-normal">
+                  {column.kind === "text"
+                    ? columnLabel(column.col)
+                    : column.kind}
                 </th>
               ))}
             </tr>
@@ -162,6 +140,7 @@ export function ReviewQueueTable({ filename, rows }: Props) {
                   key={i}
                   row={row}
                   expanded={expanded}
+                  colSpan={colSpan}
                   onToggle={() => setExpandedIndex(expanded ? null : i)}
                 />
               );
@@ -170,9 +149,11 @@ export function ReviewQueueTable({ filename, rows }: Props) {
         </table>
       </div>
 
-      <p className="mt-4 text-[11px] text-zinc-400">
-        Source: <span className="font-mono text-zinc-500">{filename}</span>
-      </p>
+      {filename ? (
+        <p className="mt-4 text-[11px] text-zinc-400">
+          Source: <span className="font-mono text-zinc-500">{filename}</span>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -180,10 +161,12 @@ export function ReviewQueueTable({ filename, rows }: Props) {
 function RowGroup({
   row,
   expanded,
+  colSpan,
   onToggle,
 }: {
   row: ReviewQueueRow;
   expanded: boolean;
+  colSpan: number;
   onToggle: () => void;
 }) {
   return (
@@ -195,57 +178,171 @@ function RowGroup({
         onClick={onToggle}
         aria-expanded={expanded}
       >
-        <td className="py-2.5 pr-1 text-[10px] text-zinc-300">
+        <td className="py-2 pr-1 text-[10px] text-zinc-300">
           {expanded ? "▾" : "▸"}
         </td>
-        {REVIEW_QUEUE_VISIBLE_COLUMNS.map((col) => {
-          const raw = row[col] ?? "";
-          const { display, title } = formatCell(col, raw);
-          const isBusinessName = col === "extracted_business_name";
+        {TABLE_COLUMNS.map((column, index) => {
+          if (column.kind === "logos") {
+            return (
+              <td key={index} className="max-w-[7rem] py-2 pr-3 align-middle">
+                <LogoThumbnailRow
+                  row={row}
+                  max={3}
+                  showExtraCount
+                  size="sm"
+                  emptyLabel="No logo"
+                />
+              </td>
+            );
+          }
+          if (column.kind === "colors") {
+            return (
+              <td key={index} className="max-w-[14rem] py-2 pr-3 align-middle">
+                <ColorSwatchRow
+                  row={row}
+                  max={5}
+                  compact
+                  emptyLabel="No palette"
+                />
+              </td>
+            );
+          }
           return (
             <td
-              key={col}
-              className={`py-2.5 pr-3 text-zinc-800 last:pr-0 ${
-                isBusinessName
-                  ? "max-w-[12rem] whitespace-normal break-words"
-                  : "whitespace-nowrap"
-              }`}
-              title={title}
+              key={index}
+              className="max-w-[12rem] py-2 pr-3 whitespace-normal break-words align-middle"
             >
-              {display}
+              <TextCell col={column.col} row={row} />
             </td>
           );
         })}
       </tr>
       {expanded ? (
         <tr className="border-b border-zinc-100 bg-zinc-50/40">
-          <td colSpan={REVIEW_QUEUE_VISIBLE_COLUMNS.length + 1} className="px-1 py-4">
-            <div className="grid gap-6 sm:grid-cols-2">
-              {DETAIL_GROUPS.map((group) => (
-                <div key={group.title}>
-                  <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    {group.title}
-                  </h4>
-                  <dl className="mt-2 space-y-2.5">
-                    {group.fields.map((key) => {
-                      const value = (row[key] ?? "").trim();
-                      if (!value) return null;
-                      return (
-                        <div key={key} className="min-w-0">
-                          <dt className="text-[11px] text-zinc-400">
-                            {key.replace(/_/g, " ")}
-                          </dt>
-                          <dd className="mt-0.5 break-all text-sm text-zinc-800">{value}</dd>
-                        </div>
-                      );
-                    })}
-                  </dl>
-                </div>
-              ))}
-            </div>
+          <td colSpan={colSpan} className="px-1 py-5">
+            <ExpandedRowDetails row={row} />
           </td>
         </tr>
       ) : null}
     </>
+  );
+}
+
+function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
+  const hasScores =
+    row.business_name_score.trim() ||
+    row.category_score.trim() ||
+    row.logo_score.trim() ||
+    row.brief_score.trim() ||
+    row.overall_score.trim() ||
+    row.reviewer_notes.trim();
+
+  const providerModel = [row.extraction_provider, row.extraction_model]
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div>
+          <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+            Historical context
+          </h4>
+          <dl className="mt-2 space-y-2 text-sm text-zinc-800">
+            <DetailField label="ds number" value={row.ds_number} />
+            <DetailField label="project title" value={row.project_title} />
+            <DetailField label="project type" value={row.project_type} />
+            <DetailField label="shop code" value={row.shop_code} />
+            <EvalUrlDetailField label="normalized url" value={row.normalized_url} row={row} />
+          </dl>
+        </div>
+
+        <div>
+          <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+            Technical
+          </h4>
+          <dl className="mt-2 space-y-2 text-sm text-zinc-800">
+            <DetailField label="provider / model" value={providerModel} />
+            <DetailField label="elapsed ms" value={row.elapsed_ms} />
+            <DetailField label="error" value={row.error_message} />
+          </dl>
+        </div>
+
+        <div>
+          <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+            Brand assets
+          </h4>
+          <div className="mt-3 space-y-4">
+            {row.selected_logo_url.trim() ? (
+              <p className="text-xs text-zinc-500">
+                Best logo:{" "}
+                <span className="font-mono text-zinc-600">{row.selected_logo_url}</span>
+              </p>
+            ) : null}
+            <LogoCandidateDetailList row={row} />
+            <div>
+              <p className="mb-2 text-[11px] text-zinc-400">Colors</p>
+              <ColorSwatchRow row={row} />
+            </div>
+            <DetailField
+              label="extracted color hexes"
+              value={row.extracted_color_hexes}
+              mono
+            />
+          </div>
+        </div>
+
+        {row.extracted_tagline.trim() ? (
+          <div>
+            <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Identity
+            </h4>
+            <dl className="mt-2 space-y-2 text-sm text-zinc-800">
+              <DetailField label="tagline" value={row.extracted_tagline} />
+            </dl>
+          </div>
+        ) : null}
+      </div>
+
+      <details className="text-sm">
+        <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-600">
+          Manual scores
+        </summary>
+        {hasScores ? (
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailField label="business name score" value={row.business_name_score} />
+            <DetailField label="category score" value={row.category_score} />
+            <DetailField label="logo score" value={row.logo_score} />
+            <DetailField label="brief score" value={row.brief_score} />
+            <DetailField label="overall score" value={row.overall_score} />
+            <DetailField label="reviewer notes" value={row.reviewer_notes} />
+          </dl>
+        ) : (
+          <p className="mt-2 text-xs text-zinc-500">
+            No manual scores yet — fill columns in the review_queue CSV.
+          </p>
+        )}
+      </details>
+    </div>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  const v = value.trim();
+  if (!v) return null;
+  return (
+    <div>
+      <dt className="text-[11px] text-zinc-400">{label}</dt>
+      <dd className={`mt-0.5 break-all ${mono ? "font-mono text-xs" : ""}`}>{v}</dd>
+    </div>
   );
 }

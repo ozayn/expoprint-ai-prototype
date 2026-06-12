@@ -355,6 +355,29 @@ export async function runHistoricalWebsiteExtraction(
   const jsonl = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
   writeFileSync(jsonlPath, jsonl, "utf8");
 
+  const metaPath = join(EVAL_RUNS_DIR, `extraction_run_meta_${runId}.json`);
+  writeFileSync(
+    metaPath,
+    JSON.stringify(
+      {
+        run_id: runId,
+        input_path: options.inputPath,
+        limit,
+        offset,
+        allow_duplicate_domains: allowDuplicateDomains,
+        delay_ms: delayMs,
+        ...(options.apiUrl ? { api_url: options.apiUrl } : {}),
+        created_at: new Date().toISOString(),
+        jsonl_path: jsonlPath,
+        summary_path: summaryPath,
+        row_count: records.length,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
+
   const summaryRows: ExtractionSummaryRow[] = records.map((r) => {
     const metrics = metricsFromResponse(r.expo_output);
     return {

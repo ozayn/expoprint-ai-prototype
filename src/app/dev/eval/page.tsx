@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EvalViewer } from "@/components/eval/EvalViewer";
+import { BrandAuditViewer } from "@/components/eval/BrandAuditViewer";
+import { EvalInternalsPanel } from "@/components/eval/EvalInternalsPanel";
 import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
 import {
   listLocalEvalFiles,
@@ -15,8 +16,8 @@ import { readScoreSummaryCsv } from "@/lib/evalLocal/readScoreSummary";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Historical evaluation (local) — ExpoPrint",
-  description: "Read-only viewer for local historical evaluation outputs.",
+  title: "Historical brand audit (local) — ExpoPrint",
+  description: "Local visual brand audit for historical website extraction.",
   robots: { index: false, follow: false },
 };
 
@@ -29,7 +30,7 @@ function ProductionBlocked() {
             ← Back to editor
           </Link>
         </p>
-        <h1 className="mt-6 text-xl font-semibold">Historical evaluation viewer</h1>
+        <h1 className="mt-6 text-xl font-semibold">Historical brand audit</h1>
         <p className="mt-4 text-sm leading-relaxed text-zinc-600">
           Evaluation viewer is available only in local development.
         </p>
@@ -39,7 +40,12 @@ function ProductionBlocked() {
 }
 
 type PageProps = {
-  searchParams: Promise<{ summary?: string; review?: string; score?: string }>;
+  searchParams: Promise<{
+    summary?: string;
+    review?: string;
+    score?: string;
+    view?: string;
+  }>;
 };
 
 export default async function DevEvalPage({ searchParams }: PageProps) {
@@ -67,19 +73,30 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
   const scoreData = scoreName ? await readScoreSummaryCsv(scoreName) : null;
 
   return (
-    <EvalViewer
+    <BrandAuditViewer
       basePath="/dev/eval"
-      subtitle="Local review of historical extraction runs."
-      safetyNote="Local-only · partner data stays on this machine"
-      index={index}
-      summaryName={summaryName}
-      reviewName={reviewName}
-      scoreName={scoreName}
-      summaryData={summaryData}
-      reviewData={reviewData}
-      scoreData={scoreData}
       searchParams={params}
-      showCliHints
-    />
+      subtitle="Historical websites processed through ExpoPrint."
+      safetyNote="Local-only · partner data stays on this machine"
+      reviewFilename={reviewData?.filename}
+      rows={reviewData?.rows ?? []}
+      emptyMessage={
+        index.reviewQueues.length === 0
+          ? "No review queue yet. Run npm run eval:review on an extraction JSONL."
+          : undefined
+      }
+    >
+      <EvalInternalsPanel
+        basePath="/dev/eval"
+        index={index}
+        summaryName={summaryName}
+        reviewName={reviewName}
+        scoreName={scoreName}
+        summaryData={summaryData}
+        scoreData={scoreData}
+        searchParams={params}
+        showCliHints
+      />
+    </BrandAuditViewer>
   );
 }

@@ -47,13 +47,17 @@ npm run eval:urls -- data/eval/metabase_sample.example.csv
 
 ## Limited website extraction
 
-After `eval:urls`, run a small sample only:
+After `eval:urls`, run a small sample only. A full ~2k URL run can take hours and hit rate limits — batch with `--limit` and `--offset`:
 
 ```bash
 npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
+npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 0
+npm run eval:extract -- data/eval/results/url_candidates_<timestamp>.csv --limit 100 --offset 100
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 npm run eval:score -- data/eval/results/review_queue_<timestamp>.csv
 ```
+
+Each extraction run also writes `extraction_run_meta_<timestamp>.json` with `run_id`, batch offset/limit, and output paths for comparing batches.
 
 See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/historical-extraction-evaluation.md).
 
@@ -62,7 +66,15 @@ See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/h
 | Route | Environment | Data |
 | --- | --- | --- |
 | [`/dev/eval`](http://localhost:3000/dev/eval) | Local dev only (`npm run dev`) | Gitignored `data/eval/runs/` + `results/` |
-| [`/internal/eval`](http://localhost:3000/internal/eval) | Deployed (password) | Committed `public-sample-review.json` only |
+| [`/internal/eval`](http://localhost:3000/internal/eval) | Deployed (password) | `data/eval/public/internal-eval-review.json` (or sample fallback) |
+
+### Publish for deployed viewer
+
+```bash
+npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv --include-domains
+```
+
+Writes `data/eval/public/internal-eval-review.json`. **Review before commit** — this is a deployable sanitized artifact. Use `--include-domains` to show customer domains to partners; omit it for `Site 1`, `Site 2` labels. Use `--no-include-logo-urls` to drop logo URLs and keep counts only.
 
 `/eval-local` redirects to `/dev/eval`.
 
