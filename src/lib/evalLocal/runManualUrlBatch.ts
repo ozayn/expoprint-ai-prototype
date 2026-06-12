@@ -37,6 +37,7 @@ export type ManualUrlBatchResult = {
   urlResults: ManualUrlBatchUrlResult[];
   validationErrors: ManualUrlValidationError[];
   truncated: boolean;
+  duplicatesRemoved: number;
   successCount: number;
   errorCount: number;
   skippedCount: number;
@@ -98,9 +99,8 @@ export async function runManualUrlBatch(options: {
   projectTitle?: string;
   delayMs?: number;
 }): Promise<ManualUrlBatchResult> {
-  const { valid, errors: validationErrors, truncated } = parseAndValidateManualUrls(
-    options.urlLines,
-  );
+  const { valid, errors: validationErrors, truncated, duplicatesRemoved } =
+    parseAndValidateManualUrls(options.urlLines);
 
   if (valid.length === 0) {
     return {
@@ -118,6 +118,7 @@ export async function runManualUrlBatch(options: {
       })),
       validationErrors,
       truncated,
+      duplicatesRemoved,
       successCount: 0,
       errorCount: validationErrors.length,
       skippedCount: 0,
@@ -206,6 +207,7 @@ export async function runManualUrlBatch(options: {
     urlResults,
     validationErrors,
     truncated,
+    duplicatesRemoved,
     successCount,
     errorCount,
     skippedCount,

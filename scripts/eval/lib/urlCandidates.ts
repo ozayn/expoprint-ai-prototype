@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
+import { normalizeEvalUrl } from "../../../src/lib/evalLocal/evalUrlDedup";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
 
 export { canonicalDomainFromHost };
@@ -59,6 +60,8 @@ export type UrlExtractionSummary = {
   totalCandidates: number;
   uniqueDomains: number;
   bySourceColumn: Record<string, number>;
+  /** Rows removed when deduplicating by normalized URL before save/batch. */
+  urlDuplicatesRemoved: number;
 };
 
 const HTTP_URL_IN_TEXT_RE =
@@ -277,6 +280,7 @@ export function buildUrlExtractionSummary(
     totalCandidates: candidates.length,
     uniqueDomains: domains.size,
     bySourceColumn,
+    urlDuplicatesRemoved: 0,
   };
 }
 
@@ -306,7 +310,7 @@ export function extractUrlCandidatesFromRecords(
     const rowKey = rowIdentity(base, recordIndex);
 
     const pushCandidate = (sourceColumn: string, raw: string) => {
-      const normalized = normalizeUrl(raw);
+      const normalized = normalizeEvalUrl(raw) ?? normalizeUrl(raw);
       if (!normalized) return;
       const dedupeKey = `${rowKey}|${normalized}`;
       const existing = seenPerRow.get(dedupeKey);
@@ -346,6 +350,41 @@ export function extractUrlCandidatesFromRecords(
   return out;
 }
 
+export function dedupeUrlCandidateRowsByNormalizedUrl(
+  rows: UrlCandidateOutputRow[],
+): { rows: UrlCandidateOutputRow[]; duplicatesRemoved: number } {
+  const seen = new Map<string, UrlCandidateOutputRow>();
+  let duplicatesRemoved = 0;
+
+  for (const row of rows) {
+    const key = normalizeEvalUrl(row.normalized_url || row.raw_url);
+    if (!key) continue;
+
+    const existing = seen.get(key);
+    if (existing) {
+      duplicatesRemoved += 1;
+      existing.source_column = appendSourceColumn(
+        existing.source_column,
+        row.source_column,
+      );
+      continue;
+    }
+
+    const domain = domainFromNormalizedUrl(key);
+    seen.set(
+      key,
+      withCanonicalDomain({
+        ...row,
+        normalized_url: key,
+        raw_url: row.raw_url?.trim() || row.normalized_url || key,
+        domain,
+      }),
+    );
+  }
+
+  return { rows: [...seen.values()], duplicatesRemoved };
+}
+
 export function urlCandidateRowsFromCsvRecords(
   records: Record<string, string>[],
   headers: string[],
@@ -354,7 +393,10 @@ export function urlCandidateRowsFromCsvRecords(
   const out: UrlCandidateOutputRow[] = [];
 
   for (const record of records) {
-    const normalized = pickField(record, keyMap, "normalized_url");
+    const rawNormalized = pickField(record, keyMap, "normalized_url");
+    if (!rawNormalized) continue;
+
+    const normalized = normalizeEvalUrl(rawNormalized) ?? normalizeUrl(rawNormalized);
     if (!normalized) continue;
 
     const domain =
@@ -397,10 +439,13 @@ export function loadUrlCandidatesFromCsv(csvPath: string): {
   const rows = parseCsv(text);
   const { headers, records } = csvRowsToObjects(rows);
   const keyMap = headerKeyMap(headers);
-  const candidates = keyMap.has("normalized_url")
+  const rawCandidates = keyMap.has("normalized_url")
     ? urlCandidateRowsFromCsvRecords(records, headers)
     : extractUrlCandidatesFromRecords(records, headers);
+  const { rows: candidates, duplicatesRemoved } =
+    dedupeUrlCandidateRowsByNormalizedUrl(rawCandidates);
   const summary = buildUrlExtractionSummary(records.length, candidates);
+  summary.urlDuplicatesRemoved = duplicatesRemoved;
   return { candidates, summary };
 }
 
@@ -446,6 +491,11 @@ export function printUrlExtractionSummary(summary: UrlExtractionSummary): void {
   console.log(`  Rows with URL candidates:  ${summary.rowsWithCandidates}`);
   console.log(`  Rows without URL:          ${summary.rowsWithoutCandidates}`);
   console.log(`  Total candidates:          ${summary.totalCandidates}`);
+  if (summary.urlDuplicatesRemoved > 0) {
+    console.log(
+      `  URL duplicates removed:    ${summary.urlDuplicatesRemoved}`,
+    );
+  }
   console.log(`  Unique domains:            ${summary.uniqueDomains}`);
   const sources = Object.entries(summary.bySourceColumn).sort(
     (a, b) => b[1] - a[1],

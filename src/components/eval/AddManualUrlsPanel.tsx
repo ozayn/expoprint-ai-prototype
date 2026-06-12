@@ -136,7 +136,11 @@ export function AddManualUrlsPanel({ basePath }: Props) {
           <p>
             <span className="font-medium text-zinc-900">Run {result.runId}</span>
             — {result.successCount} success, {result.errorCount} error
-            {result.skippedCount > 0 ? `, ${result.skippedCount} skipped` : ""}.
+            {result.skippedCount > 0 ? `, ${result.skippedCount} skipped` : ""}
+            {result.duplicatesRemoved > 0
+              ? `, ${result.duplicatesRemoved} duplicate URL(s) removed`
+              : ""}
+            .
           </p>
           <ul className="mt-2 space-y-1 text-xs text-zinc-600">
             <li>{result.jsonlFilename}</li>

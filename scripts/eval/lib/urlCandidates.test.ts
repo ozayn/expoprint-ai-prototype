@@ -106,6 +106,50 @@ function testSelectDedupeByCanonicalDomain(): void {
   assert.equal(selected[0]?.domain, "www.example.com");
 }
 
+import {
+  dedupeUrlCandidateRowsByNormalizedUrl,
+  type UrlCandidateOutputRow,
+} from "./urlCandidates.js";
+
+function testUrlDedupeByNormalizedUrl(): void {
+  const base = {
+    ds_id: "1",
+    ds_number: "DS-1",
+    project_id: "",
+    project_title: "T",
+    project_status: "",
+    project_type: "",
+    turnaround_type: "",
+    shop_code: "",
+    source_column: "first_req_description",
+    raw_url: "",
+    first_req_description: "",
+    first_req_note: "",
+  };
+  const rows: UrlCandidateOutputRow[] = [
+    {
+      ...base,
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      raw_url: "https://example.com/",
+    },
+    {
+      ...base,
+      ds_number: "DS-2",
+      normalized_url: "https://example.com?utm_source=email",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      raw_url: "https://example.com?utm_source=email",
+    },
+  ];
+  const { rows: deduped, duplicatesRemoved } =
+    dedupeUrlCandidateRowsByNormalizedUrl(rows);
+  assert.equal(deduped.length, 1);
+  assert.equal(duplicatesRemoved, 1);
+  assert.equal(deduped[0]?.normalized_url, "https://example.com");
+}
+
 function main(): void {
   testNormalizeUrl();
   testBareDomainExtraction();
@@ -114,6 +158,7 @@ function main(): void {
   testDecimalNotDomain();
   testCanonicalDomain();
   testSelectDedupeByCanonicalDomain();
+  testUrlDedupeByNormalizedUrl();
   console.log("urlCandidates.test.ts: all checks passed");
 }
 

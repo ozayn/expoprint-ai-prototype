@@ -1,5 +1,6 @@
 import {
   canonicalDomainForRow,
+  dedupeUrlCandidateRowsByNormalizedUrl,
   type UrlCandidateOutputRow,
 } from "./urlCandidates.js";
 
@@ -17,7 +18,13 @@ export function selectUrlCandidatesForExtraction(
   candidates: UrlCandidateOutputRow[],
   options: SelectUrlCandidatesOptions,
 ): UrlCandidateOutputRow[] {
-  let rows = candidates;
+  const { rows: urlDeduped, duplicatesRemoved } =
+    dedupeUrlCandidateRowsByNormalizedUrl(candidates);
+  if (duplicatesRemoved > 0) {
+    console.log(`  URL duplicates removed:    ${duplicatesRemoved}`);
+  }
+
+  let rows = urlDeduped;
 
   if (!options.allowDuplicateDomains) {
     const seen = new Set<string>();

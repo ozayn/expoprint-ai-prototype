@@ -1,4 +1,5 @@
 import { canonicalDomainFromHost } from "./canonicalDomain";
+import { normalizeEvalUrl } from "./evalUrlDedup";
 
 export const MANUAL_URL_MAX = 25;
 export const MANUAL_URL_DELAY_MS = 1000;
@@ -71,9 +72,12 @@ export function parseAndValidateManualUrls(
   valid: ValidatedManualUrl[];
   errors: ManualUrlValidationError[];
   truncated: boolean;
+  duplicatesRemoved: number;
 } {
   const errors: ManualUrlValidationError[] = [];
   const valid: ValidatedManualUrl[] = [];
+  const seenKeys = new Set<string>();
+  let duplicatesRemoved = 0;
   const nonEmpty = urlLines
     .map((line, index) => ({ line: index + 1, raw: line.trim() }))
     .filter((entry) => entry.raw.length > 0);
@@ -101,13 +105,20 @@ export function parseAndValidateManualUrls(
     }
 
     const domain = new URL(normalized).hostname.toLowerCase();
+    const dedupeKey = normalizeEvalUrl(normalized) ?? normalized;
+    if (seenKeys.has(dedupeKey)) {
+      duplicatesRemoved += 1;
+      continue;
+    }
+    seenKeys.add(dedupeKey);
+
     valid.push({
       raw: entry.raw,
-      normalized_url: normalized,
+      normalized_url: dedupeKey,
       domain,
       canonical_domain: canonicalDomainFromHost(domain),
     });
   }
 
-  return { valid, errors, truncated };
+  return { valid, errors, truncated, duplicatesRemoved };
 }
