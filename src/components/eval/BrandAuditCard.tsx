@@ -18,30 +18,16 @@ import {
   productsForRow,
   servicesForRow,
 } from "@/lib/evalLocal/offeringsExtractionParse";
-import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import { EvalDetailField } from "./EvalViewerField";
 
-function DetailField({
-  label,
-  value,
-  mono = false,
+export function BrandAuditCard({
+  row,
+  omitPartnerFields = false,
 }: {
-  label: string;
-  value: string;
-  mono?: boolean;
+  row: BrandAuditRow;
+  omitPartnerFields?: boolean;
 }) {
-  const v = value.trim();
-  if (!v) return null;
-  return (
-    <div>
-      <dt className="text-[11px] text-zinc-400">{label}</dt>
-      <dd className={`mt-0.5 break-all text-sm text-zinc-800 ${mono ? "font-mono text-xs" : ""}`}>
-        {v}
-      </dd>
-    </div>
-  );
-}
-
-export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
   const [open, setOpen] = useState(false);
   const businessName = row.extracted_business_name?.trim() || "—";
   const bestLogo = bestLogoForRow(row);
@@ -140,9 +126,21 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
             </h4>
             <dl className="mt-2 space-y-2">
               <EvalUrlDetailField label="normalized url" value={row.normalized_url} row={row} />
-              <DetailField label="project title" value={row.project_title} />
-              <DetailField label="project type" value={row.project_type} />
-              <DetailField label="ds number" value={row.ds_number} />
+              <EvalDetailField
+                label="project title"
+                value={row.project_title}
+                omitted={omitPartnerFields}
+              />
+              <EvalDetailField
+                label="project type"
+                value={row.project_type}
+                omitted={omitPartnerFields && !row.project_type.trim()}
+              />
+              <EvalDetailField
+                label="ds number"
+                value={row.ds_number}
+                omitted={omitPartnerFields}
+              />
             </dl>
           </div>
 
@@ -151,9 +149,10 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
               Identity
             </h4>
             <dl className="mt-2 space-y-2">
-              <DetailField label="business name" value={row.extracted_business_name} />
-              <DetailField label="category" value={row.extracted_business_category} />
-              <DetailField label="summary" value={row.extracted_summary} />
+              <EvalDetailField label="business name" value={row.extracted_business_name} />
+              <EvalDetailField label="category" value={row.extracted_business_category} />
+              <EvalDetailField label="tagline" value={row.extracted_tagline} />
+              <EvalDetailField label="summary" value={row.extracted_summary} />
             </dl>
           </div>
 
@@ -208,11 +207,11 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
               Technical
             </h4>
             <dl className="mt-2 space-y-2">
-              <DetailField label="status" value={row.status} />
-              <DetailField label="pages inspected" value={row.pages_inspected} />
-              <DetailField label="elapsed ms" value={row.elapsed_ms} />
-              <DetailField label="provider / model" value={providerModel} />
-              <DetailField label="error" value={row.error_message} />
+              <EvalDetailField label="status" value={row.status} />
+              <EvalDetailField label="pages inspected" value={row.pages_inspected} />
+              <EvalDetailField label="elapsed ms" value={row.elapsed_ms} />
+              <EvalDetailField label="provider / model" value={providerModel} />
+              <EvalDetailField label="error" value={row.error_message} />
             </dl>
           </div>
 
@@ -222,12 +221,12 @@ export function BrandAuditCard({ row }: { row: ReviewQueueRow }) {
             </summary>
             {hasScores ? (
               <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-                <DetailField label="business name score" value={row.business_name_score} />
-                <DetailField label="category score" value={row.category_score} />
-                <DetailField label="logo score" value={row.logo_score} />
-                <DetailField label="brief score" value={row.brief_score} />
-                <DetailField label="overall score" value={row.overall_score} />
-                <DetailField label="reviewer notes" value={row.reviewer_notes} />
+                <EvalDetailField label="business name score" value={row.business_name_score} />
+                <EvalDetailField label="category score" value={row.category_score} />
+                <EvalDetailField label="logo score" value={row.logo_score} />
+                <EvalDetailField label="brief score" value={row.brief_score} />
+                <EvalDetailField label="overall score" value={row.overall_score} />
+                <EvalDetailField label="reviewer notes" value={row.reviewer_notes} />
               </dl>
             ) : (
               <p className="mt-2 text-xs text-zinc-500">No manual scores in CSV.</p>

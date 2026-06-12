@@ -50,7 +50,7 @@ function testSanitizeOmitsPartnerFields(): void {
   assert.equal(row.project_title, "");
   assert.equal(row.shop_code, "");
   assert.equal(row.first_req_description_excerpt, "");
-  assert.equal(row.error_message, "");
+  assert.equal(row.error_message, "fetch failed for [url]");
   assert.equal(row.normalized_url, "https://client.com");
   assert.equal(row.extracted_business_name, "Client Co");
   assert.ok(row.logo_candidate_urls.includes("client.com/logo.png"));
@@ -74,6 +74,32 @@ function testSanitizeAnonymizedLabels(): void {
   assert.equal(row.canonical_domain, "");
 }
 
+function testSanitizeContactAndOfferings(): void {
+  const row = sanitizeReviewQueueRecord(
+    {
+      domain: "example.com",
+      normalized_url: "https://example.com/page",
+      status: "success",
+      extracted_emails: '["hello@example.com"]',
+      extracted_phone_numbers: '["555-0100"]',
+      extracted_products: '["Banners"]',
+      extracted_services: '["Printing"]',
+      extracted_tagline: "We print",
+      elapsed_ms: "4200",
+      extraction_provider: "scraper",
+      extraction_model: "claude-test",
+    },
+    0,
+    { includeDomains: true, includeLogoUrls: true },
+  );
+
+  assert.ok(row.extracted_emails.includes("hello@example.com"));
+  assert.ok(row.extracted_products.includes("Banners"));
+  assert.equal(row.extracted_tagline, "We print");
+  assert.equal(row.elapsed_ms, "4200");
+  assert.equal(row.extraction_provider, "scraper");
+}
+
 function testBuildFile(): void {
   const { file, stats } = buildPublishedInternalEvalFile(
     "review_queue_20260605212708.csv",
@@ -91,6 +117,7 @@ function run(): void {
   testDisplayUrlHostOnly();
   testSanitizeOmitsPartnerFields();
   testSanitizeAnonymizedLabels();
+  testSanitizeContactAndOfferings();
   testBuildFile();
   console.log("publishInternalEval.test.ts: all checks passed");
 }

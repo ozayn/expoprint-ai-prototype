@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddManualUrlsPanel } from "@/components/eval/AddManualUrlsPanel";
 import { BrandAuditViewer } from "@/components/eval/BrandAuditViewer";
 import { EvalInternalsPanel } from "@/components/eval/EvalInternalsPanel";
 import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
@@ -72,19 +73,26 @@ export default async function DevEvalPage({ searchParams }: PageProps) {
   const reviewData = reviewName ? await readReviewQueueCsv(reviewName) : null;
   const scoreData = scoreName ? await readScoreSummaryCsv(scoreName) : null;
 
+  const publishHint = reviewName
+    ? `npm run eval:publish-internal -- data/eval/results/${reviewName} --include-domains`
+    : undefined;
+
   return (
     <BrandAuditViewer
       basePath="/dev/eval"
       searchParams={params}
       subtitle="Historical websites processed through ExpoPrint."
       safetyNote="Local-only · partner data stays on this machine"
+      dataKind="local"
+      publishHint={publishHint}
       reviewFilename={reviewData?.filename}
       rows={reviewData?.rows ?? []}
       emptyMessage={
         index.reviewQueues.length === 0
-          ? "No review queue yet. Run npm run eval:review on an extraction JSONL."
+          ? "No review queue yet. Run npm run eval:review on an extraction JSONL or use Add URLs."
           : undefined
       }
+      prependContent={<AddManualUrlsPanel basePath="/dev/eval" />}
     >
       <EvalInternalsPanel
         basePath="/dev/eval"

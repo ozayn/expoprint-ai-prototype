@@ -63,3 +63,6 @@ export const REVIEW_QUEUE_ALL_COLUMNS = [
 ] as const;
 
 export type ReviewQueueRow = Record<(typeof REVIEW_QUEUE_ALL_COLUMNS)[number], string>;
+
+/** Alias used by gallery/table viewers — same shape as review queue CSV rows. */
+export type { BrandAuditRow } from "./brandAuditRow";

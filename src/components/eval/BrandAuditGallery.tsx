@@ -1,14 +1,19 @@
 "use client";
 
 import { BrandAuditCard } from "./BrandAuditCard";
-import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 
 type Props = {
-  rows: ReviewQueueRow[];
+  rows: BrandAuditRow[];
   emptyMessage?: string;
+  omitPartnerFields?: boolean;
 };
 
-export function BrandAuditGallery({ rows, emptyMessage }: Props) {
+export function BrandAuditGallery({
+  rows,
+  emptyMessage,
+  omitPartnerFields = false,
+}: Props) {
   if (rows.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-zinc-500">
@@ -20,7 +25,11 @@ export function BrandAuditGallery({ rows, emptyMessage }: Props) {
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       {rows.map((row, index) => (
-        <BrandAuditCard key={`${row.ds_number}-${row.normalized_url}-${index}`} row={row} />
+        <BrandAuditCard
+          key={`${row.ds_number}-${row.normalized_url}-${index}`}
+          row={row}
+          omitPartnerFields={omitPartnerFields}
+        />
       ))}
     </div>
   );

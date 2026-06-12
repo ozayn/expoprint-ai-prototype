@@ -57,6 +57,22 @@ Outputs (gitignored):
 
 In-process extraction loads `.env.local` for `ANTHROPIC_API_KEY` when present. If in-process import fails, start `npm run dev` and pass `--api-url http://localhost:3000`.
 
+#### Manual URLs from `/dev/eval` (local development only)
+
+When you want to test websites **outside** a Metabase export, use the **Add URLs** panel on `/dev/eval` (not available on `/internal/eval` or in production builds).
+
+1. Open `http://localhost:3000/dev/eval` while `npm run dev` is running.
+2. Click **Add URLs**, paste one URL per line (http/https; bare domains become `https://`), and optionally set a label/project title.
+3. Click **Process URLs**. Up to **25** URLs per submission; invalid lines are reported without stopping the batch. A **1 second** delay runs between extraction requests.
+
+The server runs the same in-process extraction pipeline as `eval:extract`, then builds a review queue via `eval:review` logic. Gitignored outputs:
+
+- `data/eval/runs/manual_extraction_run_<timestamp>.jsonl`
+- `data/eval/results/manual_extraction_summary_<timestamp>.csv`
+- `data/eval/results/manual_review_queue_<timestamp>.csv`
+
+Manual rows use `source_column = manual_url`, `ds_number` like `MANUAL-001`, and `project_title` from the optional label (or domain). The new run appears in the `/dev/eval` gallery/table file picker after refresh.
+
 ### 3. Review queue (Milestone 3b)
 
 Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
@@ -65,7 +81,9 @@ Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 ```
 
-Writes `data/eval/results/review_queue_<timestamp>.csv` with historical input fields, ExpoPrint output fields, logo/color audit columns (`selected_logo_url`, `logo_candidate_urls` as JSON, `extracted_color_hexes`, `primary_color_hex`, `secondary_color_hex`), optional manual score columns, and helper similarity hints. Full `expo_output` remains in the JSONL run file.
+Manual runs from `/dev/eval` use `manual_extraction_run_<timestamp>.jsonl` and write `manual_review_queue_<timestamp>.csv` with the same columns.
+
+Writes `data/eval/results/review_queue_<timestamp>.csv` (or `manual_review_queue_<timestamp>.csv` for manual runs) with historical input fields, ExpoPrint output fields, logo/color audit columns (`selected_logo_url`, `logo_candidate_urls` as JSON, `extracted_color_hexes`, `primary_color_hex`, `secondary_color_hex`), optional manual score columns, and helper similarity hints. Full `expo_output` remains in the JSONL run file.
 
 View locally at `/dev/eval` (development only) with **Gallery** (visual brand audit cards) or **Table** (dense field extraction audit). Both views share a field-coverage summary and expandable row details. Deployed `/internal/eval` shows the same views on sanitized sample rows only.
 

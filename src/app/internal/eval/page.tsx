@@ -64,6 +64,14 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
       searchParams={params}
       subtitle="Historical websites processed through ExpoPrint."
       deployedNote={deployedNote}
+      dataSourceLabel={reviewData.sourceLabel}
+      publishedAt={
+        reviewData.source === "published" ? reviewData.publishedAt : undefined
+      }
+      sourceReviewQueue={
+        reviewData.source === "published" ? reviewData.sourceReviewQueue : undefined
+      }
+      dataKind={reviewData.source}
       headerAction={password ? <InternalEvalLogout /> : undefined}
       reviewFilename={reviewData.filename}
       rows={reviewData.rows}

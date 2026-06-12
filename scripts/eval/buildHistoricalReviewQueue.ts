@@ -18,8 +18,8 @@ function main(): void {
       "Usage: npm run eval:review -- <extraction_run.jsonl>",
       [
         "",
-        "Reads data/eval/runs/extraction_run_<timestamp>.jsonl and writes:",
-        "  data/eval/results/review_queue_<timestamp>.csv",
+      "Reads extraction_run_<timestamp>.jsonl or manual_extraction_run_<timestamp>.jsonl and writes:",
+      "  review_queue_<timestamp>.csv or manual_review_queue_<timestamp>.csv",
         "",
         "Example:",
         "  npm run eval:review -- data/eval/runs/extraction_run_20260604202106.jsonl",

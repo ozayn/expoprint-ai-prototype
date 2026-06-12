@@ -6,7 +6,8 @@ import {
   computeFieldCoverageSummary,
   formatFieldCoverageSummary,
 } from "@/lib/evalLocal/brandExtractionParse";
-import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
 
 export type EvalViewerSearchParams = {
   summary?: string;
@@ -19,16 +20,24 @@ export function parseEvalViewMode(view: string | undefined): EvalViewMode {
   return view === "table" ? "table" : "gallery";
 }
 
+export type EvalViewerDataKind = "local" | InternalEvalDataSource;
+
 export type BrandAuditViewerProps = {
   title?: string;
   subtitle: string;
   safetyNote?: string;
   deployedNote?: string;
+  dataSourceLabel?: string;
+  publishedAt?: string;
+  sourceReviewQueue?: string;
+  publishHint?: string;
+  dataKind?: EvalViewerDataKind;
   headerAction?: ReactNode;
+  prependContent?: ReactNode;
   basePath?: string;
   searchParams?: EvalViewerSearchParams;
   reviewFilename?: string;
-  rows: ReviewQueueRow[];
+  rows: BrandAuditRow[];
   emptyMessage?: string;
   children?: ReactNode;
 };
@@ -38,7 +47,13 @@ export function BrandAuditViewer({
   subtitle,
   safetyNote,
   deployedNote,
+  dataSourceLabel,
+  publishedAt,
+  sourceReviewQueue,
+  publishHint,
+  dataKind = "local",
   headerAction,
+  prependContent,
   basePath = "/internal/eval",
   searchParams = {},
   reviewFilename,
@@ -79,9 +94,36 @@ export function BrandAuditViewer({
                 />
               </div>
               <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
+              {dataSourceLabel ? (
+                <p className="mt-2 text-[11px] font-medium text-zinc-500">
+                  {dataSourceLabel}
+                </p>
+              ) : null}
               {reviewFilename ? (
-                <p className="mt-2 text-[11px] text-zinc-400">
+                <p className="mt-1 text-[11px] text-zinc-400">
                   <span className="font-mono">{reviewFilename}</span>
+                </p>
+              ) : null}
+              {sourceReviewQueue ? (
+                <p className="mt-1 text-[11px] text-zinc-400">
+                  Published from{" "}
+                  <span className="font-mono">{sourceReviewQueue}</span>
+                </p>
+              ) : null}
+              {publishedAt ? (
+                <p className="mt-1 text-[11px] text-zinc-400">
+                  Generated at{" "}
+                  <time dateTime={publishedAt}>
+                    {new Date(publishedAt).toLocaleString()}
+                  </time>
+                </p>
+              ) : null}
+              {publishHint ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+                  To publish this dataset to /internal/eval, run:
+                  <span className="mt-1 block font-mono text-[10px] text-zinc-400">
+                    {publishHint}
+                  </span>
                 </p>
               ) : null}
             </div>
@@ -102,11 +144,16 @@ export function BrandAuditViewer({
           <p className="mb-6 text-sm text-zinc-600">{coverageLine}</p>
         ) : null}
 
+        {prependContent ? (
+          <div className="mb-6">{prependContent}</div>
+        ) : null}
+
         <EvalAuditMain
           view={view}
           rows={rows}
           reviewFilename={reviewFilename}
           emptyMessage={emptyMessage}
+          dataKind={dataKind}
         />
 
         {children}

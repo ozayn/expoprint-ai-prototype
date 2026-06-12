@@ -5,9 +5,12 @@ import {
   parseLogoCandidatesJson,
 } from "@/lib/evalLocal/brandExtractionParse";
 import {
-  REVIEW_QUEUE_ALL_COLUMNS,
-  type ReviewQueueRow,
-} from "@/lib/evalLocal/reviewQueueTypes";
+  emptyBrandAuditRow,
+  type BrandAuditRow,
+} from "@/lib/evalLocal/brandAuditRow";
+import type { PublishedInternalEvalFile } from "@/lib/evalLocal/publishedInternalEvalTypes";
+
+export type { PublishedInternalEvalFile } from "@/lib/evalLocal/publishedInternalEvalTypes";
 
 export type PublishSanitizeOptions = {
   includeDomains: boolean;
@@ -21,19 +24,14 @@ export type PublishSanitizeStats = {
   rowsWithPalettes: number;
 };
 
-export type PublishedInternalEvalFile = {
-  description: string;
-  published_at: string;
-  source_review_queue: string;
-  include_domains: boolean;
-  include_logo_urls: boolean;
-  rows: ReviewQueueRow[];
-};
-
-function emptyRow(): ReviewQueueRow {
-  return Object.fromEntries(
-    REVIEW_QUEUE_ALL_COLUMNS.map((col) => [col, ""]),
-  ) as ReviewQueueRow;
+/** Redact URLs and obvious path fragments from error text for published artifacts. */
+export function sanitizePublishedErrorMessage(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return trimmed
+    .replace(/https?:\/\/[^\s)]+/gi, "[url]")
+    .replace(/[a-z0-9-]+\.(com|net|org|io)\/[^\s)]+/gi, "[path]")
+    .trim();
 }
 
 /** Host-only display URL: `https://example.com` with no path, query, or hash. */
@@ -100,8 +98,8 @@ export function sanitizeReviewQueueRecord(
   record: Record<string, string>,
   rowIndex: number,
   options: PublishSanitizeOptions,
-): ReviewQueueRow {
-  const row = emptyRow();
+): BrandAuditRow {
+  const row = emptyBrandAuditRow();
   const siteLabel = `Site ${rowIndex + 1}`;
   const canonical = resolveCanonicalDomain(record);
   const displayUrl = canonical ? `https://${canonical}` : "";
@@ -116,12 +114,16 @@ export function sanitizeReviewQueueRecord(
     row.normalized_url = "";
   }
 
-  row.project_type = record.project_type?.trim() ?? "";
   row.status = record.status?.trim() ?? "";
+  row.error_message = sanitizePublishedErrorMessage(record.error_message ?? "");
+  row.elapsed_ms = record.elapsed_ms?.trim() ?? "";
   row.pages_inspected = record.pages_inspected?.trim() ?? "";
+  row.extraction_provider = record.extraction_provider?.trim() ?? "";
+  row.extraction_model = record.extraction_model?.trim() ?? "";
   row.extracted_business_name = record.extracted_business_name?.trim() ?? "";
   row.extracted_business_category =
     record.extracted_business_category?.trim() ?? "";
+  row.extracted_tagline = record.extracted_tagline?.trim() ?? "";
   row.extracted_summary = record.extracted_summary?.trim() ?? "";
   row.extracted_emails = record.extracted_emails?.trim() ?? "";
   row.extracted_phone_numbers = record.extracted_phone_numbers?.trim() ?? "";
@@ -132,6 +134,13 @@ export function sanitizeReviewQueueRecord(
   row.extracted_services = record.extracted_services?.trim() ?? "";
   row.extracted_products_services =
     record.extracted_products_services?.trim() ?? "";
+
+  row.business_name_score = record.business_name_score?.trim() ?? "";
+  row.category_score = record.category_score?.trim() ?? "";
+  row.logo_score = record.logo_score?.trim() ?? "";
+  row.brief_score = record.brief_score?.trim() ?? "";
+  row.overall_score = record.overall_score?.trim() ?? "";
+  row.reviewer_notes = record.reviewer_notes?.trim() ?? "";
 
   row.extracted_color_hexes = record.extracted_color_hexes?.trim() ?? "";
   row.primary_color_hex = record.primary_color_hex?.trim() ?? "";
@@ -163,7 +172,7 @@ export function sanitizeReviewQueueRecord(
 export function sanitizeReviewQueueRecords(
   records: Record<string, string>[],
   options: PublishSanitizeOptions,
-): { rows: ReviewQueueRow[]; stats: PublishSanitizeStats } {
+): { rows: BrandAuditRow[]; stats: PublishSanitizeStats } {
   const rows = records.map((record, index) =>
     sanitizeReviewQueueRecord(record, index, options),
   );

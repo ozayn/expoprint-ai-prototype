@@ -1,13 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  emptyBrandAuditRow,
+  type BrandAuditRow,
+} from "./brandAuditRow";
 import { canonicalDomainFromHost } from "./canonicalDomain";
 import { isEvalViewerEnabled } from "./isEvalViewerEnabled";
 import { isSafeReviewQueueFilename } from "./listEvalFiles";
 import { csvRowsToObjects, parseCsv } from "./parseCsv";
-import {
-  REVIEW_QUEUE_ALL_COLUMNS,
-  type ReviewQueueRow,
-} from "./reviewQueueTypes";
+import type { ReviewQueueRow } from "./reviewQueueTypes";
 
 export {
   REVIEW_QUEUE_VISIBLE_COLUMNS,
@@ -32,9 +33,9 @@ export async function readReviewQueueFromDir(
   }
 
   const { records } = csvRowsToObjects(parseCsv(text));
-  const rows: ReviewQueueRow[] = records.map((record) => {
-    const row = {} as ReviewQueueRow;
-    for (const col of REVIEW_QUEUE_ALL_COLUMNS) {
+  const rows: BrandAuditRow[] = records.map((record) => {
+    const row = emptyBrandAuditRow();
+    for (const col of Object.keys(row) as (keyof BrandAuditRow)[]) {
       row[col] = record[col] ?? "";
     }
     if (!row.canonical_domain.trim() && row.domain.trim()) {

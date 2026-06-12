@@ -22,7 +22,9 @@ import {
 
 function isSafeReviewQueueInputPath(inputPath: string): boolean {
   const name = basename(inputPath);
-  if (!/^review_queue_20\d{12}\.csv$/.test(name)) return false;
+  if (!/^(?:review_queue_|manual_review_queue_)20\d{12}\.csv$/.test(name)) {
+    return false;
+  }
   const resolved = resolve(inputPath);
   const resultsDir = resolve(REPO_ROOT, "data", "eval", "results");
   return resolved.startsWith(resultsDir + "/") || resolved === resolve(resultsDir, name);
@@ -57,7 +59,7 @@ function main(): void {
 
   if (!isSafeReviewQueueInputPath(inputPath)) {
     console.error(
-      "Input must be data/eval/results/review_queue_<timestamp>.csv (gitignored raw file).",
+      "Input must be data/eval/results/review_queue_<timestamp>.csv or manual_review_queue_<timestamp>.csv (gitignored raw file).",
     );
     process.exit(1);
   }

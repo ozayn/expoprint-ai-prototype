@@ -43,10 +43,13 @@ is_forbidden() {
     data/eval/*.csv) return 0 ;;
     data/*/url_candidates_*.csv | data/*/*/url_candidates_*.csv) return 0 ;;
     data/*/extraction_summary_*.csv | data/*/*/extraction_summary_*.csv) return 0 ;;
+    data/*/manual_extraction_summary_*.csv | data/*/*/manual_extraction_summary_*.csv) return 0 ;;
     data/*/review_queue_*.csv | data/*/*/review_queue_*.csv) return 0 ;;
+    data/*/manual_review_queue_*.csv | data/*/*/manual_review_queue_*.csv) return 0 ;;
     data/*/score_summary_*.csv | data/*/*/score_summary_*.csv) return 0 ;;
     data/*/score_summary_*.json | data/*/*/score_summary_*.json) return 0 ;;
     data/*/extraction_run_*.jsonl | data/*/*/extraction_run_*.jsonl) return 0 ;;
+    data/*/manual_extraction_run_*.jsonl | data/*/*/manual_extraction_run_*.jsonl) return 0 ;;
     data/*/run_*.jsonl | data/*/*/run_*.jsonl) return 0 ;;
     data/*/results_*.csv | data/*/*/results_*.csv) return 0 ;;
     *basic_design_service_query*.csv) return 0 ;;

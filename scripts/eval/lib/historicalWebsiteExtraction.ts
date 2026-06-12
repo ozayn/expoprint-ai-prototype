@@ -4,7 +4,17 @@ import type {
   DesignIntakeExtractRequest,
   DesignIntakeExtractResponse,
 } from "../../../src/lib/designIntakeApiSchema";
-import { isStaticFetchBlocked } from "../../../src/lib/websiteFetchBlocked";
+import {
+  extractionSummaryRowsFromRecords,
+  extractionSummaryToCsv,
+  runExtractionBatchForInputs,
+} from "../../../src/lib/evalLocal/extractionBatch";
+import type {
+  ExtractionJsonlRecord,
+  ExtractionRunStatus,
+  ExtractionSummaryRow,
+  UrlCandidateExtractionInput,
+} from "../../../src/lib/evalLocal/extractionTypes";
 import {
   firstPositionalArg,
   getArg,
@@ -20,52 +30,14 @@ import {
   runTimestampId,
 } from "./paths.js";
 import { selectUrlCandidatesForExtraction } from "./selectUrlCandidates.js";
-import { escapeCsvCell, loadUrlCandidatesFromCsv } from "./urlCandidates.js";
+import { loadUrlCandidatesFromCsv } from "./urlCandidates.js";
 import type { UrlCandidateOutputRow } from "./urlCandidates.js";
 
-export type ExtractionRunStatus =
-  | "success"
-  | "fetch_error"
-  | "extraction_error"
-  | "skipped";
-
-export type UrlCandidateExtractionInput = Pick<
-  UrlCandidateOutputRow,
-  | "ds_id"
-  | "ds_number"
-  | "project_title"
-  | "project_type"
-  | "shop_code"
-  | "source_column"
-  | "normalized_url"
-  | "domain"
-  | "canonical_domain"
-  | "first_req_description"
-  | "first_req_note"
->;
-
-export type ExtractionJsonlRecord = {
-  input: UrlCandidateExtractionInput;
-  status: ExtractionRunStatus;
-  elapsed_ms: number;
-  error_message?: string;
-  expo_output?: DesignIntakeExtractResponse;
-};
-
-export type ExtractionSummaryRow = {
-  ds_number: string;
-  project_title: string;
-  project_type: string;
-  shop_code: string;
-  normalized_url: string;
-  domain: string;
-  canonical_domain: string;
-  status: ExtractionRunStatus;
-  elapsed_ms: number;
-  error_message: string;
-  extracted_business_name: string;
-  logo_candidate_count: string;
-  pages_inspected: string;
+export type {
+  ExtractionJsonlRecord,
+  ExtractionRunStatus,
+  ExtractionSummaryRow,
+  UrlCandidateExtractionInput,
 };
 
 export type RunHistoricalWebsiteExtractionOptions = {
@@ -92,97 +64,6 @@ function toExtractionInput(row: UrlCandidateOutputRow): UrlCandidateExtractionIn
     first_req_description: row.first_req_description,
     first_req_note: row.first_req_note,
   };
-}
-
-function defaultProductCategory(projectType: string): string {
-  const t = projectType.toLowerCase();
-  if (t.includes("outdoor") || t.includes("tent")) return "Outdoor tent";
-  return "Trade show booth";
-}
-
-function buildCustomerInstructions(row: UrlCandidateExtractionInput): string | undefined {
-  const parts = [row.first_req_description, row.first_req_note]
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return undefined;
-  return parts.join("\n\n");
-}
-
-function classifyExtractionResult(
-  response: DesignIntakeExtractResponse | undefined,
-  error: unknown,
-): { status: ExtractionRunStatus; error_message?: string } {
-  if (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { status: "extraction_error", error_message: message };
-  }
-  if (!response) {
-    return { status: "extraction_error", error_message: "No extract response" };
-  }
-
-  const fetch = response.metadata.websiteFetch;
-  if (
-    fetch?.status === "failed" ||
-    (fetch && isStaticFetchBlocked(fetch))
-  ) {
-    const reason =
-      fetch.reason ??
-      (response.ok === false ? response.reason : undefined) ??
-      "website fetch failed";
-    return { status: "fetch_error", error_message: reason };
-  }
-
-  if (response.ok) {
-    return { status: "success" };
-  }
-
-  return {
-    status: "extraction_error",
-    error_message: response.reason || "extract failed",
-  };
-}
-
-function metricsFromResponse(
-  response: DesignIntakeExtractResponse | undefined,
-): Pick<
-  ExtractionSummaryRow,
-  "extracted_business_name" | "logo_candidate_count" | "pages_inspected"
-> {
-  if (!response) {
-    return {
-      extracted_business_name: "",
-      logo_candidate_count: "",
-      pages_inspected: "",
-    };
-  }
-
-  const businessName =
-    (response.ok ? response.business.name : response.business?.name) ?? "";
-
-  const logoCount = response.brand?.logoCandidates?.length;
-  const pages = response.metadata?.pagesInspected;
-
-  return {
-    extracted_business_name: businessName,
-    logo_candidate_count:
-      typeof logoCount === "number" ? String(logoCount) : "",
-    pages_inspected: typeof pages === "number" ? String(pages) : "",
-  };
-}
-
-function buildExtractRequest(row: UrlCandidateExtractionInput): DesignIntakeExtractRequest {
-  const request: DesignIntakeExtractRequest = {
-    websiteUrl: row.normalized_url,
-    productCategory: defaultProductCategory(row.project_type),
-    stylePreference: "Modern",
-  };
-  const instructions = buildCustomerInstructions(row);
-  if (instructions) request.customerInstructions = instructions;
-  return request;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function callExtractApi(
@@ -242,38 +123,6 @@ async function resolveExtractFn(apiUrl?: string): Promise<ExtractFn> {
   return createInProcessExtractFn();
 }
 
-function extractionSummaryToCsv(rows: ExtractionSummaryRow[]): string {
-  const headers: (keyof ExtractionSummaryRow)[] = [
-    "ds_number",
-    "project_title",
-    "project_type",
-    "shop_code",
-    "normalized_url",
-    "domain",
-    "canonical_domain",
-    "status",
-    "elapsed_ms",
-    "error_message",
-    "extracted_business_name",
-    "logo_candidate_count",
-    "pages_inspected",
-  ];
-  const lines = [headers.join(",")];
-  for (const row of rows) {
-    lines.push(
-      headers
-        .map((h) => {
-          const v = row[h];
-          return escapeCsvCell(
-            typeof v === "number" ? String(v) : (v ?? ""),
-          );
-        })
-        .join(","),
-    );
-  }
-  return `${lines.join("\n")}\n`;
-}
-
 export async function runHistoricalWebsiteExtraction(
   options: RunHistoricalWebsiteExtractionOptions,
 ): Promise<{
@@ -304,53 +153,16 @@ export async function runHistoricalWebsiteExtraction(
   });
 
   const extract = await resolveExtractFn(options.apiUrl);
-  const records: ExtractionJsonlRecord[] = [];
-  const total = selected.length;
+  const inputs = selected.map(toExtractionInput);
+  const total = inputs.length;
 
-  for (let i = 0; i < selected.length; i++) {
-    const row = selected[i];
-    const input = toExtractionInput(row);
-    const url = input.normalized_url.trim();
-
-    if (!url) {
-      records.push({
-        input,
-        status: "skipped",
-        elapsed_ms: 0,
-        error_message: "missing normalized_url",
-      });
-      continue;
-    }
-
-    console.log(`[${i + 1}/${total}] extracting ${url}`);
-
-    const t0 = Date.now();
-    let response: DesignIntakeExtractResponse | undefined;
-    let error: unknown;
-
-    try {
-      const result = await extract(buildExtractRequest(input));
-      response = result.response;
-    } catch (err) {
-      error = err;
-    }
-
-    const elapsed_ms = Date.now() - t0;
-    const { status, error_message } = classifyExtractionResult(response, error);
-
-    const record: ExtractionJsonlRecord = {
-      input,
-      status,
-      elapsed_ms,
-      ...(error_message ? { error_message } : {}),
-      ...(status === "success" && response ? { expo_output: response } : {}),
-    };
-    records.push(record);
-
-    if (i < selected.length - 1 && delayMs > 0) {
-      await sleep(delayMs);
-    }
-  }
+  const records = await runExtractionBatchForInputs(inputs, {
+    delayMs,
+    extractFn: extract,
+    onProgress: (index, _total, url) => {
+      console.log(`[${index}/${total}] extracting ${url}`);
+    },
+  });
 
   const jsonl = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
   writeFileSync(jsonlPath, jsonl, "utf8");
@@ -378,23 +190,11 @@ export async function runHistoricalWebsiteExtraction(
     "utf8",
   );
 
-  const summaryRows: ExtractionSummaryRow[] = records.map((r) => {
-    const metrics = metricsFromResponse(r.expo_output);
-    return {
-      ds_number: r.input.ds_number,
-      project_title: r.input.project_title,
-      project_type: r.input.project_type,
-      shop_code: r.input.shop_code,
-      normalized_url: r.input.normalized_url,
-      domain: r.input.domain,
-      canonical_domain: r.input.canonical_domain,
-      status: r.status,
-      elapsed_ms: r.elapsed_ms,
-      error_message: r.error_message ?? "",
-      ...metrics,
-    };
-  });
-  writeFileSync(summaryPath, extractionSummaryToCsv(summaryRows), "utf8");
+  writeFileSync(
+    summaryPath,
+    extractionSummaryToCsv(extractionSummaryRowsFromRecords(records)),
+    "utf8",
+  );
 
   return {
     runId,

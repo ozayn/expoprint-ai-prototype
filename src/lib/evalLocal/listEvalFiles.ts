@@ -33,16 +33,27 @@ function classifyFilename(name: string): EvalFileKind | null {
   if (name.startsWith("url_candidates_") && name.endsWith(".csv")) {
     return "url_candidates";
   }
-  if (name.startsWith("extraction_summary_") && name.endsWith(".csv")) {
+  if (
+    (name.startsWith("extraction_summary_") ||
+      name.startsWith("manual_extraction_summary_")) &&
+    name.endsWith(".csv")
+  ) {
     return "extraction_summary";
   }
-  if (name.startsWith("review_queue_") && name.endsWith(".csv")) {
+  if (
+    (name.startsWith("review_queue_") || name.startsWith("manual_review_queue_")) &&
+    name.endsWith(".csv")
+  ) {
     return "review_queue";
   }
   if (name.startsWith("score_summary_") && name.endsWith(".csv")) {
     return "score_summary";
   }
-  if (name.startsWith("extraction_run_") && name.endsWith(".jsonl")) {
+  if (
+    (name.startsWith("extraction_run_") ||
+      name.startsWith("manual_extraction_run_")) &&
+    name.endsWith(".jsonl")
+  ) {
     return "extraction_run";
   }
   return null;
@@ -143,7 +154,10 @@ export function pickSummaryFilename(
 }
 
 export function isSafeSummaryFilename(name: string): boolean {
-  return /^extraction_summary_\d+\.csv$/.test(name);
+  return (
+    /^extraction_summary_\d+\.csv$/.test(name) ||
+    /^manual_extraction_summary_\d+\.csv$/.test(name)
+  );
 }
 
 export function pickReviewQueueFilename(
@@ -157,7 +171,10 @@ export function pickReviewQueueFilename(
 }
 
 export function isSafeReviewQueueFilename(name: string): boolean {
-  return /^review_queue_\d+\.csv$/.test(name);
+  return (
+    /^review_queue_\d+\.csv$/.test(name) ||
+    /^manual_review_queue_\d+\.csv$/.test(name)
+  );
 }
 
 export { matchingReviewQueue } from "./evalFileMatching";

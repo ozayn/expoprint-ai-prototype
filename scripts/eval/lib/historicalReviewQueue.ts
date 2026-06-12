@@ -16,7 +16,7 @@ import {
 } from "../../../src/lib/evalLocal/brandExtractionParse";
 import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
 import type { LogoCandidate } from "../../../src/lib/analyzeWebsiteResponse";
-import type { ExtractionJsonlRecord } from "./historicalWebsiteExtraction.js";
+import type { ExtractionJsonlRecord } from "../../../src/lib/evalLocal/extractionTypes";
 import { EVAL_RESULTS_DIR, ensureEvalDirs, runTimestampId } from "./paths.js";
 import { escapeCsvCell } from "./urlCandidates.js";
 
@@ -92,12 +92,28 @@ export function excerptText(text: string, max = EXCERPT_MAX): string {
 
 export function timestampFromExtractionRunPath(path: string): string | undefined {
   const name = basename(path);
-  const m = name.match(/^extraction_run_(20\d{12})\.jsonl$/);
+  const m = name.match(
+    /^(?:extraction_run_|manual_extraction_run_)(20\d{12})\.jsonl$/,
+  );
   return m?.[1];
 }
 
+export function isManualExtractionRunPath(path: string): boolean {
+  return /^manual_extraction_run_20\d{12}\.jsonl$/.test(basename(path));
+}
+
 export function isSafeExtractionRunPath(path: string): boolean {
-  return /extraction_run_20\d{12}\.jsonl$/.test(basename(path));
+  return /(?:extraction_run_|manual_extraction_run_)20\d{12}\.jsonl$/.test(
+    basename(path),
+  );
+}
+
+export function reviewQueueFilenameForRunPath(inputPath: string): string {
+  const runTs = timestampFromExtractionRunPath(inputPath) ?? runTimestampId();
+  const prefix = isManualExtractionRunPath(inputPath)
+    ? "manual_review_queue"
+    : "review_queue";
+  return `${prefix}_${runTs}.csv`;
 }
 
 function tokenizeComparable(text: string): Set<string> {
@@ -356,7 +372,7 @@ export function reviewQueueToCsv(rows: ReviewQueueRow[]): string {
 export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildResult {
   if (!isSafeExtractionRunPath(inputPath)) {
     throw new Error(
-      `Expected extraction_run_<timestamp>.jsonl, got: ${basename(inputPath)}`,
+      `Expected extraction_run_<timestamp>.jsonl or manual_extraction_run_<timestamp>.jsonl, got: ${basename(inputPath)}`,
     );
   }
 
@@ -401,8 +417,10 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     hasOfferingsForRow(row),
   ).length;
 
-  const runTs = timestampFromExtractionRunPath(inputPath) ?? runTimestampId();
-  const outputPath = join(EVAL_RESULTS_DIR, `review_queue_${runTs}.csv`);
+  const outputPath = join(
+    EVAL_RESULTS_DIR,
+    reviewQueueFilenameForRunPath(inputPath),
+  );
   writeFileSync(outputPath, reviewQueueToCsv(reviewRows), "utf8");
 
   let successCount = 0;

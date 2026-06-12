@@ -12,7 +12,11 @@ export function matchingExtractionRun<T extends EvalArtifactRef>(
   if (summaryName) {
     const ts = timestampFromEvalArtifact(summaryName);
     if (ts) {
-      const match = runs.find((r) => r.name === `extraction_run_${ts}.jsonl`);
+      const match = runs.find(
+        (r) =>
+          r.name === `extraction_run_${ts}.jsonl` ||
+          r.name === `manual_extraction_run_${ts}.jsonl`,
+      );
       if (match) return match;
     }
   }
@@ -29,7 +33,11 @@ export function matchingReviewQueue<T extends EvalArtifactRef>(
     const m = source.match(/_(20\d{12})\.(csv|jsonl)$/);
     const ts = m?.[1];
     if (ts) {
-      const match = queues.find((q) => q.name === `review_queue_${ts}.csv`);
+      const match = queues.find(
+        (q) =>
+          q.name === `review_queue_${ts}.csv` ||
+          q.name === `manual_review_queue_${ts}.csv`,
+      );
       if (match) return match;
     }
   }

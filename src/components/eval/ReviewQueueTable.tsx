@@ -26,10 +26,9 @@ import {
   productsForRow,
   servicesForRow,
 } from "@/lib/evalLocal/offeringsExtractionParse";
-import {
-  type ReviewQueueAuditColumn,
-  type ReviewQueueRow,
-} from "@/lib/evalLocal/reviewQueueTypes";
+import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import type { ReviewQueueAuditColumn } from "@/lib/evalLocal/reviewQueueTypes";
+import { EvalDetailField } from "./EvalViewerField";
 
 type TableColumn =
   | { kind: "text"; col: ReviewQueueAuditColumn }
@@ -97,7 +96,7 @@ function TextCell({
   row,
 }: {
   col: ReviewQueueAuditColumn;
-  row: ReviewQueueRow;
+  row: BrandAuditRow;
 }) {
   if (col === "domain") {
     return (
@@ -124,10 +123,15 @@ function TextCell({
 
 type Props = {
   filename: string;
-  rows: ReviewQueueRow[];
+  rows: BrandAuditRow[];
+  omitPartnerFields?: boolean;
 };
 
-export function ReviewQueueTable({ filename, rows }: Props) {
+export function ReviewQueueTable({
+  filename,
+  rows,
+  omitPartnerFields = false,
+}: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const colSpan = TABLE_COLUMNS.length + 1; /* expand */
@@ -161,6 +165,7 @@ export function ReviewQueueTable({ filename, rows }: Props) {
                   row={row}
                   expanded={expanded}
                   colSpan={colSpan}
+                  omitPartnerFields={omitPartnerFields}
                   onToggle={() => setExpandedIndex(expanded ? null : i)}
                 />
               );
@@ -182,11 +187,13 @@ function RowGroup({
   row,
   expanded,
   colSpan,
+  omitPartnerFields,
   onToggle,
 }: {
-  row: ReviewQueueRow;
+  row: BrandAuditRow;
   expanded: boolean;
   colSpan: number;
+  omitPartnerFields: boolean;
   onToggle: () => void;
 }) {
   return (
@@ -275,7 +282,7 @@ function RowGroup({
       {expanded ? (
         <tr className="border-b border-zinc-100 bg-zinc-50/40">
           <td colSpan={colSpan} className="px-1 py-5">
-            <ExpandedRowDetails row={row} />
+            <ExpandedRowDetails row={row} omitPartnerFields={omitPartnerFields} />
           </td>
         </tr>
       ) : null}
@@ -283,7 +290,13 @@ function RowGroup({
   );
 }
 
-function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
+function ExpandedRowDetails({
+  row,
+  omitPartnerFields,
+}: {
+  row: BrandAuditRow;
+  omitPartnerFields: boolean;
+}) {
   const hasScores =
     row.business_name_score.trim() ||
     row.category_score.trim() ||
@@ -328,10 +341,26 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
             Historical context
           </h4>
           <dl className="mt-2 space-y-2 text-sm text-zinc-800">
-            <DetailField label="ds number" value={row.ds_number} />
-            <DetailField label="project title" value={row.project_title} />
-            <DetailField label="project type" value={row.project_type} />
-            <DetailField label="shop code" value={row.shop_code} />
+            <EvalDetailField
+              label="ds number"
+              value={row.ds_number}
+              omitted={omitPartnerFields}
+            />
+            <EvalDetailField
+              label="project title"
+              value={row.project_title}
+              omitted={omitPartnerFields}
+            />
+            <EvalDetailField
+              label="project type"
+              value={row.project_type}
+              omitted={omitPartnerFields && !row.project_type.trim()}
+            />
+            <EvalDetailField
+              label="shop code"
+              value={row.shop_code}
+              omitted={omitPartnerFields}
+            />
             <EvalUrlDetailField label="normalized url" value={row.normalized_url} row={row} />
           </dl>
         </div>
@@ -341,10 +370,10 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
             Technical
           </h4>
           <dl className="mt-2 space-y-2 text-sm text-zinc-800">
-            <DetailField label="pages inspected" value={row.pages_inspected} />
-            <DetailField label="provider / model" value={providerModel} />
-            <DetailField label="elapsed ms" value={row.elapsed_ms} />
-            <DetailField label="error" value={row.error_message} />
+            <EvalDetailField label="pages inspected" value={row.pages_inspected} />
+            <EvalDetailField label="provider / model" value={providerModel} />
+            <EvalDetailField label="elapsed ms" value={row.elapsed_ms} />
+            <EvalDetailField label="error" value={row.error_message} />
           </dl>
         </div>
 
@@ -354,9 +383,9 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
               Identity
             </h4>
             <dl className="mt-2 space-y-2 text-sm text-zinc-800">
-              <DetailField label="category" value={row.extracted_business_category} />
-              <DetailField label="summary" value={row.extracted_summary} />
-              <DetailField label="tagline" value={row.extracted_tagline} />
+              <EvalDetailField label="category" value={row.extracted_business_category} />
+              <EvalDetailField label="summary" value={row.extracted_summary} />
+              <EvalDetailField label="tagline" value={row.extracted_tagline} />
             </dl>
           </div>
         ) : null}
@@ -499,7 +528,7 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
               <p className="mb-2 text-[11px] text-zinc-400">Colors</p>
               <ColorSwatchRow row={row} />
             </div>
-            <DetailField
+            <EvalDetailField
               label="extracted color hexes"
               value={row.extracted_color_hexes}
               mono
@@ -514,12 +543,12 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
         </summary>
         {hasScores ? (
           <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="business name score" value={row.business_name_score} />
-            <DetailField label="category score" value={row.category_score} />
-            <DetailField label="logo score" value={row.logo_score} />
-            <DetailField label="brief score" value={row.brief_score} />
-            <DetailField label="overall score" value={row.overall_score} />
-            <DetailField label="reviewer notes" value={row.reviewer_notes} />
+            <EvalDetailField label="business name score" value={row.business_name_score} />
+            <EvalDetailField label="category score" value={row.category_score} />
+            <EvalDetailField label="logo score" value={row.logo_score} />
+            <EvalDetailField label="brief score" value={row.brief_score} />
+            <EvalDetailField label="overall score" value={row.overall_score} />
+            <EvalDetailField label="reviewer notes" value={row.reviewer_notes} />
           </dl>
         ) : (
           <p className="mt-2 text-xs text-zinc-500">
@@ -531,21 +560,3 @@ function ExpandedRowDetails({ row }: { row: ReviewQueueRow }) {
   );
 }
 
-function DetailField({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  const v = value.trim();
-  if (!v) return null;
-  return (
-    <div>
-      <dt className="text-[11px] text-zinc-400">{label}</dt>
-      <dd className={`mt-0.5 break-all ${mono ? "font-mono text-xs" : ""}`}>{v}</dd>
-    </div>
-  );
-}
