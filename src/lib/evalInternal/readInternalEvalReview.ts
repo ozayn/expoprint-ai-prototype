@@ -1,15 +1,22 @@
 import { access, readFile } from "node:fs/promises";
 import { normalizeBrandAuditRows } from "@/lib/evalLocal/brandAuditRow";
 import type {
-  InternalEvalReviewPayload,
+  InternalEvalDatasetPayload,
+  InternalEvalUrlInventoryPayload,
   PublishedInternalEvalFile,
 } from "@/lib/evalLocal/publishedInternalEvalTypes";
 import {
   INTERNAL_EVAL_REVIEW_FILENAME,
   INTERNAL_EVAL_REVIEW_PATH,
+  INTERNAL_EVAL_URL_INVENTORY_FILENAME,
+  INTERNAL_EVAL_URL_INVENTORY_PATH,
   PUBLIC_SAMPLE_REVIEW_FILENAME,
   PUBLIC_SAMPLE_REVIEW_PATH,
 } from "./constants";
+import {
+  parsePublishedUrlInventoryFile,
+  publishedUrlInventoryRowsToUrlInventoryRows,
+} from "./publishedUrlInventory";
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -20,7 +27,7 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-function parsePublishedFile(
+function parsePublishedReviewFile(
   raw: string,
   filename: string,
 ): PublishedInternalEvalFile {
@@ -57,7 +64,7 @@ async function readReviewJsonFile(path: string, filename: string): Promise<{
   filename: string;
 }> {
   const raw = await readFile(path, "utf8");
-  const file = parsePublishedFile(raw, filename);
+  const file = parsePublishedReviewFile(raw, filename);
   return { file, filename };
 }
 
@@ -66,7 +73,9 @@ async function readReviewJsonFile(path: string, filename: string): Promise<{
  * Prefers data/eval/public/internal-eval-review.json, then public-sample-review.json.
  * Never reads data/eval/results, runs/, or data/private/.
  */
-export async function readInternalEvalReview(): Promise<InternalEvalReviewPayload> {
+export async function readInternalEvalReview(): Promise<
+  InternalEvalDatasetPayload["review"]
+> {
   if (await pathExists(INTERNAL_EVAL_REVIEW_PATH)) {
     const { file, filename } = await readReviewJsonFile(
       INTERNAL_EVAL_REVIEW_PATH,
@@ -94,4 +103,50 @@ export async function readInternalEvalReview(): Promise<InternalEvalReviewPayloa
     publishedAt: file.published_at || undefined,
     sourceReviewQueue: file.source_review_queue || undefined,
   };
+}
+
+/**
+ * Reads optional published URL inventory for /internal/eval.
+ * Only reads data/eval/public/internal-eval-url-inventory.json when present.
+ */
+export async function readInternalEvalUrlInventory(): Promise<
+  InternalEvalUrlInventoryPayload | null
+> {
+  if (!(await pathExists(INTERNAL_EVAL_URL_INVENTORY_PATH))) {
+    return null;
+  }
+
+  const raw = await readFile(INTERNAL_EVAL_URL_INVENTORY_PATH, "utf8");
+  const file = parsePublishedUrlInventoryFile(
+    raw,
+    INTERNAL_EVAL_URL_INVENTORY_FILENAME,
+  );
+
+  return {
+    filename: INTERNAL_EVAL_URL_INVENTORY_FILENAME,
+    rows: file.rows,
+    publishedAt: file.published_at,
+    sourceUrlCandidates: file.source_url_candidates,
+    sourceReviewQueue: file.source_review_queue,
+    includeDomains: file.include_domains,
+    includeProjectContext: file.include_project_context,
+    includeLogoUrls: file.include_logo_urls,
+  };
+}
+
+export async function readInternalEvalDataset(): Promise<InternalEvalDatasetPayload> {
+  const review = await readInternalEvalReview();
+  const inventoryPayload = await readInternalEvalUrlInventory();
+
+  return {
+    review,
+    urlInventory: inventoryPayload,
+  };
+}
+
+/** Map published inventory JSON rows to viewer table rows. */
+export function urlInventoryPayloadToViewerRows(
+  payload: InternalEvalUrlInventoryPayload,
+) {
+  return publishedUrlInventoryRowsToUrlInventoryRows(payload.rows);
 }

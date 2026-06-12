@@ -9,6 +9,7 @@ ALLOWED=(
   "data/eval/metabase_sample.example.csv"
   "data/eval/public-sample-review.json"
   "data/eval/public/internal-eval-review.json"
+  "data/eval/public/internal-eval-url-inventory.json"
   "data/eval/public/.gitkeep"
   "data/eval/.gitkeep"
   "data/eval/runs/.gitkeep"

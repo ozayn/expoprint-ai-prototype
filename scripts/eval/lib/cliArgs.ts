@@ -4,6 +4,7 @@ export const CLI_FLAGS_WITH_VALUE = [
   "--offset",
   "--delay-ms",
   "--api-url",
+  "--url-candidates",
 ] as const;
 
 export function getArg(flag: string, argv: string[] = process.argv): string | undefined {

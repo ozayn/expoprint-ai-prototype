@@ -148,7 +148,48 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 
 ### Publish sanitized data for `/internal/eval`
 
-After building a local review queue, publish an explicit sanitized JSON artifact for the deployed viewer:
+After building local review queues, publish an explicit sanitized JSON artifact for the deployed viewer.
+
+**Recommended — combine all batches and publish review rows only:**
+
+```bash
+npm run eval:publish-latest-internal
+```
+
+This command:
+
+1. Merges every `review_queue_<timestamp>.csv` batch into `review_queue_combined_<timestamp>.csv` (deduped by URL, newest wins).
+2. Publishes that combined file to `data/eval/public/internal-eval-review.json` using the same sanitization as `eval:publish-internal`.
+3. Defaults to `--include-domains` and includes logo URLs.
+4. Runs `npm run check:partner-data` and prints a summary (combined path, row counts, logos/palettes/emails/phones/products counts).
+5. Does **not** commit or push — you must inspect, commit, and push manually.
+
+**Optional — also publish sanitized URL inventory for the All URLs tab:**
+
+```bash
+npm run eval:publish-latest-internal -- --include-url-inventory --include-domains
+```
+
+When `--include-url-inventory` is passed:
+
+- Reads the largest real `url_candidates_*.csv` (same default as `/dev/eval`), or `--url-candidates <file>` to override.
+- Joins candidates with the published review rows by URL/domain.
+- Writes `data/eval/public/internal-eval-url-inventory.json` (sanitized — no `ds_id`, requirement excerpts, or raw database text).
+- `/internal/eval` shows the All URLs section only when this file exists in `data/eval/public/`.
+
+**Warning:** publishing URL inventory exposes a list of source domains/URLs to anyone with the `/internal/eval` password. Omit `--include-url-inventory` unless you intend to share that list.
+
+```bash
+open data/eval/public/internal-eval-review.json
+git add data/eval/public/internal-eval-review.json
+# if inventory was published:
+open data/eval/public/internal-eval-url-inventory.json
+git add data/eval/public/internal-eval-url-inventory.json
+git commit -m "Update internal eval dataset"
+git push
+```
+
+**Manual publish** — when you want a specific review queue file (single batch or an existing combined file):
 
 ```bash
 npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv --include-domains
@@ -156,21 +197,17 @@ npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv 
 
 Writes `data/eval/public/internal-eval-review.json` with domains, extracted brand fields, logo URLs (optional), and colors — **no** `ds_id`, requirement excerpts, shop codes, or URL paths/queries.
 
-| Flag | Default | Purpose |
+| Command / flag | Default | Purpose |
 | --- | --- | --- |
-| `--include-domains` | off | Show canonical domains; otherwise rows are labeled `Site 1`, `Site 2`, … |
+| `eval:publish-latest-internal` | — | Combine all batches + publish review rows (domains on by default) |
+| `--include-url-inventory` | off | Also publish sanitized URL inventory JSON |
+| `--include-project-context` | off | Include project titles in inventory |
+| `--url-candidates <file>` | largest real file | Override url_candidates CSV for inventory |
+| `--no-include-domains` | off | Site N / URL N labels instead of domains |
+| `eval:publish-internal --include-domains` | off | Show canonical domains on manual publish |
 | `--no-include-logo-urls` | off | Omit logo URLs; keep logo counts only |
 
-**Review the JSON before commit.** This creates a deployable artifact. `npm run check:partner-data` allowlists only `data/eval/public/internal-eval-review.json` (not raw CSV/JSONL).
-
-Example workflow:
-
-```bash
-npm run eval:publish-internal -- data/eval/results/review_queue_20260605212708.csv --include-domains
-open data/eval/public/internal-eval-review.json
-git add data/eval/public/internal-eval-review.json
-git commit -m "Publish sanitized internal eval sample"
-```
+**Review the JSON before commit.** This creates deployable artifacts. `npm run check:partner-data` allowlists only `data/eval/public/internal-eval-review.json` and `data/eval/public/internal-eval-url-inventory.json` (not raw CSV/JSONL).
 
 If no published file exists, `/internal/eval` falls back to `data/eval/public-sample-review.json`.
 
@@ -184,6 +221,7 @@ If no published file exists, `/internal/eval` falls back to `data/eval/public-sa
 | `data/eval/results/` | `.gitkeep` only | URL candidates, extraction summaries, review queues |
 | `data/eval/public-sample-review.json` | Yes | Built-in sample fallback for `/internal/eval` |
 | `data/eval/public/internal-eval-review.json` | Yes (after publish) | Sanitized published rows for `/internal/eval` |
+| `data/eval/public/internal-eval-url-inventory.json` | Yes (optional publish) | Sanitized URL inventory for `/internal/eval` All URLs tab |
 
 Never commit partner CSVs, run outputs, or `*.local.csv` files.
 

@@ -75,6 +75,33 @@ See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/h
 
 ### Publish for deployed viewer
 
+**One command (recommended)** — combine all local batch review queues and publish sanitized JSON for `/internal/eval`:
+
+```bash
+npm run eval:publish-latest-internal
+```
+
+This runs `eval:combine-reviews`, publishes the new `review_queue_combined_<timestamp>.csv` with domains included by default, writes `data/eval/public/internal-eval-review.json`, and runs `check:partner-data`. It does **not** commit or push.
+
+**Review rows + URL inventory** (optional — exposes the full candidate URL list to anyone with the `/internal/eval` password):
+
+```bash
+npm run eval:publish-latest-internal -- --include-url-inventory --include-domains
+```
+
+Also writes `data/eval/public/internal-eval-url-inventory.json` for the All URLs tab. Omit `--include-url-inventory` by default so URL lists are not published accidentally.
+
+```bash
+open data/eval/public/internal-eval-review.json
+git add data/eval/public/internal-eval-review.json
+# if you published inventory:
+git add data/eval/public/internal-eval-url-inventory.json
+git commit -m "Update internal eval dataset"
+git push
+```
+
+**Manual publish** — when you want a specific review queue file instead of the latest combined merge:
+
 ```bash
 npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv --include-domains
 ```

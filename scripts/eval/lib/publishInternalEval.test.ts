@@ -5,6 +5,8 @@ import {
   displayUrlHostOnly,
   sanitizeReviewQueueRecord,
 } from "../../../src/lib/evalInternal/sanitizePublishedReview";
+import { buildPublishedUrlInventoryFile } from "../../../src/lib/evalInternal/sanitizePublishedUrlInventory";
+import { publishedUrlInventoryRowToUrlInventoryRow } from "../../../src/lib/evalInternal/publishedUrlInventory";
 
 function testDisplayUrlHostOnly(): void {
   assert.equal(
@@ -113,12 +115,92 @@ function testBuildFile(): void {
   assert.equal(file.rows.length, 1);
 }
 
+function testPublishedUrlInventoryOmitsPartnerFields(): void {
+  const publishedReview = sanitizeReviewQueueRecord(
+    {
+      domain: "client.com",
+      canonical_domain: "client.com",
+      normalized_url: "https://client.com/private",
+      status: "success",
+      extracted_business_name: "Client Co",
+      ds_id: "secret",
+      project_title: "Secret booth",
+    },
+    0,
+    { includeDomains: true, includeLogoUrls: true },
+  );
+
+  const { file, stats } = buildPublishedUrlInventoryFile(
+    "url_candidates_20260604201906.csv",
+    "review_queue_combined_20260612200905356.csv",
+    [
+      {
+        ds_id: "secret-id",
+        ds_number: "DS-1",
+        project_id: "proj-1",
+        project_title: "Booth graphics",
+        project_status: "open",
+        project_type: "booth",
+        turnaround_type: "",
+        shop_code: "shop-1",
+        source_column: "first_req_description",
+        raw_url: "https://client.com/page",
+        normalized_url: "https://client.com/page?q=1",
+        domain: "client.com",
+        canonical_domain: "client.com",
+        first_req_description: "Customer wants a booth",
+        first_req_note: "urgent",
+      },
+      {
+        ds_id: "other",
+        ds_number: "DS-2",
+        project_id: "proj-2",
+        project_title: "Other",
+        project_status: "open",
+        project_type: "outdoor",
+        turnaround_type: "",
+        shop_code: "shop-2",
+        source_column: "website_url",
+        raw_url: "https://other.com",
+        normalized_url: "https://other.com",
+        domain: "other.com",
+        canonical_domain: "other.com",
+        first_req_description: "",
+        first_req_note: "",
+      },
+    ],
+    [publishedReview],
+    {
+      includeDomains: true,
+      includeProjectContext: false,
+      includeLogoUrls: true,
+    },
+  );
+
+  assert.equal(stats.rowsPublished, 2);
+  assert.equal(stats.matchedCount, 1);
+  assert.equal(stats.notRunCount, 1);
+  assert.equal(file.include_domains, true);
+  assert.equal(file.rows[0].canonical_domain, "client.com");
+  assert.equal(file.rows[0].normalized_url, "https://client.com");
+  assert.equal(file.rows[0].review?.extracted_business_name, "Client Co");
+  assert.equal(file.rows[0].review?.ds_id, "");
+  assert.equal(file.rows[0].project_title, undefined);
+  assert.equal(file.rows[1].extraction_status, "not_run");
+  assert.equal(file.rows[1].review, null);
+
+  const viewerRow = publishedUrlInventoryRowToUrlInventoryRow(file.rows[0]);
+  assert.equal(viewerRow.candidate.ds_id, "");
+  assert.equal(viewerRow.extractionStatus, "success");
+}
+
 function run(): void {
   testDisplayUrlHostOnly();
   testSanitizeOmitsPartnerFields();
   testSanitizeAnonymizedLabels();
   testSanitizeContactAndOfferings();
   testBuildFile();
+  testPublishedUrlInventoryOmitsPartnerFields();
   console.log("publishInternalEval.test.ts: all checks passed");
 }
 

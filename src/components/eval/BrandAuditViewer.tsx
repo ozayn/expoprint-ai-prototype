@@ -33,6 +33,9 @@ export type BrandAuditViewerProps = {
   dataSourceLabel?: string;
   publishedAt?: string;
   sourceReviewQueue?: string;
+  sourceUrlCandidates?: string;
+  reviewRowCount?: number;
+  urlInventoryRowCount?: number;
   publishHint?: string;
   dataKind?: EvalViewerDataKind;
   headerAction?: ReactNode;
@@ -59,6 +62,9 @@ export function BrandAuditViewer({
   dataSourceLabel,
   publishedAt,
   sourceReviewQueue,
+  sourceUrlCandidates,
+  reviewRowCount,
+  urlInventoryRowCount,
   publishHint,
   dataKind = "local",
   headerAction,
@@ -113,8 +119,20 @@ export function BrandAuditViewer({
               ) : null}
               {sourceReviewQueue ? (
                 <p className="mt-1 text-[11px] text-zinc-400">
-                  Published from{" "}
+                  Review source{" "}
                   <span className="font-mono">{sourceReviewQueue}</span>
+                  {reviewRowCount !== undefined
+                    ? ` · ${reviewRowCount.toLocaleString()} rows`
+                    : null}
+                </p>
+              ) : null}
+              {sourceUrlCandidates ? (
+                <p className="mt-1 text-[11px] text-zinc-400">
+                  URL inventory source{" "}
+                  <span className="font-mono">{sourceUrlCandidates}</span>
+                  {urlInventoryRowCount !== undefined
+                    ? ` · ${urlInventoryRowCount.toLocaleString()} URLs`
+                    : null}
                 </p>
               ) : null}
               {publishedAt ? (
@@ -184,6 +202,7 @@ export function BrandAuditViewer({
           dataKind={dataKind}
           urlInventoryFilename={urlInventoryFilename}
           urlInventoryRows={urlInventoryRows}
+          omitPartnerFields={dataKind !== "local"}
         />
 
         {children}

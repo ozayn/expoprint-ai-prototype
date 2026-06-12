@@ -8,7 +8,12 @@ import {
   isEvalViewerAuthenticated,
   isEvalViewerConfiguredInProduction,
 } from "@/lib/evalInternal/auth";
-import { readInternalEvalReview } from "@/lib/evalInternal/readInternalEvalReview";
+import { computeUrlInventoryStats } from "@/lib/evalLocal/urlInventoryJoin";
+import {
+  readInternalEvalDataset,
+  urlInventoryPayloadToViewerRows,
+} from "@/lib/evalInternal/readInternalEvalReview";
+import { InternalEvalInternalsPanel } from "@/components/eval/InternalEvalInternalsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +57,16 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
     return <InternalEvalLogin />;
   }
 
-  const reviewData = await readInternalEvalReview();
+  const dataset = await readInternalEvalDataset();
+  const reviewData = dataset.review;
+  const urlInventoryPayload = dataset.urlInventory;
+  const urlInventoryRows = urlInventoryPayload
+    ? urlInventoryPayloadToViewerRows(urlInventoryPayload)
+    : undefined;
+  const inventoryStats = urlInventoryRows
+    ? computeUrlInventoryStats(urlInventoryRows)
+    : undefined;
+
   const deployedNote =
     reviewData.source === "published"
       ? "Published sanitized evaluation data. Raw partner files remain local."
@@ -71,11 +85,28 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
       sourceReviewQueue={
         reviewData.source === "published" ? reviewData.sourceReviewQueue : undefined
       }
+      sourceUrlCandidates={urlInventoryPayload?.sourceUrlCandidates}
+      reviewRowCount={reviewData.rows.length}
+      urlInventoryRowCount={urlInventoryRows?.length}
       dataKind={reviewData.source}
       headerAction={password ? <InternalEvalLogout /> : undefined}
       reviewFilename={reviewData.filename}
       rows={reviewData.rows}
+      urlInventoryFilename={
+        urlInventoryPayload ? urlInventoryPayload.filename : undefined
+      }
+      urlInventoryRows={urlInventoryRows}
+      inventoryStats={inventoryStats}
       emptyMessage="Sample review fixture has no rows."
-    />
+    >
+      <InternalEvalInternalsPanel
+        reviewRowCount={reviewData.rows.length}
+        urlInventoryRowCount={urlInventoryRows?.length}
+        urlInventoryIncluded={Boolean(urlInventoryPayload)}
+        sourceReviewQueue={reviewData.sourceReviewQueue}
+        sourceUrlCandidates={urlInventoryPayload?.sourceUrlCandidates}
+        publishedAt={reviewData.publishedAt ?? urlInventoryPayload?.publishedAt}
+      />
+    </BrandAuditViewer>
   );
 }

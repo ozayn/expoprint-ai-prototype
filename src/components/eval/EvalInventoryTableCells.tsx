@@ -115,17 +115,27 @@ function candidateFieldForColumn(
   }
 }
 
+const PARTNER_CANDIDATE_COLUMNS: EvalTableColumnId[] = [
+  "ds_number",
+  "shop_code",
+];
+
 export function EvalInventoryTableColumnCell({
   columnId,
   candidate,
   review,
   extractionStatus,
+  omitPartnerFields = false,
 }: {
   columnId: EvalTableColumnId;
   candidate: UrlCandidateRow;
   review: BrandAuditRow | null | undefined;
   extractionStatus: UrlInventoryExtractionStatus;
+  omitPartnerFields?: boolean;
 }) {
+  if (omitPartnerFields && PARTNER_CANDIDATE_COLUMNS.includes(columnId)) {
+    return <span className="text-zinc-400">—</span>;
+  }
   if (columnId === "domain") {
     return <CandidateSourceLink candidate={candidate} stopPropagation />;
   }

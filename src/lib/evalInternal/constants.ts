@@ -24,3 +24,12 @@ export const INTERNAL_EVAL_REVIEW_PATH = join(
   INTERNAL_EVAL_PUBLIC_DIR,
   INTERNAL_EVAL_REVIEW_FILENAME,
 );
+
+/** Optional published URL inventory for /internal/eval All URLs tab. */
+export const INTERNAL_EVAL_URL_INVENTORY_FILENAME =
+  "internal-eval-url-inventory.json";
+
+export const INTERNAL_EVAL_URL_INVENTORY_PATH = join(
+  INTERNAL_EVAL_PUBLIC_DIR,
+  INTERNAL_EVAL_URL_INVENTORY_FILENAME,
+);

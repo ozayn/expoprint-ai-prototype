@@ -27,7 +27,10 @@ import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
 
 const PAGE_SIZE = 200;
 
-function searchHaystackForRow(row: UrlInventoryRow): string {
+function searchHaystackForRow(
+  row: UrlInventoryRow,
+  omitPartnerFields = false,
+): string {
   const candidate = row.candidate;
   const review = row.review;
   return [
@@ -36,8 +39,8 @@ function searchHaystackForRow(row: UrlInventoryRow): string {
     candidate.normalized_url,
     candidate.project_title,
     candidate.project_type,
-    candidate.ds_number,
-    candidate.shop_code,
+    omitPartnerFields ? "" : candidate.ds_number,
+    omitPartnerFields ? "" : candidate.shop_code,
     review?.extracted_business_name,
   ]
     .map((v) => (v ?? "").toLowerCase())
@@ -48,7 +51,13 @@ function formatResultCount(visibleCount: number, filteredCount: number): string 
   return `Showing ${visibleCount.toLocaleString()} of ${filteredCount.toLocaleString()} URLs`;
 }
 
-function CandidateExpandedDetails({ candidate }: { candidate: UrlCandidateRow }) {
+function CandidateExpandedDetails({
+  candidate,
+  omitPartnerFields = false,
+}: {
+  candidate: UrlCandidateRow;
+  omitPartnerFields?: boolean;
+}) {
   const descExcerpt = excerptText(candidate.first_req_description ?? "");
   const noteExcerpt = excerptText(candidate.first_req_note ?? "");
 
@@ -56,21 +65,37 @@ function CandidateExpandedDetails({ candidate }: { candidate: UrlCandidateRow })
     <div className="space-y-6">
       <div>
         <h4 className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-          Historical context
+          {omitPartnerFields ? "URL context" : "Historical context"}
         </h4>
         <dl className="mt-2 space-y-2 text-sm text-zinc-800">
-          <EvalDetailField label="ds number" value={candidate.ds_number} />
-          <EvalDetailField label="project title" value={candidate.project_title} />
-          <EvalDetailField label="project type" value={candidate.project_type} />
-          <EvalDetailField label="shop code" value={candidate.shop_code} />
-          <EvalDetailField label="source column" value={candidate.source_column} />
-          <EvalDetailField label="normalized url" value={candidate.normalized_url} mono />
-          <EvalDetailField label="domain" value={candidate.domain} />
-          <EvalDetailField label="canonical domain" value={candidate.canonical_domain} />
-          {descExcerpt ? (
+          {!omitPartnerFields ? (
+            <EvalDetailField label="ds number" value={candidate.ds_number} />
+          ) : null}
+          {candidate.project_title ? (
+            <EvalDetailField label="project title" value={candidate.project_title} />
+          ) : null}
+          {candidate.project_type ? (
+            <EvalDetailField label="project type" value={candidate.project_type} />
+          ) : null}
+          {!omitPartnerFields ? (
+            <EvalDetailField label="shop code" value={candidate.shop_code} />
+          ) : null}
+          {candidate.source_column ? (
+            <EvalDetailField label="source column" value={candidate.source_column} />
+          ) : null}
+          {candidate.normalized_url ? (
+            <EvalDetailField label="normalized url" value={candidate.normalized_url} mono />
+          ) : null}
+          {candidate.domain ? (
+            <EvalDetailField label="domain" value={candidate.domain} />
+          ) : null}
+          {candidate.canonical_domain ? (
+            <EvalDetailField label="canonical domain" value={candidate.canonical_domain} />
+          ) : null}
+          {!omitPartnerFields && descExcerpt ? (
             <EvalDetailField label="first req description" value={descExcerpt} />
           ) : null}
-          {noteExcerpt ? (
+          {!omitPartnerFields && noteExcerpt ? (
             <EvalDetailField label="first req note" value={noteExcerpt} />
           ) : null}
         </dl>
@@ -85,9 +110,14 @@ function CandidateExpandedDetails({ candidate }: { candidate: UrlCandidateRow })
 type Props = {
   filename?: string;
   rows: UrlInventoryRow[];
+  omitPartnerFields?: boolean;
 };
 
-export function UrlInventoryTable({ filename, rows }: Props) {
+export function UrlInventoryTable({
+  filename,
+  rows,
+  omitPartnerFields = false,
+}: Props) {
   const {
     search,
     statusFilter,
@@ -116,7 +146,7 @@ export function UrlInventoryTable({ filename, rows }: Props) {
       if (statusFilter !== "all" && row.extractionStatus !== statusFilter) {
         return false;
       }
-      if (!matchesSearchQuery(searchHaystackForRow(row), search)) {
+      if (!matchesSearchQuery(searchHaystackForRow(row, omitPartnerFields), search)) {
         return false;
       }
       if (
@@ -128,7 +158,7 @@ export function UrlInventoryTable({ filename, rows }: Props) {
       }
       return true;
     });
-  }, [rows, statusFilter, search, fieldFilters]);
+  }, [rows, statusFilter, search, fieldFilters, omitPartnerFields]);
 
   const successfulInFiltered = filtered.filter(
     (r) => r.extractionStatus === "success",
@@ -146,7 +176,9 @@ export function UrlInventoryTable({ filename, rows }: Props) {
   if (rows.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-zinc-500">
-        No URL candidates file loaded. Run npm run eval:urls on a Metabase export.
+        {omitPartnerFields
+          ? "No published URL inventory in this dataset."
+          : "No URL candidates file loaded. Run npm run eval:urls on a Metabase export."}
       </p>
     );
   }
@@ -219,6 +251,7 @@ export function UrlInventoryTable({ filename, rows }: Props) {
                           candidate={candidate}
                           review={review}
                           extractionStatus={row.extractionStatus}
+                          omitPartnerFields={omitPartnerFields}
                         />
                       </td>
                     ))}
@@ -227,9 +260,15 @@ export function UrlInventoryTable({ filename, rows }: Props) {
                     <tr className="border-b border-zinc-100 bg-zinc-50/40">
                       <td colSpan={colSpan} className="px-1 py-5">
                         {review ? (
-                          <ExpandedRowDetails row={review} omitPartnerFields={false} />
+                          <ExpandedRowDetails
+                            row={review}
+                            omitPartnerFields={omitPartnerFields}
+                          />
                         ) : (
-                          <CandidateExpandedDetails candidate={candidate} />
+                          <CandidateExpandedDetails
+                            candidate={candidate}
+                            omitPartnerFields={omitPartnerFields}
+                          />
                         )}
                       </td>
                     </tr>
