@@ -16,6 +16,10 @@ import { EvalExternalLink, EvalSourceLink } from "./EvalExternalLink";
 import { safeHttpHref } from "@/lib/evalLocal/evalRowUrl";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { EvalTableColumnId } from "@/lib/evalLocal/evalTableColumns";
+import {
+  EVAL_TABLE_CLAMP_2_CLASS,
+  EVAL_TABLE_TRUNCATE_CLASS,
+} from "./evalTableLayout";
 
 function isErrorStatus(status: string): boolean {
   return (
@@ -49,17 +53,17 @@ export function ReviewStatusPill({ status }: { status: string }) {
 
 function TextFieldCell({
   value,
-  truncate,
+  maxLines = 1,
 }: {
   value: string;
-  truncate?: number;
+  maxLines?: 1 | 2;
 }) {
   const v = value.trim();
-  const display =
-    truncate && v.length > truncate ? `${v.slice(0, truncate - 1)}…` : v;
+  const className =
+    maxLines === 2 ? EVAL_TABLE_CLAMP_2_CLASS : EVAL_TABLE_TRUNCATE_CLASS;
   return (
-    <span className="text-zinc-800" title={v || undefined}>
-      {display || "—"}
+    <span className={`${className} text-zinc-800`} title={v || undefined}>
+      {v || "—"}
     </span>
   );
 }
@@ -70,23 +74,6 @@ function ProviderModelCell({ row }: { row: BrandAuditRow }) {
     .filter(Boolean)
     .join(" · ");
   return <TextFieldCell value={value} />;
-}
-
-export function evalReviewTableCellClass(columnId: EvalTableColumnId): string {
-  const wide: EvalTableColumnId[] = [
-    "normalized_url",
-    "project_title",
-    "extracted_summary",
-    "address",
-    "offerings",
-    "error_message",
-  ];
-  const narrow: EvalTableColumnId[] = ["logos"];
-  if (narrow.includes(columnId)) return "max-w-[7rem] py-2 pr-3 align-middle";
-  if (wide.includes(columnId)) {
-    return "max-w-[12rem] py-2 pr-3 whitespace-normal break-words align-middle";
-  }
-  return "max-w-[10rem] py-2 pr-3 align-middle";
 }
 
 export function EvalReviewTableColumnCell({
@@ -101,22 +88,25 @@ export function EvalReviewTableColumnCell({
       return (
         <EvalSourceLink
           row={row}
-          className="text-[12px] text-zinc-700"
+          className={`${EVAL_TABLE_TRUNCATE_CLASS} text-[12px] text-zinc-700`}
           mono
           stopPropagation
         />
       );
-    case "normalized_url":
+    case "normalized_url": {
+      const normalizedUrl = row.normalized_url?.trim() || "—";
       return (
         <EvalExternalLink
           href={safeHttpHref(row.normalized_url ?? "")}
-          className="text-xs text-zinc-600"
+          className={`${EVAL_TABLE_TRUNCATE_CLASS} text-xs text-zinc-600`}
           mono
           stopPropagation
+          title={normalizedUrl !== "—" ? normalizedUrl : undefined}
         >
-          {row.normalized_url?.trim() || "—"}
+          {normalizedUrl}
         </EvalExternalLink>
       );
+    }
     case "ds_number":
       return <TextFieldCell value={row.ds_number} />;
     case "project_title":
@@ -128,20 +118,24 @@ export function EvalReviewTableColumnCell({
     case "source_column":
       return <TextFieldCell value={row.source_column} />;
     case "extracted_business_name":
-      return <TextFieldCell value={row.extracted_business_name} />;
+      return <TextFieldCell value={row.extracted_business_name} maxLines={2} />;
     case "logos":
       return (
-        <LogoThumbnailRow
-          row={row}
-          max={3}
-          showExtraCount
-          size="sm"
-          emptyLabel="No logo"
-        />
+        <div className="min-w-0 max-w-full overflow-hidden">
+          <LogoThumbnailRow
+            row={row}
+            max={2}
+            showExtraCount
+            size="sm"
+            emptyLabel="No logo"
+          />
+        </div>
       );
     case "colors":
       return (
-        <ColorSwatchRow row={row} max={5} compact emptyLabel="No palette" />
+        <div className="min-w-0 max-w-full overflow-hidden">
+          <ColorSwatchRow row={row} max={4} compact emptyLabel="No palette" />
+        </div>
       );
     case "emails":
       return <EmailListCell row={row} />;
@@ -156,7 +150,7 @@ export function EvalReviewTableColumnCell({
     case "offerings":
       return <OfferingsListCell row={row} />;
     case "extracted_summary":
-      return <TextFieldCell value={row.extracted_summary} truncate={80} />;
+      return <TextFieldCell value={row.extracted_summary} maxLines={2} />;
     case "status":
       return <ReviewStatusPill status={row.status ?? ""} />;
     case "pages_inspected":
@@ -166,7 +160,7 @@ export function EvalReviewTableColumnCell({
     case "provider_model":
       return <ProviderModelCell row={row} />;
     case "error_message":
-      return <TextFieldCell value={row.error_message} truncate={80} />;
+      return <TextFieldCell value={row.error_message} maxLines={2} />;
     default:
       return <span className="text-zinc-400">—</span>;
   }

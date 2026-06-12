@@ -11,6 +11,7 @@ import {
 } from "@/lib/evalLocal/contactExtractionParse";
 import { offeringsForRow } from "@/lib/evalLocal/offeringsExtractionParse";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import { EVAL_TABLE_CLAMP_3_CLASS, EVAL_TABLE_TRUNCATE_CLASS } from "./evalTableLayout";
 
 const LINK_CLASS =
   "text-inherit decoration-transparent hover:underline hover:decoration-zinc-300 underline-offset-2";
@@ -37,12 +38,13 @@ export function EmailListCell({
   const extra = emails.length - shown.length;
 
   return (
-    <div className="flex flex-col gap-0.5 text-[11px]">
+    <div className="flex min-w-0 flex-col gap-0.5 text-[11px]">
       {shown.map((email) => (
         <a
           key={email}
           href={`mailto:${email}`}
-          className={`font-mono text-zinc-700 ${LINK_CLASS}`}
+          className={`${EVAL_TABLE_TRUNCATE_CLASS} font-mono text-zinc-700 ${LINK_CLASS}`}
+          title={email}
           onClick={stopRowExpand}
         >
           {email}
@@ -73,7 +75,7 @@ export function PhoneListCell({
   const extra = phones.length - shown.length;
 
   return (
-    <div className="flex flex-col gap-0.5 text-[11px]">
+    <div className="flex min-w-0 flex-col gap-0.5 text-[11px]">
       {shown.map((phone) => {
         const tel = safeTelHref(phone);
         if (tel) {
@@ -81,7 +83,8 @@ export function PhoneListCell({
             <a
               key={phone}
               href={tel}
-              className={`text-zinc-700 ${LINK_CLASS}`}
+              className={`${EVAL_TABLE_TRUNCATE_CLASS} text-zinc-700 ${LINK_CLASS}`}
+              title={phone}
               onClick={stopRowExpand}
             >
               {phone}
@@ -89,7 +92,13 @@ export function PhoneListCell({
           );
         }
         return (
-          <span key={phone} className="text-zinc-700">{phone}</span>
+          <span
+            key={phone}
+            className={`${EVAL_TABLE_TRUNCATE_CLASS} text-zinc-700`}
+            title={phone}
+          >
+            {phone}
+          </span>
         );
       })}
       {extra > 0 ? (
@@ -155,9 +164,9 @@ export function OfferingsListCell({
   const extra = items.length - shown.length;
 
   return (
-    <div className="flex flex-col gap-0.5 text-[11px] text-zinc-700">
+    <div className={`flex min-w-0 flex-col gap-0.5 text-[11px] text-zinc-700 ${EVAL_TABLE_CLAMP_3_CLASS}`}>
       {shown.map((item) => (
-        <span key={item} className="truncate" title={item}>
+        <span key={item} className={EVAL_TABLE_TRUNCATE_CLASS} title={item}>
           {item}
         </span>
       ))}

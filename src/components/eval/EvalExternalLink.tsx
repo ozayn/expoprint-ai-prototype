@@ -18,17 +18,23 @@ export function EvalExternalLink({
   className = "",
   mono = false,
   stopPropagation = false,
+  title,
 }: {
   href: string | null;
   children: ReactNode;
   className?: string;
   mono?: boolean;
   stopPropagation?: boolean;
+  title?: string;
 }) {
   const textClass = `${mono ? "font-mono" : ""} ${className}`.trim();
 
   if (!href) {
-    return <span className={textClass}>{children}</span>;
+    return (
+      <span className={textClass} title={title}>
+        {children}
+      </span>
+    );
   }
 
   return (
@@ -37,6 +43,7 @@ export function EvalExternalLink({
       target="_blank"
       rel="noreferrer noopener"
       className={`${LINK_CLASS} ${textClass}`}
+      title={title}
       onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
     >
       {children}
@@ -55,14 +62,16 @@ export function EvalSourceLink({
   mono?: boolean;
   stopPropagation?: boolean;
 }) {
+  const label = sourceLabelForRow(row);
   return (
     <EvalExternalLink
       href={hrefForReviewRow(row)}
       className={className}
       mono={mono}
       stopPropagation={stopPropagation}
+      title={label}
     >
-      {sourceLabelForRow(row)}
+      {label}
     </EvalExternalLink>
   );
 }

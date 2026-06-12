@@ -28,10 +28,17 @@ import {
 } from "@/lib/evalLocal/evalTableColumns";
 import { EvalColumnPicker } from "./EvalColumnPicker";
 import { useOrderedVisibleEvalColumns } from "./EvalColumnVisibilityContext";
+import { EvalTableColGroup } from "./EvalTableColGroup";
+import { EvalReviewTableColumnCell } from "./EvalReviewTableCells";
 import {
-  EvalReviewTableColumnCell,
-  evalReviewTableCellClass,
-} from "./EvalReviewTableCells";
+  EVAL_AUDIT_TABLE_CLASS,
+  EVAL_AUDIT_TABLE_SCROLL_CLASS,
+  evalAuditTableMinWidthPx,
+  evalTableCellClass,
+  evalTableExpandCellClass,
+  evalTableExpandHeaderClass,
+  evalTableHeaderClass,
+} from "./evalTableLayout";
 import { EvalFilterControls } from "./EvalFilterControls";
 import { useOptionalEvalViewerFilters } from "./EvalViewerFilterContext";
 
@@ -136,13 +143,17 @@ export function ReviewQueueTable({
         </div>
       )}
 
-      <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1">
-        <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
+      <div className={EVAL_AUDIT_TABLE_SCROLL_CLASS}>
+        <table
+          className={EVAL_AUDIT_TABLE_CLASS}
+          style={{ minWidth: evalAuditTableMinWidthPx(visibleColumns) }}
+        >
+          <EvalTableColGroup columns={visibleColumns} />
           <thead>
             <tr className="border-b border-zinc-200 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-              <th className="w-7 pb-2 pr-1 font-normal" aria-label="Expand" />
+              <th className={evalTableExpandHeaderClass()} aria-label="Expand" />
               {visibleColumns.map((columnId) => (
-                <th key={columnId} className="pb-2 pr-3 font-normal">
+                <th key={columnId} className={evalTableHeaderClass()}>
                   {evalTableColumnHeaderLabel(columnId)}
                 </th>
               ))}
@@ -204,11 +215,11 @@ function RowGroup({
         onClick={onToggle}
         aria-expanded={expanded}
       >
-        <td className="py-2 pr-1 text-[10px] text-zinc-300">
+        <td className={evalTableExpandCellClass()}>
           {expanded ? "▾" : "▸"}
         </td>
         {visibleColumns.map((columnId) => (
-          <td key={columnId} className={evalReviewTableCellClass(columnId)}>
+          <td key={columnId} className={evalTableCellClass()}>
             <EvalReviewTableColumnCell columnId={columnId} row={row} />
           </td>
         ))}

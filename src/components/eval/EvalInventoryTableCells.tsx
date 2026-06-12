@@ -7,6 +7,7 @@ import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { EvalTableColumnId } from "@/lib/evalLocal/evalTableColumns";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryExtractionStatus } from "@/lib/evalLocal/urlInventoryJoin";
+import { EVAL_TABLE_TRUNCATE_CLASS } from "./evalTableLayout";
 
 function CandidateSourceLink({
   candidate,
@@ -25,8 +26,9 @@ function CandidateSourceLink({
     <EvalExternalLink
       href={href}
       mono
-      className="text-[12px] text-zinc-700"
+      className={`${EVAL_TABLE_TRUNCATE_CLASS} text-[12px] text-zinc-700`}
       stopPropagation={stopPropagation}
+      title={label !== "—" ? label : undefined}
     >
       {label}
     </EvalExternalLink>
@@ -57,7 +59,11 @@ function InventoryStatusPill({ status }: { status: UrlInventoryExtractionStatus 
 
 function CandidateTextCell({ value }: { value: string | undefined }) {
   const v = (value ?? "").trim();
-  return <span className="text-zinc-800">{v || "—"}</span>;
+  return (
+    <span className={`${EVAL_TABLE_TRUNCATE_CLASS} text-zinc-800`} title={v || undefined}>
+      {v || "—"}
+    </span>
+  );
 }
 
 function NotRunDataPlaceholder() {
@@ -109,15 +115,6 @@ function candidateFieldForColumn(
   }
 }
 
-export function evalInventoryTableCellClass(columnId: EvalTableColumnId): string {
-  if (columnId === "logos") return "max-w-[7rem] py-2 pr-3 align-middle";
-  if (columnId === "normalized_url" || columnId === "project_title") {
-    return "max-w-[10rem] py-2 pr-3 align-middle";
-  }
-  if (columnId === "domain") return "max-w-[9rem] py-2 pr-3 align-middle";
-  return "max-w-[10rem] py-2 pr-3 align-middle";
-}
-
 export function EvalInventoryTableColumnCell({
   columnId,
   candidate,
@@ -134,14 +131,16 @@ export function EvalInventoryTableColumnCell({
   }
 
   if (columnId === "normalized_url") {
+    const url = candidate.normalized_url?.trim() || "—";
     return (
       <EvalExternalLink
         href={safeHttpHref(candidate.normalized_url ?? "")}
-        className="text-xs text-zinc-600"
+        className={`${EVAL_TABLE_TRUNCATE_CLASS} text-xs text-zinc-600`}
         mono
         stopPropagation
+        title={url !== "—" ? url : undefined}
       >
-        {candidate.normalized_url?.trim() || "—"}
+        {url}
       </EvalExternalLink>
     );
   }
