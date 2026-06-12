@@ -617,6 +617,22 @@ const stages: Stage[] = [
       "No Metabase/DB integration; partner CSVs and scored outputs remain local and gitignored.",
     ],
   },
+  {
+    id: 39,
+    title: "Visual brand-audit evaluation viewers",
+    status: "Complete",
+    completed: "2026-06-12",
+    summary:
+      "Historical evaluation shifted to a visual brand-audit workflow after partner feedback — review extracted logos, colors, contacts, products/services, and related fields in gallery and table views instead of spreadsheet-only review queues. Local `/dev/eval` reads gitignored run outputs; password-protected `/internal/eval` reads explicitly published sanitized JSON only.",
+    accomplishments: [
+      "**Brand-audit UI** — Gallery and extracted-table views for logos, palettes, contact fields, offerings, scrape metadata, and scores; expandable row details; clickable external URLs where domains are published.",
+      "**URL inventory** — All URLs tab joins database URL candidates with extraction results; shows processed, success, failed, and not-run status per URL.",
+      "**Review ergonomics** — Search, status and field filters, configurable column visibility, fixed table layout, and coverage charts (field success rates and scrape depth).",
+      "**Batch workflow** — `eval:extract-and-review` and `eval:combine-reviews` merge batch review queues with URL deduplication (newest wins); combined vs latest batch picker on `/dev/eval`.",
+      "**Publishing** — `npm run eval:publish-latest-internal` combines batches and writes deployable sanitized JSON; optional `--include-url-inventory` for the All URLs tab; `npm run check:partner-data` allowlist; manual inspect/commit/push — raw partner CSVs, JSONL, and local `data/eval/results/` never ship to production.",
+      "`docs/evaluation/historical-extraction-evaluation.md` and `data/eval/README.md` updated. Extract API contract unchanged.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -658,8 +674,10 @@ export default function ProgressPage() {
             and role-aware ranking, social footer/export polish, and blocked-site warnings; Stages
             31–37 add canvas social display filtering, export filename polish, logo classification
             and role-aware sizing, contextual color fallbacks, expanded evaluation checks, and
-            historical Metabase CSV evaluation (URL candidates + limited extraction); Stage 38
-            plans comparison/scoring against historical fields; the
+            historical Metabase CSV evaluation (URL candidates + limited extraction); Stage 39
+            adds visual brand-audit viewers, URL inventory, combined review queues, coverage
+            metrics, and a safer publish path for `/internal/eval`; Stage 38 plans
+            comparison/scoring against historical fields; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
             <code className="rounded bg-zinc-200/80 px-1 py-0.5 font-mono text-xs">

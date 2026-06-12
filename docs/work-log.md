@@ -272,6 +272,21 @@ Workflow is part of this ExpoPrint prototype, not a separate project. Local-only
 
 ---
 
+## 2026-06-12
+
+**Visual brand-audit evaluation viewers (Stage 39)**  
+Historical eval shifted to a visual brand-audit workflow based on partner feedback — gallery and table review of extracted logos, colors, contacts, products/services, and related fields instead of spreadsheet-only queues.
+
+- **Views** — `/dev/eval` (local gitignored runs/results) and `/internal/eval` (password + published sanitized JSON only).
+- **URL inventory** — All URLs tab for full candidate lists with processed / not-run / success / failed status joined to review rows.
+- **Review UX** — Search, status and field filters, column show/hide, clickable URLs, coverage charts for field success rates and scrape depth.
+- **Batches** — `eval:extract-and-review`, `eval:combine-reviews` (dedupe by URL, newest wins), combined vs latest picker.
+- **Publishing** — `npm run eval:publish-latest-internal` (+ optional `--include-url-inventory`); `check:partner-data` guard; manual commit of `data/eval/public/` artifacts only — no raw partner exports or local eval CSVs/JSONL in git.
+
+Docs: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.md`. Extract API unchanged.
+
+---
+
 ## Deployment — Vercel on `main` (current)
 
 - **Vercel only** — production/demo deploys from Git branch **`main`**.
@@ -285,4 +300,4 @@ Workflow is part of this ExpoPrint prototype, not a separate project. Local-only
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers, URL inventory, combined review queues, coverage metrics, publish flow for `/internal/eval`. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
