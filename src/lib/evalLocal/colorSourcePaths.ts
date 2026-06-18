@@ -1,4 +1,5 @@
-import { normalizeHex } from "./brandExtractionParse";
+import { collectColorTokensFromExpo, normalizeHex } from "./brandExtractionParse";
+import { extractPaletteMetaFromExpo } from "./paletteSourceParse";
 
 function hasColorValue(value: unknown): boolean {
   if (value == null) return false;
@@ -61,18 +62,13 @@ export type PaletteCoverageCategory =
 export function paletteCoverageCategoryFromExpo(
   expo: unknown,
 ): PaletteCoverageCategory {
-  if (!expo || typeof expo !== "object") return "no_colors";
-  const brand = (expo as Record<string, unknown>).brand as
-    | Record<string, unknown>
-    | undefined;
-  const paletteSource =
-    typeof brand?.paletteSource === "string" ? brand.paletteSource.trim() : "";
-  const colors = brand?.colors;
-  const hasBrandColors =
-    Array.isArray(colors) &&
-    colors.some((c) => typeof c === "string" && normalizeHex(c));
+  const tokens = collectColorTokensFromExpo(expo);
+  const hasColors = tokens.some((token) => normalizeHex(token));
+  if (!hasColors) return "no_colors";
 
-  if (paletteSource === "logo" && hasBrandColors) return "logo_fallback";
-  if (hasBrandColors) return "explicit_extraction";
-  return "no_colors";
+  const meta = extractPaletteMetaFromExpo(expo);
+  if (meta.source === "logo" || meta.logoFallbackEvidence) {
+    return "logo_fallback";
+  }
+  return "explicit_extraction";
 }

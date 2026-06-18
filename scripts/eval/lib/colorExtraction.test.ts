@@ -96,6 +96,274 @@ function testReviewRowPaletteFields(): void {
   assert.equal(row.palette_confidence, "high");
 }
 
+function testReviewRowRootPaletteSource(): void {
+  const baseInput = {
+    ds_id: "1",
+    ds_number: "DS-1",
+    project_title: "T",
+    project_type: "",
+    shop_code: "",
+    source_column: "first_req_description",
+    normalized_url: "https://example.com/",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    first_req_description: "",
+    first_req_note: "",
+  };
+
+  const rootSource = reviewRowFromExtractionRecord({
+    input: baseInput,
+    status: "success",
+    elapsed_ms: 100,
+    expo_output: {
+      ok: true,
+      business: {
+        name: "Example",
+        website: "https://example.com/",
+        domain: "example.com",
+        canonicalUrl: "https://example.com/",
+      },
+      brand: {
+        colors: ["#abcdef"],
+        typography: {
+          fontFamilies: [],
+          headingFontCandidates: [],
+          bodyFontCandidates: [],
+          googleFontFamilies: [],
+          styleGuess: "unknown",
+        },
+        logoCandidates: [],
+      },
+      content: {
+        services: [],
+        products: [],
+        contact: { phone: "", email: "", address: "", social: [] },
+      },
+      designIntake: {
+        productCategory: "",
+        components: [],
+        stylePreference: "",
+        recommendedHeadline: "",
+        recommendedSupportingText: "",
+        missingAssets: [],
+        confidenceNotes: [],
+        needsHumanReview: false,
+      },
+      metadata: {
+        source: "scraper_plus_claude",
+        pagesInspected: 1,
+        durationMs: 100,
+        websiteFetch: { status: "success", reason: "" },
+        claude: { attempted: true, model: "test", status: "success" },
+        warnings: [],
+      },
+      paletteSource: "extraction",
+      paletteConfidence: "high",
+    } as ExtractionJsonlRecord["expo_output"],
+  });
+  assert.equal(rootSource.palette_source, "extraction");
+  assert.equal(rootSource.palette_confidence, "high");
+}
+
+function testReviewRowColorsWithoutSourceDefaultsExtractionUnknown(): void {
+  const row = reviewRowFromExtractionRecord({
+    input: {
+      ds_id: "1",
+      ds_number: "DS-1",
+      project_title: "T",
+      project_type: "",
+      shop_code: "",
+      source_column: "first_req_description",
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      first_req_description: "",
+      first_req_note: "",
+    },
+    status: "success",
+    elapsed_ms: 100,
+    expo_output: {
+      ok: true,
+      business: {
+        name: "Example",
+        website: "",
+        domain: "example.com",
+        canonicalUrl: "",
+      },
+      brand: {
+        colors: ["#112233"],
+        typography: {
+          fontFamilies: [],
+          headingFontCandidates: [],
+          bodyFontCandidates: [],
+          googleFontFamilies: [],
+          styleGuess: "unknown",
+        },
+        logoCandidates: [],
+      },
+      content: {
+        services: [],
+        products: [],
+        contact: { phone: "", email: "", address: "", social: [] },
+      },
+      designIntake: {
+        productCategory: "",
+        components: [],
+        stylePreference: "",
+        recommendedHeadline: "",
+        recommendedSupportingText: "",
+        missingAssets: [],
+        confidenceNotes: [],
+        needsHumanReview: false,
+      },
+      metadata: {
+        source: "scraper_plus_claude",
+        pagesInspected: 1,
+        durationMs: 100,
+        websiteFetch: { status: "success", reason: "" },
+        claude: { attempted: true, model: "test", status: "success" },
+        warnings: [],
+      },
+    },
+  });
+  assert.equal(row.palette_source, "extraction");
+  assert.equal(row.palette_confidence, "unknown");
+}
+
+function testReviewRowLogoFallbackMapsLogoMedium(): void {
+  const row = reviewRowFromExtractionRecord({
+    input: {
+      ds_id: "1",
+      ds_number: "DS-1",
+      project_title: "T",
+      project_type: "",
+      shop_code: "",
+      source_column: "first_req_description",
+      normalized_url: "https://logo.com/",
+      domain: "logo.com",
+      canonical_domain: "logo.com",
+      first_req_description: "",
+      first_req_note: "",
+    },
+    status: "success",
+    elapsed_ms: 100,
+    expo_output: {
+      ok: true,
+      business: {
+        name: "Logo",
+        website: "",
+        domain: "logo.com",
+        canonicalUrl: "",
+      },
+      brand: {
+        colors: ["#dc143c"],
+        typography: {
+          fontFamilies: [],
+          headingFontCandidates: [],
+          bodyFontCandidates: [],
+          googleFontFamilies: [],
+          styleGuess: "unknown",
+        },
+        logoCandidates: [{ url: "https://logo.com/logo.png", source: "img" }],
+        paletteSource: "logo",
+        paletteConfidence: "medium",
+      },
+      content: {
+        services: [],
+        products: [],
+        contact: { phone: "", email: "", address: "", social: [] },
+      },
+      designIntake: {
+        productCategory: "",
+        components: [],
+        stylePreference: "",
+        recommendedHeadline: "",
+        recommendedSupportingText: "",
+        missingAssets: [],
+        confidenceNotes: [],
+        needsHumanReview: false,
+      },
+      metadata: {
+        source: "scraper_plus_claude",
+        pagesInspected: 1,
+        durationMs: 100,
+        websiteFetch: { status: "success", reason: "" },
+        claude: { attempted: true, model: "test", status: "success" },
+        warnings: ["Brand colors derived from logo image (palette fallback)."],
+      },
+    },
+  });
+  assert.equal(row.palette_source, "logo");
+  assert.equal(row.palette_confidence, "medium");
+}
+
+function testReviewRowSnakeCaseBrandPaletteSource(): void {
+  const row = reviewRowFromExtractionRecord({
+    input: {
+      ds_id: "1",
+      ds_number: "DS-1",
+      project_title: "T",
+      project_type: "",
+      shop_code: "",
+      source_column: "first_req_description",
+      normalized_url: "https://snake.com/",
+      domain: "snake.com",
+      canonical_domain: "snake.com",
+      first_req_description: "",
+      first_req_note: "",
+    },
+    status: "success",
+    elapsed_ms: 100,
+    expo_output: {
+      ok: true,
+      business: {
+        name: "Snake",
+        website: "",
+        domain: "snake.com",
+        canonicalUrl: "",
+      },
+      brand: {
+        colors: ["#445566"],
+        palette_source: "logo",
+        palette_confidence: "medium",
+        typography: {
+          fontFamilies: [],
+          headingFontCandidates: [],
+          bodyFontCandidates: [],
+          googleFontFamilies: [],
+          styleGuess: "unknown",
+        },
+        logoCandidates: [],
+      },
+      content: {
+        services: [],
+        products: [],
+        contact: { phone: "", email: "", address: "", social: [] },
+      },
+      designIntake: {
+        productCategory: "",
+        components: [],
+        stylePreference: "",
+        recommendedHeadline: "",
+        recommendedSupportingText: "",
+        missingAssets: [],
+        confidenceNotes: [],
+        needsHumanReview: false,
+      },
+      metadata: {
+        source: "scraper_plus_claude",
+        pagesInspected: 1,
+        durationMs: 100,
+        websiteFetch: { status: "success", reason: "" },
+        claude: { attempted: true, model: "test", status: "success" },
+        warnings: [],
+      },
+    } as ExtractionJsonlRecord["expo_output"],
+  });
+  assert.equal(row.palette_source, "logo");
+  assert.equal(row.palette_confidence, "medium");
+}
+
 function testColorAuditSummary(): void {
   const runId = "20990101120000000";
   const jsonlPath = join(EVAL_RUNS_DIR, `extraction_run_${runId}.jsonl`);
@@ -173,6 +441,10 @@ function testColorAuditSummary(): void {
 async function main(): Promise<void> {
   await testLogoPaletteFromRedImage();
   testReviewRowPaletteFields();
+  testReviewRowRootPaletteSource();
+  testReviewRowColorsWithoutSourceDefaultsExtractionUnknown();
+  testReviewRowLogoFallbackMapsLogoMedium();
+  testReviewRowSnakeCaseBrandPaletteSource();
   testColorAuditSummary();
   console.log("color extraction tests: all checks passed");
 }

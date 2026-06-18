@@ -14,6 +14,10 @@ import {
   brandColorFieldsFromTokens,
   collectColorTokensFromExpo,
 } from "../../../src/lib/evalLocal/brandExtractionParse";
+import {
+  computePaletteSourceDiagnostics,
+  resolveReviewPaletteFields,
+} from "../../../src/lib/evalLocal/paletteSourceParse";
 import { canonicalDomainFromHost } from "../../../src/lib/evalLocal/canonicalDomain";
 import type { LogoCandidate } from "../../../src/lib/analyzeWebsiteResponse";
 import type { ExtractionJsonlRecord } from "../../../src/lib/evalLocal/extractionTypes";
@@ -86,6 +90,9 @@ export type ReviewQueueBuildResult = {
   noOfferingsFieldCount: number;
   offeringsRowCount: number;
   parseErrors: { line: number; message: string }[];
+  paletteSourceLogoCount?: number;
+  paletteSourceExtractionCount?: number;
+  colorsMissingPaletteSourceCount?: number;
 };
 
 const EXCERPT_MAX = 240;
@@ -263,6 +270,7 @@ function extractExpoFields(
   }
 
   const colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
+  const paletteFields = resolveReviewPaletteFields(expo, colorFields);
   const logoFields = logoFieldsFromCandidates(logos);
   const contactFields = contactFieldsFromCollected(collectContactFromExpo(expo));
   const offeringsFields = offeringsFieldsFromCollected(
@@ -278,8 +286,7 @@ function extractExpoFields(
     ...contactFields,
     ...logoFields,
     ...colorFields,
-    palette_source: brand?.paletteSource?.trim() ?? "",
-    palette_confidence: brand?.paletteConfidence?.trim() ?? "",
+    ...paletteFields,
     pages_inspected:
       typeof meta?.pagesInspected === "number"
         ? String(meta.pagesInspected)
@@ -430,6 +437,8 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     hasOfferingsForRow(row),
   ).length;
 
+  const paletteDiagnostics = computePaletteSourceDiagnostics(reviewRows);
+
   const outputPath = join(
     EVAL_RESULTS_DIR,
     reviewQueueFilenameForRunPath(inputPath),
@@ -462,6 +471,10 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     noOfferingsFieldCount,
     offeringsRowCount,
     parseErrors,
+    paletteSourceLogoCount: paletteDiagnostics.paletteSourceLogo,
+    paletteSourceExtractionCount: paletteDiagnostics.paletteSourceExtraction,
+    colorsMissingPaletteSourceCount:
+      paletteDiagnostics.colorsMissingPaletteSource,
   };
 }
 
@@ -483,6 +496,15 @@ export function printReviewQueueSummary(result: ReviewQueueBuildResult): void {
   if (result.noOfferingsFieldCount > 0) {
     console.log(
       `  No products/services in output: ${result.noOfferingsFieldCount} success row(s)`,
+    );
+  }
+  if (result.paletteSourceLogoCount !== undefined) {
+    console.log(
+      `  Rows with colors but missing palette_source: ${result.colorsMissingPaletteSourceCount ?? 0}`,
+    );
+    console.log(`  Rows with palette_source=logo: ${result.paletteSourceLogoCount}`);
+    console.log(
+      `  Rows with palette_source=extraction: ${result.paletteSourceExtractionCount}`,
     );
   }
   console.log(`  Output: ${result.outputPath}`);

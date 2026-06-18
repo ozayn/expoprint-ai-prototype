@@ -32,7 +32,7 @@ export type DesignIntakeApiBrand = {
   logoCandidates: LogoCandidate[];
   /** Where brand.colors originated (additive — optional on older responses). */
   paletteSource?: "extraction" | "logo";
-  paletteConfidence?: "high" | "medium" | "low";
+  paletteConfidence?: "high" | "medium" | "low" | "unknown";
 };
 
 export type DesignIntakeApiContact = {
