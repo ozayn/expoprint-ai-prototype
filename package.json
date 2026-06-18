@@ -32,6 +32,8 @@
     "eval:audit-colors": "tsx scripts/eval/auditColorExtraction.ts",
     "eval:color-extraction:test": "tsx scripts/eval/lib/colorExtraction.test.ts",
     "eval:inspect-palette": "tsx scripts/eval/inspectPaletteSource.ts",
+    "eval:backfill-palette": "tsx scripts/eval/backfillPaletteMetadata.ts",
+    "eval:backfill-palette:test": "tsx scripts/eval/lib/backfillPaletteMetadata.test.ts",
     "eval:palette-pipeline:test": "tsx scripts/eval/lib/paletteSourcePipeline.test.ts",
     "eval:snapshot": "tsx scripts/eval/writeCoverageSnapshot.ts",
     "eval:snapshot:test": "tsx scripts/eval/lib/coverageSnapshot.test.ts",
