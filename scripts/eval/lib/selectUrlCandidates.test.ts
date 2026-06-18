@@ -131,11 +131,87 @@ function testOffsetWithinNotRunPool(): void {
   assert.equal(selected[0]?.domain, "ccc.com");
 }
 
+function testPrioritizeRootUrls(): void {
+  const candidates = [
+    candidate("https://deep.com/file/path?x=1", "deep.com"),
+    candidate("https://root.com/", "root.com"),
+    candidate("https://shallow.com/about", "shallow.com"),
+  ];
+
+  const { selected, summary } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 2,
+    prioritizeRootUrls: true,
+  });
+
+  assert.equal(selected[0]?.domain, "root.com");
+  assert.equal(selected[1]?.domain, "shallow.com");
+  assert.equal(summary?.selectedRoot, 1);
+  assert.equal(summary?.selectedShallowPath, 1);
+  assert.equal(summary?.selectedDeepPath, 0);
+}
+
+function testPreserveOrderDisablesPriority(): void {
+  const candidates = [
+    candidate("https://deep.com/file/path", "deep.com"),
+    candidate("https://root.com/", "root.com"),
+  ];
+
+  const { selected } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 1,
+    prioritizeRootUrls: true,
+    preserveOrder: true,
+  });
+
+  assert.equal(selected[0]?.domain, "deep.com");
+}
+
+function testRootOnlySelectsHomepages(): void {
+  const candidates = [
+    candidate("https://deep.com/file/path", "deep.com"),
+    candidate("https://root.com/", "root.com"),
+  ];
+
+  const { selected, summary } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    rootOnly: true,
+  });
+
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0]?.domain, "root.com");
+  assert.equal(summary?.skippedByRootOnly, 1);
+}
+
+function testExampleComRootBeforePage(): void {
+  const candidates = [
+    candidate("https://example.com/page", "example.com"),
+    candidate("https://example.com", "example.com"),
+  ];
+
+  const { selected } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: true,
+    offset: 0,
+    limit: 1,
+    prioritizeRootUrls: true,
+  });
+
+  assert.equal(selected[0]?.normalized_url, "https://example.com");
+}
+
 function main(): void {
   testDefaultSelectsNotRunOnly();
   testRetryFailedIncludesFailed();
   testReprocessIncludesSuccessful();
   testOffsetWithinNotRunPool();
+  testPrioritizeRootUrls();
+  testPreserveOrderDisablesPriority();
+  testRootOnlySelectsHomepages();
+  testExampleComRootBeforePage();
   console.log("selectUrlCandidates.test.ts: all checks passed");
 }
 

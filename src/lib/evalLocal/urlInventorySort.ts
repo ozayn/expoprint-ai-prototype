@@ -1,4 +1,10 @@
 import { canonicalDomainFromHost } from "./canonicalDomain";
+import {
+  classifyUrlPathType,
+  URL_PATH_TYPE_LABELS,
+  urlForCandidateFields,
+  type UrlPathType,
+} from "./evalUrlPriority";
 import type { UrlInventoryRow } from "./urlInventoryJoin";
 
 export type UrlInventorySortMode =
@@ -42,6 +48,37 @@ export function urlInventorySortLabel(mode: UrlInventorySortMode): string {
 }
 
 export type UrlInventoryQuickFilter = "all" | "recent" | "not_run" | "failed";
+
+export type UrlInventoryPathTypeFilter = "all" | UrlPathType;
+
+export const URL_INVENTORY_PATH_TYPE_FILTERS: UrlInventoryPathTypeFilter[] = [
+  "all",
+  "root",
+  "shallow",
+  "deep",
+];
+
+export function parseUrlInventoryPathTypeFilter(
+  value: string | undefined,
+): UrlInventoryPathTypeFilter {
+  const v = value?.trim().toLowerCase();
+  if (v === "root" || v === "shallow" || v === "deep") return v;
+  return "all";
+}
+
+export function urlInventoryPathTypeFilterLabel(
+  filter: UrlInventoryPathTypeFilter,
+): string {
+  if (filter === "all") return "All URL types";
+  return URL_PATH_TYPE_LABELS[filter];
+}
+
+export function inventoryRowPathType(row: UrlInventoryRow): UrlPathType {
+  const candidate = row.candidate;
+  return classifyUrlPathType(
+    urlForCandidateFields(candidate.normalized_url, candidate.raw_url),
+  );
+}
 
 export function parseUrlInventoryQuickFilter(
   inventoryParam: string | undefined,
@@ -174,6 +211,14 @@ export function filterUrlInventoryQuick(
     return rows.filter((row) => row.extractionStatus === "not_run");
   }
   return rows.filter((row) => row.extractionStatus === "failed");
+}
+
+export function filterUrlInventoryByPathType(
+  rows: UrlInventoryRow[],
+  filter: UrlInventoryPathTypeFilter,
+): UrlInventoryRow[] {
+  if (filter === "all") return rows;
+  return rows.filter((row) => inventoryRowPathType(row) === filter);
 }
 
 export function countLatestBatchRows(rows: UrlInventoryRow[]): number {

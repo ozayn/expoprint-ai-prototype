@@ -58,12 +58,16 @@ export async function runExtractAndReview(
   const processedStatusIndex = loadProcessedStatusIndexFromReviewQueues();
   const retryFailed = options.processedSelection?.retryFailed ?? false;
   const reprocess = options.processedSelection?.reprocess ?? false;
+  const preserveOrder = options.processedSelection?.preserveOrder ?? false;
+  const rootOnly = options.processedSelection?.rootOnly ?? false;
 
   printWebsiteExtractionRunHeader(inputPath, options, {
     skipProcessedByDefault: true,
     retryFailed,
     reprocess,
     mergedReviewRows: processedStatusIndex.size,
+    prioritizeRootUrls: !preserveOrder,
+    rootOnly,
   });
 
   const extraction = await runHistoricalWebsiteExtraction({
@@ -78,6 +82,9 @@ export async function runExtractAndReview(
       processedStatusIndex,
       retryFailed,
       reprocess,
+      prioritizeRootUrls: !preserveOrder,
+      preserveOrder,
+      rootOnly,
     },
   });
 
@@ -159,6 +166,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const combine = hasFlag("--combine");
   const retryFailed = hasFlag("--retry-failed");
   const reprocess = hasFlag("--reprocess");
+  const preserveOrder = hasFlag("--preserve-order");
+  const rootOnly = hasFlag("--root-only");
 
   if (parsed.showHelp) {
     printHelp(
@@ -168,9 +177,11 @@ export async function runExtractAndReviewCli(): Promise<void> {
         "  --combine                 Also merge all batch review queues",
         "  --retry-failed            Include failed URLs from prior batches (default: not run only)",
         "  --reprocess               Include successful URLs from prior batches",
+        "  --preserve-order          Keep eligible inventory order (no root URL prioritization)",
+        "  --root-only               Process only root/homepage URLs",
         "",
         "By default, skips URLs already present in merged batch review queues.",
-        "Offset applies within the eligible pool (not run by default).",
+        "Eligible not-run URLs are sorted root-first before limit/offset.",
         "",
         "Runs eval:extract then eval:review on the exact JSONL from that run.",
         "",
@@ -190,6 +201,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
     processedSelection: {
       retryFailed,
       reprocess,
+      preserveOrder,
+      rootOnly,
     },
   });
   printExtractAndReviewSummary(result);

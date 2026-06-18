@@ -14,6 +14,8 @@ export type EvalViewerQueryParams = {
   inventory?: string;
   /** When "1" or "show", show all URL variant rows (skip canonical-domain collapse). */
   variants?: string;
+  /** URL path type filter: root | shallow | deep */
+  urlType?: string;
 };
 
 export function resolveUrlCandidatesParam(
@@ -57,6 +59,9 @@ export function buildEvalViewerQueryString(
   const variants = params.variants?.trim();
   if (variants) q.set("variants", variants);
 
+  const urlType = params.urlType?.trim();
+  if (urlType) q.set("urlType", urlType);
+
   return q;
 }
 
@@ -76,6 +81,9 @@ export function patchEvalViewerQuery(
   }
   if (patch.variants === "" || patch.variants === "0") {
     delete next.variants;
+  }
+  if (patch.urlType === "" || patch.urlType === "all") {
+    delete next.urlType;
   }
   return next;
 }

@@ -47,6 +47,9 @@ export type ProcessedUrlSelectionOptions = {
   processedStatusIndex?: Map<string, ProcessedExtractionOutcome>;
   retryFailed?: boolean;
   reprocess?: boolean;
+  prioritizeRootUrls?: boolean;
+  preserveOrder?: boolean;
+  rootOnly?: boolean;
 };
 
 export type RunHistoricalWebsiteExtractionOptions = {
@@ -164,6 +167,9 @@ export async function runHistoricalWebsiteExtraction(
     processedStatusIndex: options.processedSelection?.processedStatusIndex,
     retryFailed: options.processedSelection?.retryFailed,
     reprocess: options.processedSelection?.reprocess,
+    prioritizeRootUrls: options.processedSelection?.prioritizeRootUrls,
+    preserveOrder: options.processedSelection?.preserveOrder,
+    rootOnly: options.processedSelection?.rootOnly,
   });
 
   if (selection.summary) {
@@ -270,6 +276,8 @@ export function printWebsiteExtractionRunHeader(
     retryFailed: boolean;
     reprocess: boolean;
     mergedReviewRows: number;
+    prioritizeRootUrls?: boolean;
+    rootOnly?: boolean;
   },
 ): void {
   const limit = options.limit ?? 10;
@@ -292,6 +300,11 @@ export function printWebsiteExtractionRunHeader(
     console.log(
       `  Prior batches: ${extractAndReviewContext.mergedReviewRows.toLocaleString()} merged review rows · pool: ${mode}`,
     );
+    if (extractAndReviewContext.rootOnly) {
+      console.log("  URL pool:    root/homepage only (--root-only)");
+    } else if (extractAndReviewContext.prioritizeRootUrls) {
+      console.log("  URL order:   root URLs first (eligible pool)");
+    }
   }
   console.log(`  Delay:  ${delayMs}ms between requests`);
   if (options.apiUrl) console.log(`  API:    ${options.apiUrl}`);

@@ -26,11 +26,18 @@ import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import { showUrlInventoryVariants } from "@/lib/evalLocal/evalViewerQuery";
 import { evalTableColumnHeaderLabel } from "@/lib/evalLocal/evalTableColumns";
 import { excerptText } from "@/lib/evalLocal/textExcerpt";
+import {
+  classifyUrlPathType,
+  URL_PATH_TYPE_LABELS,
+  urlForCandidateFields,
+} from "@/lib/evalLocal/evalUrlPriority";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
 import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
 import {
+  filterUrlInventoryByPathType,
   filterUrlInventoryQuick,
+  parseUrlInventoryPathTypeFilter,
   parseUrlInventoryQuickFilter,
   parseUrlInventorySortMode,
   sortUrlInventoryRows,
@@ -96,6 +103,19 @@ function CandidateExpandedDetails({
           {candidate.source_column ? (
             <EvalDetailField label="source column" value={candidate.source_column} />
           ) : null}
+          <EvalDetailField
+            label="url type"
+            value={
+              URL_PATH_TYPE_LABELS[
+                classifyUrlPathType(
+                  urlForCandidateFields(
+                    candidate.normalized_url,
+                    candidate.raw_url,
+                  ),
+                )
+              ]
+            }
+          />
           {candidate.normalized_url ? (
             <EvalDetailField label="normalized url" value={candidate.normalized_url} mono />
           ) : null}
@@ -151,6 +171,7 @@ export function UrlInventoryTable({
 
   const sortMode = parseUrlInventorySortMode(searchParams.sort ?? "recent");
   const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
+  const pathTypeFilter = parseUrlInventoryPathTypeFilter(searchParams.urlType);
 
   const {
     search,
@@ -176,7 +197,11 @@ export function UrlInventoryTable({
 
   const filtered = useMemo(() => {
     const quickFiltered = filterUrlInventoryQuick(rows, quickFilter);
-    return quickFiltered.filter((row) => {
+    const pathFiltered = filterUrlInventoryByPathType(
+      quickFiltered,
+      pathTypeFilter,
+    );
+    return pathFiltered.filter((row) => {
       if (!matchesSearchQuery(searchHaystackForRow(row, omitPartnerFields), search)) {
         return false;
       }
@@ -189,7 +214,7 @@ export function UrlInventoryTable({
       }
       return true;
     });
-  }, [rows, quickFilter, search, fieldFilters, omitPartnerFields]);
+  }, [rows, quickFilter, pathTypeFilter, search, fieldFilters, omitPartnerFields]);
 
   const sorted = useMemo(
     () => sortUrlInventoryRows(filtered, sortMode),

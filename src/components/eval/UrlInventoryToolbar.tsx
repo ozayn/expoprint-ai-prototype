@@ -8,9 +8,12 @@ import {
   type EvalViewerQueryParams,
 } from "@/lib/evalLocal/evalViewerQuery";
 import {
+  parseUrlInventoryPathTypeFilter,
   parseUrlInventoryQuickFilter,
   parseUrlInventorySortMode,
+  URL_INVENTORY_PATH_TYPE_FILTERS,
   URL_INVENTORY_SORT_MODES,
+  urlInventoryPathTypeFilterLabel,
   urlInventorySortLabel,
   type UrlInventoryQuickFilter,
 } from "@/lib/evalLocal/urlInventorySort";
@@ -32,6 +35,7 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
     searchParams.sort ?? "recent",
   );
   const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
+  const pathTypeFilter = parseUrlInventoryPathTypeFilter(searchParams.urlType);
   const showVariants = showUrlInventoryVariants(searchParams);
 
   function hrefForQuickFilter(filter: UrlInventoryQuickFilter): string {
@@ -48,6 +52,14 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
     const next = patchEvalViewerQuery(
       { ...searchParams, view: "inventory" },
       { sort },
+    );
+    return buildEvalViewerHref(basePath, next);
+  }
+
+  function hrefForPathType(urlType: string): string {
+    const next = patchEvalViewerQuery(
+      { ...searchParams, view: "inventory" },
+      { urlType },
     );
     return buildEvalViewerHref(basePath, next);
   }
@@ -77,6 +89,27 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
           </Link>
         ))}
       </div>
+
+      <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+        <span className="text-zinc-400">URL type</span>
+        <select
+          value={pathTypeFilter}
+          onChange={(e) => {
+            const value = e.target.value;
+            window.location.href = hrefForPathType(
+              value === "all" ? "" : value,
+            );
+          }}
+          className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 focus:border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-200"
+          aria-label="Filter URL inventory by path type"
+        >
+          {URL_INVENTORY_PATH_TYPE_FILTERS.map((filter) => (
+            <option key={filter} value={filter}>
+              {urlInventoryPathTypeFilterLabel(filter)}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="flex items-center gap-1.5 text-xs text-zinc-500">
         <span className="text-zinc-400">Sort</span>

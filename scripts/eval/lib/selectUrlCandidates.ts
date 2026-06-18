@@ -1,4 +1,10 @@
 import { canonicalSiteDedupeKeyFromFields } from "../../../src/lib/evalLocal/evalCanonicalDedup.js";
+import {
+  compareUrlPriority,
+  countSelectedByPathType,
+  isRootUrl,
+  urlForCandidateFields,
+} from "../../../src/lib/evalLocal/evalUrlPriority.js";
 import type { ProcessedExtractionOutcome } from "./reviewQueueProcessedIndex.js";
 import {
   canonicalDomainForRow,
@@ -13,6 +19,12 @@ export type SelectUrlCandidatesOptions = {
   processedStatusIndex?: Map<string, ProcessedExtractionOutcome>;
   retryFailed?: boolean;
   reprocess?: boolean;
+  /** When true, sort eligible URLs by root/shallow/deep priority (default for extract-and-review). */
+  prioritizeRootUrls?: boolean;
+  /** Keep eligible inventory order; disables root URL prioritization. */
+  preserveOrder?: boolean;
+  /** Only select root/homepage URLs. */
+  rootOnly?: boolean;
 };
 
 export type UrlCandidateSelectionSummary = {
@@ -21,11 +33,20 @@ export type UrlCandidateSelectionSummary = {
   alreadyFailed: number;
   notRun: number;
   selectedForBatch: number;
+  selectedRoot: number;
+  selectedShallowPath: number;
+  selectedDeepPath: number;
+  skippedByRootOnly?: number;
 };
 
 export type UrlCandidateSelectionResult = {
   selected: UrlCandidateOutputRow[];
   summary?: UrlCandidateSelectionSummary;
+};
+
+type EligibleEntry = {
+  row: UrlCandidateOutputRow;
+  inventoryIndex: number;
 };
 
 function domainDedupeKey(row: UrlCandidateOutputRow): string {
@@ -59,6 +80,57 @@ function isEligibleForBatch(
   if (status === "not_run") return true;
   if (status === "failed" && options.retryFailed) return true;
   return false;
+}
+
+function candidateUrl(row: UrlCandidateOutputRow): string {
+  return urlForCandidateFields(row.normalized_url, row.raw_url);
+}
+
+function sortEligibleEntries(
+  entries: EligibleEntry[],
+  options: SelectUrlCandidatesOptions,
+): EligibleEntry[] {
+  if (options.preserveOrder) return entries;
+
+  const prioritize = options.prioritizeRootUrls ?? false;
+  if (!prioritize) return entries;
+
+  return [...entries].sort((a, b) =>
+    compareUrlPriority(
+      candidateUrl(a.row),
+      candidateUrl(b.row),
+      a.inventoryIndex,
+      b.inventoryIndex,
+    ),
+  );
+}
+
+function buildSummary(
+  rows: UrlCandidateOutputRow[],
+  selected: UrlCandidateOutputRow[],
+  counts: {
+    alreadySuccessful: number;
+    alreadyFailed: number;
+    notRun: number;
+  },
+  skippedByRootOnly?: number,
+): UrlCandidateSelectionSummary {
+  const selectedUrls = selected.map(candidateUrl);
+  const byType = countSelectedByPathType(selectedUrls);
+
+  return {
+    totalCandidates: rows.length,
+    alreadySuccessful: counts.alreadySuccessful,
+    alreadyFailed: counts.alreadyFailed,
+    notRun: counts.notRun,
+    selectedForBatch: selected.length,
+    selectedRoot: byType.root,
+    selectedShallowPath: byType.shallow,
+    selectedDeepPath: byType.deep,
+    ...(skippedByRootOnly !== undefined && skippedByRootOnly > 0
+      ? { skippedByRootOnly }
+      : {}),
+  };
 }
 
 export function selectUrlCandidatesWithSummary(
@@ -104,24 +176,48 @@ export function selectUrlCandidatesWithSummary(
     }
   }
 
-  const eligible = hasProcessedFilter
-    ? rows.filter((row) =>
-        isEligibleForBatch(processedStatusForCandidate(row, index), options),
-      )
-    : rows;
+  const eligibleEntries: EligibleEntry[] = [];
+  for (let inventoryIndex = 0; inventoryIndex < rows.length; inventoryIndex += 1) {
+    const row = rows[inventoryIndex];
+    if (
+      hasProcessedFilter &&
+      !isEligibleForBatch(processedStatusForCandidate(row, index), options)
+    ) {
+      continue;
+    }
+    eligibleEntries.push({ row, inventoryIndex });
+  }
+
+  const sortedEligible = sortEligibleEntries(eligibleEntries, options);
+
+  let rootFiltered = sortedEligible;
+  let skippedByRootOnly = 0;
+  if (options.rootOnly) {
+    const onlyRoot = sortedEligible.filter((entry) =>
+      isRootUrl(candidateUrl(entry.row)),
+    );
+    skippedByRootOnly = sortedEligible.length - onlyRoot.length;
+    rootFiltered = onlyRoot;
+  }
 
   const { offset, limit } = options;
   const selected =
-    limit <= 0 ? [] : eligible.slice(offset, offset + limit);
+    limit <= 0
+      ? []
+      : rootFiltered.slice(offset, offset + limit).map((entry) => entry.row);
 
-  const summary: UrlCandidateSelectionSummary | undefined = hasProcessedFilter
-    ? {
-        totalCandidates: rows.length,
+  const shouldSummarize =
+    hasProcessedFilter ||
+    options.prioritizeRootUrls ||
+    options.rootOnly ||
+    options.preserveOrder;
+
+  const summary = shouldSummarize
+    ? buildSummary(rows, selected, {
         alreadySuccessful,
         alreadyFailed,
         notRun,
-        selectedForBatch: selected.length,
-      }
+      }, options.rootOnly ? skippedByRootOnly : undefined)
     : undefined;
 
   return { selected, summary };
@@ -143,4 +239,16 @@ export function printUrlCandidateSelectionSummary(
   console.log(`  Already failed:        ${summary.alreadyFailed.toLocaleString()}`);
   console.log(`  Not run:               ${summary.notRun.toLocaleString()}`);
   console.log(`  Selected for batch:    ${summary.selectedForBatch.toLocaleString()}`);
+  console.log(`  Selected root URLs:    ${summary.selectedRoot.toLocaleString()}`);
+  console.log(
+    `  Selected shallow path: ${summary.selectedShallowPath.toLocaleString()}`,
+  );
+  console.log(`  Selected deep path:    ${summary.selectedDeepPath.toLocaleString()}`);
+  if (summary.skippedByRootOnly !== undefined) {
+    console.log(
+      `  Skipped (--root-only): ${summary.skippedByRootOnly.toLocaleString()}`,
+    );
+  }
 }
+
+export { classifyUrlPathType, URL_PATH_TYPE_LABELS } from "../../../src/lib/evalLocal/evalUrlPriority.js";
