@@ -75,8 +75,36 @@ Options:
 | `--preserve-order` | off | `eval:extract-and-review` only — skip root URL prioritization |
 | `--root-only` | off | `eval:extract-and-review` only — process only root/homepage URLs |
 | `--combine` | off | `eval:extract-and-review` only — merge batch review queues; also publishes by default |
+| `--snapshot` | off | `eval:extract-and-review` only — with `--combine`, write coverage benchmark snapshot |
 | `--publish` | off | `eval:extract-and-review` only — publish `data/eval/public/*` (review + inventory) |
 | `--no-publish` | off | `eval:extract-and-review` only — skip publish even with `--combine` |
+
+#### Color / palette diagnostics
+
+Audit color extraction from a JSONL run (writes gitignored `color_audit_<timestamp>.csv`):
+
+```bash
+npm run eval:audit-colors -- data/eval/runs/extraction_run_<timestamp>.jsonl
+```
+
+New extractions apply a **logo palette fallback** when Claude/HTML yields no colors but logo candidates exist (`palette_source: logo`, `palette_confidence: medium`). Existing explicit colors are never overwritten.
+
+#### Coverage benchmark snapshots
+
+Record aggregate field-coverage checkpoints for before/after progress tracking (no domains, URLs, or row-level partner data):
+
+```bash
+npm run eval:snapshot -- --latest-combined
+npm run eval:snapshot -- data/eval/results/review_queue_combined_<timestamp>.csv --include-inventory
+```
+
+Appends to `data/eval/benchmarks/coverage_snapshots.json`. When a prior snapshot exists, the CLI prints percentage-point deltas (e.g. `Colors: 14% → 21% (+7 pts)` — not relative percent change).
+
+Tracked fields: business name, logos, colors, emails, phones, social links, address, products/services, summary, plus scrape-depth distribution (0/unknown through 6+ pages).
+
+Optional: `eval:extract-and-review --combine --snapshot` writes a snapshot after combine/publish. Snapshots are not automatic by default.
+
+The `/progress` page shows the latest checkpoint and deltas when `coverage_snapshots.json` is present. See `data/eval/benchmarks/coverage_snapshots.example.json` for the schema. Commit aggregate snapshots only after review; `npm run check:partner-data` allowlists benchmark JSON.
 
 Outputs (gitignored):
 

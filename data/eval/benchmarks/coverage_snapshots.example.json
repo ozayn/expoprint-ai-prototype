@@ -1,0 +1,62 @@
+{
+  "snapshots": [
+    {
+      "snapshot_id": "20260610000000000",
+      "timestamp": "2026-06-10T12:00:00.000Z",
+      "source_review_queue": "review_queue_combined_example_001.csv",
+      "total_rows": 120,
+      "successful_rows": 110,
+      "failed_rows": 10,
+      "url_inventory_total": 2226,
+      "processed_unique_sites": 120,
+      "field_coverage": {
+        "business_name": { "count": 98, "percent": 89 },
+        "logo": { "count": 95, "percent": 86 },
+        "colors": { "count": 15, "percent": 14 },
+        "email": { "count": 64, "percent": 58 },
+        "phone": { "count": 52, "percent": 47 },
+        "social_links": { "count": 71, "percent": 64 },
+        "address_location": { "count": 33, "percent": 30 },
+        "products_services": { "count": 90, "percent": 82 },
+        "summary": { "count": 77, "percent": 70 }
+      },
+      "scrape_depth": {
+        "unknown_or_0": { "count": 8, "percent": 7 },
+        "pages_1": { "count": 42, "percent": 35 },
+        "pages_2": { "count": 38, "percent": 32 },
+        "pages_3": { "count": 18, "percent": 15 },
+        "pages_4_5": { "count": 10, "percent": 8 },
+        "pages_6_plus": { "count": 2, "percent": 2 }
+      }
+    },
+    {
+      "snapshot_id": "20260618000000000",
+      "timestamp": "2026-06-18T12:00:00.000Z",
+      "source_review_queue": "review_queue_combined_example_002.csv",
+      "total_rows": 130,
+      "successful_rows": 118,
+      "failed_rows": 12,
+      "url_inventory_total": 2226,
+      "processed_unique_sites": 130,
+      "field_coverage": {
+        "business_name": { "count": 105, "percent": 89 },
+        "logo": { "count": 102, "percent": 86 },
+        "colors": { "count": 25, "percent": 21 },
+        "email": { "count": 65, "percent": 55 },
+        "phone": { "count": 56, "percent": 47 },
+        "social_links": { "count": 76, "percent": 64 },
+        "address_location": { "count": 36, "percent": 30 },
+        "products_services": { "count": 105, "percent": 89 },
+        "summary": { "count": 83, "percent": 70 }
+      },
+      "scrape_depth": {
+        "unknown_or_0": { "count": 6, "percent": 5 },
+        "pages_1": { "count": 44, "percent": 34 },
+        "pages_2": { "count": 40, "percent": 31 },
+        "pages_3": { "count": 22, "percent": 17 },
+        "pages_4_5": { "count": 12, "percent": 9 },
+        "pages_6_plus": { "count": 4, "percent": 3 }
+      }
+    }
+  ]
+}

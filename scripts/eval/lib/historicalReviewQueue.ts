@@ -54,6 +54,8 @@ export const REVIEW_QUEUE_COLUMNS = [
   "extracted_color_hexes",
   "primary_color_hex",
   "secondary_color_hex",
+  "palette_source",
+  "palette_confidence",
   "pages_inspected",
   "extraction_provider",
   "extraction_model",
@@ -172,6 +174,8 @@ function emptyExpoFields(): Pick<
   | "extracted_color_hexes"
   | "primary_color_hex"
   | "secondary_color_hex"
+  | "palette_source"
+  | "palette_confidence"
   | "pages_inspected"
   | "extraction_provider"
   | "extraction_model"
@@ -195,6 +199,8 @@ function emptyExpoFields(): Pick<
     extracted_color_hexes: "",
     primary_color_hex: "",
     secondary_color_hex: "",
+    palette_source: "",
+    palette_confidence: "",
     pages_inspected: "",
     extraction_provider: "",
     extraction_model: "",
@@ -272,6 +278,8 @@ function extractExpoFields(
     ...contactFields,
     ...logoFields,
     ...colorFields,
+    palette_source: brand?.paletteSource?.trim() ?? "",
+    palette_confidence: brand?.paletteConfidence?.trim() ?? "",
     pages_inspected:
       typeof meta?.pagesInspected === "number"
         ? String(meta.pagesInspected)

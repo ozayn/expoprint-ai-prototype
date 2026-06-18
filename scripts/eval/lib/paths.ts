@@ -8,11 +8,14 @@ export const REPO_ROOT = join(__dirname, "..", "..", "..");
 export const EVAL_DIR = join(REPO_ROOT, "data", "eval");
 export const EVAL_RUNS_DIR = join(EVAL_DIR, "runs");
 export const EVAL_RESULTS_DIR = join(EVAL_DIR, "results");
+export const EVAL_BENCHMARKS_DIR = join(EVAL_DIR, "benchmarks");
+export const COVERAGE_SNAPSHOTS_FILENAME = "coverage_snapshots.json";
 export const DEFAULT_EXAMPLE_CSV = join(EVAL_DIR, "metabase_sample.example.csv");
 
 export function ensureEvalDirs(): void {
   mkdirSync(EVAL_RUNS_DIR, { recursive: true });
   mkdirSync(EVAL_RESULTS_DIR, { recursive: true });
+  mkdirSync(EVAL_BENCHMARKS_DIR, { recursive: true });
 }
 
 export function runTimestampId(): string {

@@ -155,6 +155,8 @@ export function sanitizeReviewQueueRecord(
   row.extracted_color_hexes = record.extracted_color_hexes?.trim() ?? "";
   row.primary_color_hex = record.primary_color_hex?.trim() ?? "";
   row.secondary_color_hex = record.secondary_color_hex?.trim() ?? "";
+  row.palette_source = record.palette_source?.trim() ?? "";
+  row.palette_confidence = record.palette_confidence?.trim() ?? "";
 
   if (options.includeLogoUrls) {
     const logos = sanitizeLogoCandidatesJson(record.logo_candidate_urls ?? "");

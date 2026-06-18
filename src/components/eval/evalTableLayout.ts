@@ -22,6 +22,8 @@ export const EVAL_TABLE_COLUMN_WIDTHS_PX: Record<EvalTableColumnId, number> = {
   contact_links: 140,
   offerings: 168,
   extracted_summary: 200,
+  palette_source: 96,
+  palette_confidence: 104,
   status: 100,
   pages_inspected: 72,
   elapsed_ms: 72,

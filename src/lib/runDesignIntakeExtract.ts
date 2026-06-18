@@ -3,6 +3,7 @@ import type {
   DesignIntakeExtractRequest,
   DesignIntakeExtractResponse,
 } from "@/lib/designIntakeApiSchema";
+import { applyLogoPaletteFallback } from "@/lib/server/logoPaletteFallback";
 import { runClaudeWebsiteAnalyze } from "@/lib/server/claudeWebsiteAnalyze";
 
 export type RunDesignIntakeExtractResult = {
@@ -31,6 +32,8 @@ export async function runDesignIntakeExtract(
     pipeline,
     Date.now() - t0,
   );
+
+  await applyLogoPaletteFallback(response);
 
   return { response, durationMs: Date.now() - t0 };
 }

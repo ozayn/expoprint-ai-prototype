@@ -365,10 +365,14 @@ function assembleResponseParts(
     extraction,
   });
 
+  const extractedColors = parseBrandColors(rowValue(rows, "brandColors"));
   const brand: DesignIntakeApiBrand = {
-    colors: parseBrandColors(rowValue(rows, "brandColors")),
+    colors: extractedColors,
     typography: typographyFromExtraction(extraction),
     logoCandidates: logoList,
+    ...(extractedColors.length > 0
+      ? { paletteSource: "extraction", paletteConfidence: "high" as const }
+      : {}),
   };
   const content = buildContent(rows);
 

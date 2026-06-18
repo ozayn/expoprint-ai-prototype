@@ -37,6 +37,17 @@ Only the fake example `metabase_sample.example.csv` is meant to be committed und
 | --- | --- |
 | `runs/` | `extraction_run_*.jsonl` (gitignored) |
 | `results/` | `url_candidates_*.csv`, `extraction_summary_*.csv`, `review_queue_*.csv`, `score_summary_*` (gitignored) |
+| `benchmarks/` | `coverage_snapshots.json` (aggregate metrics only — safe to commit after review); `coverage_snapshots.example.json` (schema sample) |
+
+## Coverage benchmark snapshots
+
+```bash
+npm run eval:snapshot -- --latest-combined --include-inventory
+```
+
+Writes append-only checkpoints to `data/eval/benchmarks/coverage_snapshots.json`. Deltas use **percentage points** (14% → 21% = +7 pts). Optional with batch runs: `eval:extract-and-review --combine --snapshot`.
+
+Tracked coverage fields: business name, logos, colors, emails, phones, social links, address, products/services, summary, and scrape-depth buckets. No partner URLs or row-level data in snapshot files.
 
 ## URL candidates
 

@@ -40,6 +40,8 @@ function emptyRow(): ReviewQueueRow {
     extracted_color_hexes: "",
     primary_color_hex: "",
     secondary_color_hex: "",
+    palette_source: "",
+    palette_confidence: "",
     pages_inspected: "",
     extraction_provider: "",
     extraction_model: "",

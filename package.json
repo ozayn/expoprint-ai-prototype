@@ -29,6 +29,10 @@
     "eval:combine-reviews": "tsx scripts/eval/combineReviewQueues.ts",
     "eval:review": "tsx scripts/eval/buildHistoricalReviewQueue.ts",
     "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",
+    "eval:audit-colors": "tsx scripts/eval/auditColorExtraction.ts",
+    "eval:color-extraction:test": "tsx scripts/eval/lib/colorExtraction.test.ts",
+    "eval:snapshot": "tsx scripts/eval/writeCoverageSnapshot.ts",
+    "eval:snapshot:test": "tsx scripts/eval/lib/coverageSnapshot.test.ts",
     "eval:score": "tsx scripts/eval/summarizeHistoricalReviewScores.ts",
     "eval:score:test": "tsx scripts/eval/lib/reviewScoreSummary.test.ts",
     "eval:publish-internal": "tsx scripts/eval/publishInternalEval.ts",
@@ -44,7 +48,8 @@
     "fabric": "^7.3.1",
     "next": "^16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.35.1"
   },
   "overrides": {
     "postcss": "8.5.14"

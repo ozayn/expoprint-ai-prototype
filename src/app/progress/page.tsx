@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { loadCoverageBenchmarkSummary } from "@/lib/evalLocal/loadCoverageBenchmarks";
+import { COVERAGE_SNAPSHOT_FIELD_LABELS } from "@/lib/evalLocal/coverageSnapshot";
 
 export const metadata: Metadata = {
   title: "Project progress — ExpoPrint AI prototype",
@@ -622,18 +624,18 @@ const stages: Stage[] = [
     title: "Visual brand-audit evaluation viewers",
     status: "Complete",
     completed: "2026-06-12",
-    lastUpdated: "2026-06-12",
+    lastUpdated: "2026-06-18",
     summary:
-      "Historical evaluation shifted to a visual brand-audit workflow after partner feedback — gallery and table review of extracted logos, colors, contacts, products/services, and related fields instead of spreadsheet-only queues. `/internal/eval` is the single canonical viewer: local dev reads gitignored run outputs without a password; production is password-protected and reads explicitly published sanitized JSON only; raw partner exports never ship to production.",
+      "Historical evaluation is unified on `/internal/eval`: local dev reads real gitignored eval files; production is password-protected and reads published sanitized JSON only (`/dev/eval` is no longer the primary workflow). Gallery, table, and All URLs views support visual brand-audit review — logos, colors, contacts, offerings, scrape metadata, and coverage charts — with configurable columns, status-first tables, and clickable source URLs. Batch tooling skips already-processed URLs by default, prioritizes root/homepage URLs, and auto-publishes when combining batches. Color/palette extraction audit tooling is started because palette coverage remains the weakest field.",
     accomplishments: [
-      "**Partner-driven workflow** — Replaced spreadsheet-only historical review with visual brand-audit viewers for logos, palettes, contact fields, offerings, scrape metadata, and scores.",
-      "**Gallery and table views** — Side-by-side gallery cards and dense extracted-field tables with expandable row details.",
-      "**URL inventory** — All URLs tab lists every database URL candidate joined to extraction results (processed, success, failed, not-run).",
-      "**Review ergonomics** — Search, status and field filters, configurable column visibility, fixed table layout, and clickable external URLs where domains are published.",
-      "**Combined batches** — `eval:extract-and-review` and `eval:combine-reviews` merge batch review queues with URL deduplication (newest wins); combined vs latest batch picker on `/internal/eval`.",
-      "**Coverage metrics** — Field success-rate charts and scrape-depth summaries highlight extraction coverage gaps.",
-      "**Publishing** — `npm run eval:publish-latest-internal` combines batches and writes deployable sanitized JSON; optional `--include-url-inventory` for the All URLs tab; `npm run check:partner-data` allowlist; manual inspect/commit/push.",
-      "**URL deduplication** — Shared normalization and dedupe from Metabase extraction through batch selection, combined queues, publish sanitization (including post-sanitize collapse), and defensive UI dedupe so committed URL inventory JSON matches the All URLs viewer row count.",
+      "**Canonical `/internal/eval` viewer** — One UI for local and deployed eval review; local reads gitignored runs/results; deployed reads sanitized published JSON behind password protection only.",
+      "**Brand-audit views** — Gallery cards and dense tables for logos, palettes, emails, phones, social links, products/services, and summaries; status column first; domain + path source URLs; expandable row details; column show/hide.",
+      "**URL inventory (All URLs)** — Full database-derived candidate list before extraction; processed / not-run / failed status; search, status filters, and field-missing filters; recently processed rows first; canonical www/non-www dedupe with duplicate source URLs in expanded details.",
+      "**Batch processing** — `eval:extract-and-review` runs extraction, builds review queue, combines batches, and publishes internal eval data when `--combine` is used; default selection is not-run URLs; `--retry-failed` and `--reprocess` are explicit; root/homepage URL priority; `--root-only` and `--preserve-order` flags.",
+      "**Coverage and diagnostics** — Field success-rate charts and scrape-depth visualization; `eval:audit-colors` audit script for palette coverage gaps; logo-derived palette fallback when explicit colors are missing (in progress).",
+      "**Benchmark snapshots** — `eval:snapshot` records aggregate field-coverage checkpoints in `data/eval/benchmarks/coverage_snapshots.json` with percentage-point deltas for `/progress` trend tracking.",
+      "**Publishing and safety** — `eval:publish-latest-internal` (+ optional URL inventory); `npm run check:partner-data`; raw partner exports and generated eval runs/results stay gitignored; only sanitized `data/eval/public/` artifacts are deployable.",
+      "**URL deduplication** — Shared normalization from Metabase extraction through batch selection, combined queues, publish sanitization, and defensive UI dedupe.",
       "`docs/evaluation/historical-extraction-evaluation.md` and `data/eval/README.md` updated. Extract API contract unchanged.",
     ],
   },
@@ -652,6 +654,49 @@ function StatusBadge({ status }: { status: StageStatus }) {
     >
       {status}
     </span>
+  );
+}
+
+function EvaluationBenchmarkPanel() {
+  const benchmark = loadCoverageBenchmarkSummary(process.cwd());
+  if (!benchmark) return null;
+
+  const { latest, deltaSummary, snapshotCount } = benchmark;
+  const colors = latest.field_coverage.colors;
+  const offerings = latest.field_coverage.products_services;
+
+  return (
+    <div className="mt-4 max-w-2xl rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm leading-relaxed text-zinc-700 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+        Evaluation benchmark
+      </p>
+      <p className="mt-2 text-sm text-zinc-600">
+        Latest coverage snapshot ({snapshotCount} checkpoint
+        {snapshotCount === 1 ? "" : "s"}) from{" "}
+        <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+          {latest.source_review_queue}
+        </code>
+        — {latest.successful_rows} successful extractions of {latest.total_rows}{" "}
+        review rows.
+      </p>
+      <p className="mt-2 text-sm text-zinc-600">
+        {COVERAGE_SNAPSHOT_FIELD_LABELS.colors}: {colors.percent}% ·{" "}
+        {COVERAGE_SNAPSHOT_FIELD_LABELS.products_services}: {offerings.percent}%
+      </p>
+      {deltaSummary ? (
+        <p className="mt-2 text-sm text-zinc-700">
+          <strong className="font-medium text-zinc-900">Since prior checkpoint:</strong>{" "}
+          {deltaSummary}
+        </p>
+      ) : null}
+      <p className="mt-2 text-xs text-zinc-500">
+        Aggregate metrics only — record with{" "}
+        <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+          npm run eval:snapshot
+        </code>
+        . Deltas use percentage points (e.g. 14% → 21% is +7 pts).
+      </p>
+    </div>
   );
 }
 
@@ -679,9 +724,10 @@ export default function ProgressPage() {
             31–37 add canvas social display filtering, export filename polish, logo classification
             and role-aware sizing, contextual color fallbacks, expanded evaluation checks, and
             historical Metabase CSV evaluation (URL candidates + limited extraction); Stage 39
-            adds visual brand-audit viewers, URL inventory, combined review queues, coverage
-            metrics, URL deduplication across the eval pipeline, and a safer publish path for
-            `/internal/eval`; Stage 38 plans
+            adds the unified `/internal/eval` brand-audit workflow (gallery, table, All URLs
+            inventory), combined review queues, coverage and scrape-depth metrics, batch
+            processing refinements, URL deduplication, publish flow, and color/palette diagnostics;
+            Stage 38 plans
             comparison/scoring against historical fields; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}
@@ -777,6 +823,7 @@ export default function ProgressPage() {
               </li>
             </ul>
           </div>
+          <EvaluationBenchmarkPanel />
         </header>
 
         <ol className="flex flex-col gap-5">

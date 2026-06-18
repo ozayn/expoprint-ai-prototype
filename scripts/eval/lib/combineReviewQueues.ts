@@ -46,6 +46,34 @@ export function isCombinedReviewQueueFilename(name: string): boolean {
   return new RegExp(`^${COMBINED_REVIEW_QUEUE_PREFIX}\\d+\\.csv$`).test(name);
 }
 
+export function listCombinedReviewQueueFilenames(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): string[] {
+  try {
+    return readdirSync(resultsDir)
+      .filter((name) => isCombinedReviewQueueFilename(name))
+      .sort((a, b) =>
+        timestampFromReviewQueueFilename(b).localeCompare(
+          timestampFromReviewQueueFilename(a),
+        ),
+      );
+  } catch {
+    return [];
+  }
+}
+
+export function findLatestCombinedReviewQueuePath(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): string {
+  const filenames = listCombinedReviewQueueFilenames(resultsDir);
+  if (filenames.length === 0) {
+    throw new Error(
+      `No ${COMBINED_REVIEW_QUEUE_PREFIX}*.csv files found in ${resultsDir}`,
+    );
+  }
+  return join(resultsDir, filenames[0]);
+}
+
 function timestampFromReviewQueueFilename(name: string): string {
   const batch = name.match(
     new RegExp(`^review_queue_(${EVAL_RUN_ID_PATTERN})\\.csv$`),

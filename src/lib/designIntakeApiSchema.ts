@@ -30,6 +30,9 @@ export type DesignIntakeApiBrand = {
   colors: string[];
   typography: DesignIntakeApiTypography;
   logoCandidates: LogoCandidate[];
+  /** Where brand.colors originated (additive — optional on older responses). */
+  paletteSource?: "extraction" | "logo";
+  paletteConfidence?: "high" | "medium" | "low";
 };
 
 export type DesignIntakeApiContact = {

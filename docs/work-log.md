@@ -290,6 +290,22 @@ Docs: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.m
 
 ---
 
+## 2026-06-18
+
+**Historical eval and brand-audit refinements (Stage 39 — last updated)**  
+Unified the eval workflow around `/internal/eval`: local development reads real gitignored eval files; deployed builds read password-protected published sanitized JSON only. `/dev/eval` is no longer the primary path.
+
+- **Canonical viewer** — Single `/internal/eval` UI for gallery, table, and All URLs inventory; local vs deployed data sources differ by environment, not by route.
+- **Brand-audit views** — Logos, colors, emails, phones, social links, products/services, and summaries; status column first for scanning; configurable visible columns; clickable source URLs (domain + path).
+- **URL inventory** — Full database-derived candidate list before extraction; processed / not-run / failed status; search, status filters, and field-missing filters; recently processed rows first; canonical www/non-www dedupe with duplicate source URLs preserved in expanded details.
+- **Batch processing** — `eval:extract-and-review` runs extraction, builds review queue, combines batches, and auto-publishes internal eval data when `--combine` is used; default selection is not-run URLs only; `--retry-failed` and `--reprocess` are explicit; root/homepage URLs prioritized before deep paths; `--root-only` and `--preserve-order` added.
+- **Coverage and diagnostics** — Field coverage metrics and scrape-depth visualization for extraction quality; color/palette extraction audit started (`eval:audit-colors`) because palette coverage remains the weakest extracted field; logo-derived palette fallback when explicit colors are missing (in progress locally).
+- **Safety** — Raw partner exports stay local and gitignored; generated eval runs/results are not committed; deployed `/internal/eval` uses sanitized published JSON only; `npm run check:partner-data` remains active.
+
+Docs: `docs/evaluation/historical-extraction-evaluation.md`. Extract API response shape unchanged.
+
+---
+
 ## Deployment — Vercel on `main` (current)
 
 - **Vercel only** — production/demo deploys from Git branch **`main`**.
@@ -303,4 +319,4 @@ Docs: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.m
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers, URL inventory, combined review queues, coverage metrics, URL deduplication across the eval pipeline, publish flow for `/internal/eval`. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers on `/internal/eval`, URL inventory, combined review queues, coverage metrics, URL deduplication, publish flow, batch-selection refinements, and color/palette extraction diagnostics (logo fallback in progress). **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

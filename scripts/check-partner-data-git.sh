@@ -14,6 +14,9 @@ ALLOWED=(
   "data/eval/.gitkeep"
   "data/eval/runs/.gitkeep"
   "data/eval/results/.gitkeep"
+  "data/eval/benchmarks/.gitkeep"
+  "data/eval/benchmarks/coverage_snapshots.json"
+  "data/eval/benchmarks/coverage_snapshots.example.json"
   "data/extraction-eval-fixtures.json"
 )
 

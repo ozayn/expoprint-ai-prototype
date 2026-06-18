@@ -127,6 +127,10 @@ export function EvalInventoryTableColumnCell({
     );
   }
 
+  if (columnId === "palette_source" || columnId === "palette_confidence") {
+    return <span className="text-zinc-400">—</span>;
+  }
+
   if (EXTRACTED_COLUMNS.includes(columnId)) {
     if (!review) {
       return <NotRunDataPlaceholder />;

@@ -502,6 +502,11 @@ export function ExpandedRowDetails({
               value={row.extracted_color_hexes}
               mono
             />
+            <EvalDetailField label="palette source" value={row.palette_source} />
+            <EvalDetailField
+              label="palette confidence"
+              value={row.palette_confidence}
+            />
           </div>
         </div>
       </div>

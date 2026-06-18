@@ -120,6 +120,10 @@ export function EvalReviewTableColumnCell({
       return <OfferingsListCell row={row} />;
     case "extracted_summary":
       return <TextFieldCell value={row.extracted_summary} maxLines={2} />;
+    case "palette_source":
+      return <TextFieldCell value={row.palette_source} />;
+    case "palette_confidence":
+      return <TextFieldCell value={row.palette_confidence} />;
     case "status": {
       const category = reviewRowStatusCategory(row.status ?? "");
       const processedMeta =

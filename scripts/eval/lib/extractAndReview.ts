@@ -20,6 +20,11 @@ import {
   runPublishLatestInternalEval,
   type PublishLatestInternalEvalResult,
 } from "./publishLatestInternalEval.js";
+import {
+  printCoverageSnapshotSummary,
+  writeCoverageSnapshot,
+  type WriteCoverageSnapshotResult,
+} from "./writeCoverageSnapshot.js";
 import { loadProcessedStatusIndexFromReviewQueues } from "./reviewQueueProcessedIndex.js";
 import type { UrlCandidateSelectionSummary } from "./selectUrlCandidates.js";
 
@@ -38,6 +43,7 @@ export type ExtractAndReviewResult = {
   review: ReviewQueueBuildResult;
   combined?: CombineReviewQueuesResult;
   published?: PublishLatestInternalEvalResult;
+  coverageSnapshot?: WriteCoverageSnapshotResult;
   selectionSummary?: UrlCandidateSelectionSummary;
 };
 
@@ -66,11 +72,13 @@ export async function runExtractAndReview(
     combine?: boolean;
     publish?: boolean;
     noPublish?: boolean;
+    snapshot?: boolean;
   },
 ): Promise<ExtractAndReviewResult> {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
   const combine = options.combine ?? false;
+  const snapshot = options.snapshot ?? false;
   const publishAfter = shouldPublishAfterExtractAndReview({
     combine,
     publish: options.publish,
@@ -151,6 +159,21 @@ export async function runExtractAndReview(
     }
   }
 
+  let coverageSnapshot: WriteCoverageSnapshotResult | undefined;
+  if (snapshot && combine && combined) {
+    console.log("");
+    console.log("Writing coverage benchmark snapshot from combined queue…");
+    coverageSnapshot = writeCoverageSnapshot({
+      reviewQueuePath: combined.outputPath,
+      includeInventory: true,
+    });
+    printCoverageSnapshotSummary(coverageSnapshot);
+  } else if (snapshot && !combine) {
+    console.warn(
+      "Warning: --snapshot requires --combine (skipped writing coverage snapshot).",
+    );
+  }
+
   return {
     inputPath,
     limit,
@@ -166,6 +189,7 @@ export async function runExtractAndReview(
     review,
     combined,
     published,
+    coverageSnapshot,
     selectionSummary: extraction.selectionSummary,
   };
 }
@@ -214,6 +238,9 @@ export function printExtractAndReviewSummary(result: ExtractAndReviewResult): vo
       "  Review data/eval/public/* before committing (publish does not git commit).",
     );
   }
+  if (result.coverageSnapshot) {
+    console.log(`  Coverage snapshot:   ${result.coverageSnapshot.outputPath}`);
+  }
 }
 
 export async function runExtractAndReviewCli(): Promise<void> {
@@ -225,6 +252,7 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const rootOnly = hasFlag("--root-only");
   const publish = hasFlag("--publish");
   const noPublish = hasFlag("--no-publish");
+  const snapshot = hasFlag("--snapshot");
 
   if (parsed.showHelp) {
     printHelp(
@@ -232,6 +260,7 @@ export async function runExtractAndReviewCli(): Promise<void> {
       [
         ...WEBSITE_EXTRACTION_CLI_HELP_LINES,
         "  --combine                 Also merge all batch review queues",
+        "  --snapshot                With --combine, write coverage benchmark snapshot",
         "  --publish                 Publish to data/eval/public/ (review + URL inventory)",
         "  --no-publish              Skip publish even when --combine is set",
         "  --retry-failed            Include failed URLs from prior batches (default: not run only)",
@@ -263,6 +292,7 @@ export async function runExtractAndReviewCli(): Promise<void> {
     combine,
     publish,
     noPublish,
+    snapshot,
     processedSelection: {
       retryFailed,
       reprocess,
