@@ -19,7 +19,6 @@ import {
 import { EvalFilterControls } from "./EvalFilterControls";
 import { useEvalViewerFilters } from "./EvalViewerFilterContext";
 import { ExpandedRowDetails } from "./ReviewQueueTable";
-import { UrlInventoryProcessedBadge } from "./UrlInventoryProcessedBadge";
 import { UrlInventoryToolbar } from "./UrlInventoryToolbar";
 import { matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
 import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
@@ -284,28 +283,14 @@ export function UrlInventoryTable({
                     </td>
                     {visibleColumns.map((columnId) => (
                       <td key={columnId} className={evalTableCellClass()}>
-                        {columnId === "status" ? (
-                          <span className="inline-flex flex-wrap items-center gap-0.5">
-                            <EvalInventoryTableColumnCell
-                              columnId={columnId}
-                              candidate={candidate}
-                              review={review}
-                              extractionStatus={row.extractionStatus}
-                              omitPartnerFields={omitPartnerFields}
-                            />
-                            <UrlInventoryProcessedBadge
-                              processedMeta={row.processedMeta}
-                            />
-                          </span>
-                        ) : (
-                          <EvalInventoryTableColumnCell
-                            columnId={columnId}
-                            candidate={candidate}
-                            review={review}
-                            extractionStatus={row.extractionStatus}
-                            omitPartnerFields={omitPartnerFields}
-                          />
-                        )}
+                        <EvalInventoryTableColumnCell
+                          columnId={columnId}
+                          candidate={candidate}
+                          review={review}
+                          extractionStatus={row.extractionStatus}
+                          processedMeta={row.processedMeta}
+                          omitPartnerFields={omitPartnerFields}
+                        />
                       </td>
                     ))}
                   </tr>

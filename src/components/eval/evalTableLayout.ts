@@ -5,7 +5,7 @@ export const EVAL_TABLE_EXPAND_COL_WIDTH_PX = 28;
 
 /** Fixed column widths for `table-layout: fixed` (pixels). */
 export const EVAL_TABLE_COLUMN_WIDTHS_PX: Record<EvalTableColumnId, number> = {
-  domain: 200,
+  domain: 220,
   normalized_url: 200,
   ds_number: 88,
   project_title: 180,
@@ -22,7 +22,7 @@ export const EVAL_TABLE_COLUMN_WIDTHS_PX: Record<EvalTableColumnId, number> = {
   contact_links: 140,
   offerings: 168,
   extracted_summary: 200,
-  status: 88,
+  status: 100,
   pages_inspected: 72,
   elapsed_ms: 72,
   provider_model: 128,

@@ -12,44 +12,16 @@ import {
   PhoneListCell,
   SocialLinksCell,
 } from "./ContactTableCells";
-import { EvalExternalLink, EvalSourceLink } from "./EvalExternalLink";
-import { safeHttpHref } from "@/lib/evalLocal/evalRowUrl";
+import { EvalSourceUrlDisplay } from "./EvalSourceUrlDisplay";
+import { EvalTableStatusCell, reviewRowStatusCategory } from "./EvalTableStatusCell";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { EvalTableColumnId } from "@/lib/evalLocal/evalTableColumns";
+import { processedMetaFromReviewRow } from "@/lib/evalLocal/evalProcessedMeta";
+import { parseSourceUrlDisplayFromReviewRow } from "@/lib/evalLocal/evalSourceUrlDisplay";
 import {
   EVAL_TABLE_CLAMP_2_CLASS,
   EVAL_TABLE_TRUNCATE_CLASS,
 } from "./evalTableLayout";
-
-function isErrorStatus(status: string): boolean {
-  return (
-    status === "fetch_error" ||
-    status === "extraction_error" ||
-    status === "skipped"
-  );
-}
-
-export function ReviewStatusPill({ status }: { status: string }) {
-  const v = status.trim() || "—";
-  if (v === "—") return <span className="text-zinc-400">—</span>;
-
-  const success = v === "success";
-  const error = isErrorStatus(v);
-
-  return (
-    <span
-      className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
-        success
-          ? "bg-emerald-50 text-emerald-700"
-          : error
-            ? "bg-red-50 text-red-700"
-            : "bg-zinc-100 text-zinc-600"
-      }`}
-    >
-      {v}
-    </span>
-  );
-}
 
 function TextFieldCell({
   value,
@@ -79,34 +51,31 @@ function ProviderModelCell({ row }: { row: BrandAuditRow }) {
 export function EvalReviewTableColumnCell({
   columnId,
   row,
+  newestSourceReviewQueue,
+  reviewQueueFilename,
 }: {
   columnId: EvalTableColumnId;
   row: BrandAuditRow;
+  newestSourceReviewQueue?: string | null;
+  reviewQueueFilename?: string;
 }) {
   switch (columnId) {
     case "domain":
       return (
-        <EvalSourceLink
-          row={row}
-          className={`${EVAL_TABLE_TRUNCATE_CLASS} text-[12px] text-zinc-700`}
+        <EvalSourceUrlDisplay
+          display={parseSourceUrlDisplayFromReviewRow(row)}
           mono
           stopPropagation
         />
       );
-    case "normalized_url": {
-      const normalizedUrl = row.normalized_url?.trim() || "—";
+    case "normalized_url":
       return (
-        <EvalExternalLink
-          href={safeHttpHref(row.normalized_url ?? "")}
-          className={`${EVAL_TABLE_TRUNCATE_CLASS} text-xs text-zinc-600`}
+        <EvalSourceUrlDisplay
+          display={parseSourceUrlDisplayFromReviewRow(row)}
           mono
           stopPropagation
-          title={normalizedUrl !== "—" ? normalizedUrl : undefined}
-        >
-          {normalizedUrl}
-        </EvalExternalLink>
+        />
       );
-    }
     case "ds_number":
       return <TextFieldCell value={row.ds_number} />;
     case "project_title":
@@ -151,8 +120,19 @@ export function EvalReviewTableColumnCell({
       return <OfferingsListCell row={row} />;
     case "extracted_summary":
       return <TextFieldCell value={row.extracted_summary} maxLines={2} />;
-    case "status":
-      return <ReviewStatusPill status={row.status ?? ""} />;
+    case "status": {
+      const category = reviewRowStatusCategory(row.status ?? "");
+      const processedMeta =
+        category === "not_run"
+          ? null
+          : processedMetaFromReviewRow(row, {
+              fallbackReviewQueueFilename: reviewQueueFilename,
+              newestSourceReviewQueue,
+            });
+      return (
+        <EvalTableStatusCell category={category} processedMeta={processedMeta} />
+      );
+    }
     case "pages_inspected":
       return <TextFieldCell value={row.pages_inspected} />;
     case "elapsed_ms":

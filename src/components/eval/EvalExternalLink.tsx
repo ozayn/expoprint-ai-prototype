@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import {
-  hrefForReviewRow,
   hrefForUrlField,
   safeHttpHref,
 } from "@/lib/evalLocal/evalRowUrl";
-import { sourceLabelForRow } from "@/lib/evalLocal/brandExtractionParse";
+import { parseSourceUrlDisplayFromReviewRow } from "@/lib/evalLocal/evalSourceUrlDisplay";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
+import { EvalSourceUrlDisplay } from "./EvalSourceUrlDisplay";
 
 const LINK_CLASS =
   "text-inherit decoration-transparent hover:underline hover:decoration-zinc-300 underline-offset-2";
@@ -62,17 +62,14 @@ export function EvalSourceLink({
   mono?: boolean;
   stopPropagation?: boolean;
 }) {
-  const label = sourceLabelForRow(row);
+  const display = parseSourceUrlDisplayFromReviewRow(row);
   return (
-    <EvalExternalLink
-      href={hrefForReviewRow(row)}
+    <EvalSourceUrlDisplay
+      display={display}
       className={className}
       mono={mono}
       stopPropagation={stopPropagation}
-      title={label}
-    >
-      {label}
-    </EvalExternalLink>
+    />
   );
 }
 

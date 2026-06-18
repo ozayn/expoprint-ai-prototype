@@ -1,5 +1,6 @@
 /** Column ids shared between review queue table and URL inventory table. */
 export const EVAL_TABLE_COLUMN_IDS = [
+  "status",
   "domain",
   "normalized_url",
   "ds_number",
@@ -17,7 +18,6 @@ export const EVAL_TABLE_COLUMN_IDS = [
   "contact_links",
   "offerings",
   "extracted_summary",
-  "status",
   "pages_inspected",
   "elapsed_ms",
   "provider_model",
@@ -32,6 +32,7 @@ export const EVAL_TABLE_COLUMN_STORAGE_KEY = "expoprint.eval.visibleColumns";
 export const EVAL_TABLE_COLUMN_ORDER: EvalTableColumnId[] = [...EVAL_TABLE_COLUMN_IDS];
 
 export const EVAL_TABLE_DEFAULT_VISIBLE: EvalTableColumnId[] = [
+  "status",
   "domain",
   "extracted_business_name",
   "logos",
@@ -40,15 +41,14 @@ export const EVAL_TABLE_DEFAULT_VISIBLE: EvalTableColumnId[] = [
   "phones",
   "social",
   "offerings",
-  "status",
 ];
 
 export const EVAL_TABLE_MINIMAL_VISIBLE: EvalTableColumnId[] = [
+  "status",
   "domain",
   "extracted_business_name",
   "logos",
   "colors",
-  "status",
 ];
 
 export const EVAL_TABLE_INVENTORY_ONLY_COLUMNS: EvalTableColumnId[] = [

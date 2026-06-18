@@ -42,14 +42,12 @@ import {
   evalTableHeaderClass,
 } from "./evalTableLayout";
 import { EvalFilterControls } from "./EvalFilterControls";
+import { reviewRowStatusCategory } from "./EvalTableStatusCell";
 import { useOptionalEvalViewerFilters } from "./EvalViewerFilterContext";
-
-function reviewRowStatusCategory(row: BrandAuditRow): "success" | "failed" | "not_run" {
-  const status = row.status?.trim() ?? "";
-  if (status === "success") return "success";
-  if (!status) return "not_run";
-  return "failed";
-}
+import {
+  newestSourceReviewQueueFromSources,
+  resolveSourceReviewQueueFromReview,
+} from "@/lib/evalLocal/evalProcessedMeta";
 
 type Props = {
   filename: string;
@@ -73,6 +71,15 @@ export function ReviewQueueTable({
     omitPartnerFields,
   });
 
+  const newestSourceReviewQueue = useMemo(() => {
+    const sources = rows.map((row) =>
+      resolveSourceReviewQueueFromReview(row, {
+        fallbackReviewQueueFilename: filename,
+      }),
+    );
+    return newestSourceReviewQueueFromSources(sources);
+  }, [rows, filename]);
+
   const colSpan = visibleColumns.length + 1; /* expand */
   const expandedIndex =
     expandedRow?.paginationKey === paginationKey ? expandedRow.index : null;
@@ -83,7 +90,7 @@ export function ReviewQueueTable({
     const { search, statusFilter, fieldFilters } = filterCtx;
 
     return rows.filter((row) => {
-      const category = reviewRowStatusCategory(row);
+      const category = reviewRowStatusCategory(row.status ?? "");
       if (statusFilter !== "all" && category !== statusFilter) {
         return false;
       }
@@ -172,6 +179,8 @@ export function ReviewQueueTable({
                   colSpan={colSpan}
                   visibleColumns={visibleColumns}
                   omitPartnerFields={omitPartnerFields}
+                  newestSourceReviewQueue={newestSourceReviewQueue}
+                  reviewQueueFilename={filename}
                   onToggle={() =>
                     setExpandedRow(
                       expandedIndex === i ? null : { paginationKey, index: i },
@@ -199,6 +208,8 @@ function RowGroup({
   colSpan,
   visibleColumns,
   omitPartnerFields,
+  newestSourceReviewQueue,
+  reviewQueueFilename,
   onToggle,
 }: {
   row: BrandAuditRow;
@@ -206,6 +217,8 @@ function RowGroup({
   colSpan: number;
   visibleColumns: EvalTableColumnId[];
   omitPartnerFields: boolean;
+  newestSourceReviewQueue: string | null;
+  reviewQueueFilename: string;
   onToggle: () => void;
 }) {
   return (
@@ -222,7 +235,12 @@ function RowGroup({
         </td>
         {visibleColumns.map((columnId) => (
           <td key={columnId} className={evalTableCellClass()}>
-            <EvalReviewTableColumnCell columnId={columnId} row={row} />
+            <EvalReviewTableColumnCell
+              columnId={columnId}
+              row={row}
+              newestSourceReviewQueue={newestSourceReviewQueue}
+              reviewQueueFilename={reviewQueueFilename}
+            />
           </td>
         ))}
       </tr>

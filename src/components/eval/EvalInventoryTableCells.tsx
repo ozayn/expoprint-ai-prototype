@@ -1,61 +1,15 @@
 "use client";
 
-import { EvalExternalLink } from "./EvalExternalLink";
+import { EvalSourceUrlDisplay } from "./EvalSourceUrlDisplay";
 import { EvalReviewTableColumnCell } from "./EvalReviewTableCells";
-import { safeHttpHref } from "@/lib/evalLocal/evalRowUrl";
+import { EvalTableStatusCell } from "./EvalTableStatusCell";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import type { EvalTableColumnId } from "@/lib/evalLocal/evalTableColumns";
+import { parseSourceUrlDisplayFromCandidate } from "@/lib/evalLocal/evalSourceUrlDisplay";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
+import type { UrlInventoryProcessedMeta } from "@/lib/evalLocal/evalProcessedMeta";
 import type { UrlInventoryExtractionStatus } from "@/lib/evalLocal/urlInventoryJoin";
 import { EVAL_TABLE_TRUNCATE_CLASS } from "./evalTableLayout";
-
-function CandidateSourceLink({
-  candidate,
-  stopPropagation,
-}: {
-  candidate: UrlCandidateRow;
-  stopPropagation?: boolean;
-}) {
-  const href = safeHttpHref(candidate.normalized_url ?? "");
-  const label =
-    candidate.domain?.trim() ||
-    candidate.canonical_domain?.trim() ||
-    candidate.normalized_url?.trim() ||
-    "—";
-  return (
-    <EvalExternalLink
-      href={href}
-      mono
-      className={`${EVAL_TABLE_TRUNCATE_CLASS} text-[12px] text-zinc-700`}
-      stopPropagation={stopPropagation}
-      title={label !== "—" ? label : undefined}
-    >
-      {label}
-    </EvalExternalLink>
-  );
-}
-
-function InventoryStatusPill({ status }: { status: UrlInventoryExtractionStatus }) {
-  if (status === "not_run") {
-    return (
-      <span className="inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">
-        Not run
-      </span>
-    );
-  }
-  if (status === "success") {
-    return (
-      <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-        Success
-      </span>
-    );
-  }
-  return (
-    <span className="inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
-      Failed
-    </span>
-  );
-}
 
 function CandidateTextCell({ value }: { value: string | undefined }) {
   const v = (value ?? "").trim();
@@ -125,33 +79,36 @@ export function EvalInventoryTableColumnCell({
   candidate,
   review,
   extractionStatus,
+  processedMeta,
   omitPartnerFields = false,
 }: {
   columnId: EvalTableColumnId;
   candidate: UrlCandidateRow;
   review: BrandAuditRow | null | undefined;
   extractionStatus: UrlInventoryExtractionStatus;
+  processedMeta?: UrlInventoryProcessedMeta | null;
   omitPartnerFields?: boolean;
 }) {
   if (omitPartnerFields && PARTNER_CANDIDATE_COLUMNS.includes(columnId)) {
     return <span className="text-zinc-400">—</span>;
   }
   if (columnId === "domain") {
-    return <CandidateSourceLink candidate={candidate} stopPropagation />;
+    return (
+      <EvalSourceUrlDisplay
+        display={parseSourceUrlDisplayFromCandidate(candidate)}
+        mono
+        stopPropagation
+      />
+    );
   }
 
   if (columnId === "normalized_url") {
-    const url = candidate.normalized_url?.trim() || "—";
     return (
-      <EvalExternalLink
-        href={safeHttpHref(candidate.normalized_url ?? "")}
-        className={`${EVAL_TABLE_TRUNCATE_CLASS} text-xs text-zinc-600`}
+      <EvalSourceUrlDisplay
+        display={parseSourceUrlDisplayFromCandidate(candidate)}
         mono
         stopPropagation
-        title={url !== "—" ? url : undefined}
-      >
-        {url}
-      </EvalExternalLink>
+      />
     );
   }
 
@@ -162,7 +119,12 @@ export function EvalInventoryTableColumnCell({
   }
 
   if (columnId === "status") {
-    return <InventoryStatusPill status={extractionStatus} />;
+    return (
+      <EvalTableStatusCell
+        category={extractionStatus}
+        processedMeta={processedMeta}
+      />
+    );
   }
 
   if (EXTRACTED_COLUMNS.includes(columnId)) {
