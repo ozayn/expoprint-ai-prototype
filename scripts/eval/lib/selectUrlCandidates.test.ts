@@ -2,7 +2,10 @@
 import assert from "node:assert/strict";
 import { selectUrlCandidatesWithSummary } from "./selectUrlCandidates.js";
 import type { UrlCandidateOutputRow } from "./urlCandidates.js";
-import { buildProcessedStatusIndex } from "./reviewQueueProcessedIndex.js";
+import {
+  buildProcessedReviewIndex,
+  buildProcessedStatusIndex,
+} from "./reviewQueueProcessedIndex.js";
 import type { ReviewQueueRow } from "./historicalReviewQueue.js";
 import { REVIEW_QUEUE_COLUMNS } from "./historicalReviewQueue.js";
 
@@ -203,6 +206,114 @@ function testExampleComRootBeforePage(): void {
   assert.equal(selected[0]?.normalized_url, "https://example.com");
 }
 
+function successReview(
+  normalizedUrl: string,
+  domain: string,
+  fields: Partial<ReviewQueueRow> = {},
+): ReviewQueueRow {
+  const row = reviewRow(normalizedUrl, domain, "success");
+  for (const [key, value] of Object.entries(fields)) {
+    (row as Record<string, string>)[key] = value;
+  }
+  return row;
+}
+
+function testReprocessMissingColorsSkipsSuccessfulWithColors(): void {
+  const candidates = [
+    candidate("https://with-colors.com/", "with-colors.com"),
+    candidate("https://logo-no-colors.com/", "logo-no-colors.com"),
+    candidate("https://new.com/", "new.com"),
+  ];
+  const reviews = [
+    successReview("https://with-colors.com/", "with-colors.com", {
+      extracted_color_hexes: "#112233",
+      logo_candidate_count: "2",
+    }),
+    successReview("https://logo-no-colors.com/", "logo-no-colors.com", {
+      logo_candidate_count: "2",
+    }),
+  ];
+  const index = buildProcessedStatusIndex(reviews);
+  const reviewIndex = buildProcessedReviewIndex(reviews);
+
+  const { selected, summary } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingColors: true,
+  });
+
+  assert.equal(summary?.alreadySuccessfulWithColors, 1);
+  assert.equal(summary?.successfulMissingColors, 1);
+  assert.equal(selected.length, 2);
+  assert.ok(
+    selected.some((r) => r.domain === "logo-no-colors.com"),
+  );
+  assert.ok(!selected.some((r) => r.domain === "with-colors.com"));
+  assert.equal(summary?.selectedMissingColorReprocess, 1);
+}
+
+function testReprocessMissingColorsSkipsSuccessWithoutLogo(): void {
+  const candidates = [
+    candidate("https://no-logo.com/", "no-logo.com"),
+    candidate("https://new.com/", "new.com"),
+  ];
+  const reviews = [successReview("https://no-logo.com/", "no-logo.com")];
+  const index = buildProcessedStatusIndex(reviews);
+  const reviewIndex = buildProcessedReviewIndex(reviews);
+
+  const { selected } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingColors: true,
+  });
+
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0]?.domain, "new.com");
+}
+
+function testReprocessMissingColorsRetryFailedIncludesFailed(): void {
+  const candidates = [
+    candidate("https://failed.com/", "failed.com"),
+    candidate("https://logo-no-colors.com/", "logo-no-colors.com"),
+  ];
+  const reviews = [
+    reviewRow("https://failed.com/", "failed.com", "error"),
+    successReview("https://logo-no-colors.com/", "logo-no-colors.com", {
+      logo_candidate_count: "1",
+    }),
+  ];
+  const index = buildProcessedStatusIndex(reviews);
+  const reviewIndex = buildProcessedReviewIndex(reviews);
+
+  const withoutRetry = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingColors: true,
+  });
+  assert.equal(withoutRetry.selected.length, 1);
+  assert.equal(withoutRetry.selected[0]?.domain, "logo-no-colors.com");
+
+  const withRetry = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingColors: true,
+    retryFailed: true,
+  });
+  assert.equal(withRetry.selected.length, 2);
+}
+
 function main(): void {
   testDefaultSelectsNotRunOnly();
   testRetryFailedIncludesFailed();
@@ -212,6 +323,9 @@ function main(): void {
   testPreserveOrderDisablesPriority();
   testRootOnlySelectsHomepages();
   testExampleComRootBeforePage();
+  testReprocessMissingColorsSkipsSuccessfulWithColors();
+  testReprocessMissingColorsSkipsSuccessWithoutLogo();
+  testReprocessMissingColorsRetryFailedIncludesFailed();
   console.log("selectUrlCandidates.test.ts: all checks passed");
 }
 

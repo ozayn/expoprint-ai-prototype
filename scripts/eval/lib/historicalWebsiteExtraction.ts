@@ -45,8 +45,10 @@ export type {
 
 export type ProcessedUrlSelectionOptions = {
   processedStatusIndex?: Map<string, ProcessedExtractionOutcome>;
+  processedReviewIndex?: Map<string, import("./historicalReviewQueue.js").ReviewQueueRow>;
   retryFailed?: boolean;
   reprocess?: boolean;
+  reprocessMissingColors?: boolean;
   prioritizeRootUrls?: boolean;
   preserveOrder?: boolean;
   rootOnly?: boolean;
@@ -165,8 +167,10 @@ export async function runHistoricalWebsiteExtraction(
     offset,
     limit,
     processedStatusIndex: options.processedSelection?.processedStatusIndex,
+    processedReviewIndex: options.processedSelection?.processedReviewIndex,
     retryFailed: options.processedSelection?.retryFailed,
     reprocess: options.processedSelection?.reprocess,
+    reprocessMissingColors: options.processedSelection?.reprocessMissingColors,
     prioritizeRootUrls: options.processedSelection?.prioritizeRootUrls,
     preserveOrder: options.processedSelection?.preserveOrder,
     rootOnly: options.processedSelection?.rootOnly,
@@ -275,6 +279,7 @@ export function printWebsiteExtractionRunHeader(
     skipProcessedByDefault: boolean;
     retryFailed: boolean;
     reprocess: boolean;
+    reprocessMissingColors?: boolean;
     mergedReviewRows: number;
     prioritizeRootUrls?: boolean;
     rootOnly?: boolean;
@@ -292,11 +297,13 @@ export function printWebsiteExtractionRunHeader(
     `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per canonical_domain (www. stripped)"}`,
   );
   if (extractAndReviewContext?.skipProcessedByDefault) {
-    const mode = extractAndReviewContext.reprocess
-      ? "reprocess all (including successful)"
-      : extractAndReviewContext.retryFailed
-        ? "not run + failed retries"
-        : "not run only";
+    const mode = extractAndReviewContext.reprocessMissingColors
+      ? "missing colors (logo, no palette)"
+      : extractAndReviewContext.reprocess
+        ? "reprocess all (including successful)"
+        : extractAndReviewContext.retryFailed
+          ? "not run + failed retries"
+          : "not run only";
     console.log(
       `  Prior batches: ${extractAndReviewContext.mergedReviewRows.toLocaleString()} merged review rows · pool: ${mode}`,
     );

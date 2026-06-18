@@ -25,7 +25,10 @@ import {
   writeCoverageSnapshot,
   type WriteCoverageSnapshotResult,
 } from "./writeCoverageSnapshot.js";
-import { loadProcessedStatusIndexFromReviewQueues } from "./reviewQueueProcessedIndex.js";
+import {
+  loadProcessedReviewIndexFromReviewQueues,
+  loadProcessedStatusIndexFromReviewQueues,
+} from "./reviewQueueProcessedIndex.js";
 import type { UrlCandidateSelectionSummary } from "./selectUrlCandidates.js";
 import {
   buildEvalViewerHref,
@@ -95,13 +98,20 @@ export async function runExtractAndReview(
   const processedStatusIndex = loadProcessedStatusIndexFromReviewQueues();
   const retryFailed = options.processedSelection?.retryFailed ?? false;
   const reprocess = options.processedSelection?.reprocess ?? false;
+  const reprocessMissingColors =
+    options.processedSelection?.reprocessMissingColors ?? false;
   const preserveOrder = options.processedSelection?.preserveOrder ?? false;
   const rootOnly = options.processedSelection?.rootOnly ?? false;
+
+  const processedReviewIndex = reprocessMissingColors
+    ? loadProcessedReviewIndexFromReviewQueues()
+    : options.processedSelection?.processedReviewIndex;
 
   printWebsiteExtractionRunHeader(inputPath, options, {
     skipProcessedByDefault: true,
     retryFailed,
     reprocess,
+    reprocessMissingColors,
     mergedReviewRows: processedStatusIndex.size,
     prioritizeRootUrls: !preserveOrder,
     rootOnly,
@@ -117,8 +127,10 @@ export async function runExtractAndReview(
     stylePreference: options.stylePreference,
     processedSelection: {
       processedStatusIndex,
+      processedReviewIndex,
       retryFailed,
       reprocess,
+      reprocessMissingColors,
       prioritizeRootUrls: !preserveOrder,
       preserveOrder,
       rootOnly,
@@ -255,6 +267,9 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const combine = hasFlag("--combine");
   const retryFailed = hasFlag("--retry-failed");
   const reprocess = hasFlag("--reprocess");
+  const reprocessMissingColors =
+    hasFlag("--reprocess-missing-colors") ||
+    hasFlag("--reprocess-missing-palettes");
   const preserveOrder = hasFlag("--preserve-order");
   const rootOnly = hasFlag("--root-only");
   const publish = hasFlag("--publish");
@@ -272,6 +287,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
         "  --no-publish              Skip publish even when --combine is set",
         "  --retry-failed            Include failed URLs from prior batches (default: not run only)",
         "  --reprocess               Include successful URLs from prior batches",
+        "  --reprocess-missing-colors Reprocess successful rows with logo but no colors",
+        "  --reprocess-missing-palettes Alias for --reprocess-missing-colors",
         "  --preserve-order          Keep eligible inventory order (no root URL prioritization)",
         "  --root-only               Process only root/homepage URLs",
         "",
@@ -303,6 +320,7 @@ export async function runExtractAndReviewCli(): Promise<void> {
     processedSelection: {
       retryFailed,
       reprocess,
+      reprocessMissingColors,
       preserveOrder,
       rootOnly,
     },

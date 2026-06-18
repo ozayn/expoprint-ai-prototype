@@ -40,6 +40,26 @@ export function loadProcessedStatusIndexFromReviewQueues(
   return buildProcessedStatusIndex(rows);
 }
 
+/** One review row per canonical site from merged batch queues (for field checks). */
+export function buildProcessedReviewIndex(
+  rows: ReviewQueueRow[],
+): Map<string, ReviewQueueRow> {
+  const index = new Map<string, ReviewQueueRow>();
+  for (const row of rows) {
+    const key = canonicalSiteKeyForReviewRow(row);
+    if (!key) continue;
+    index.set(key, row);
+  }
+  return index;
+}
+
+export function loadProcessedReviewIndexFromReviewQueues(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): Map<string, ReviewQueueRow> {
+  const { rows } = mergeBatchReviewQueuesInMemory(resultsDir);
+  return buildProcessedReviewIndex(rows);
+}
+
 export function countMergedReviewQueueOutcomes(
   rows: CombinedReviewQueueRow[],
 ): { success: number; failed: number } {

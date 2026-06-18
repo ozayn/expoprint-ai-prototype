@@ -1,10 +1,15 @@
 import { canonicalSiteDedupeKeyFromFields } from "../../../src/lib/evalLocal/evalCanonicalDedup.js";
 import {
+  hasColors,
+  hasLogo,
+} from "../../../src/lib/evalLocal/fieldCoverageHelpers.js";
+import {
   compareUrlPriority,
   countSelectedByPathType,
   isRootUrl,
   urlForCandidateFields,
 } from "../../../src/lib/evalLocal/evalUrlPriority.js";
+import type { ReviewQueueRow } from "./historicalReviewQueue.js";
 import type { ProcessedExtractionOutcome } from "./reviewQueueProcessedIndex.js";
 import {
   canonicalDomainForRow,
@@ -19,6 +24,10 @@ export type SelectUrlCandidatesOptions = {
   processedStatusIndex?: Map<string, ProcessedExtractionOutcome>;
   retryFailed?: boolean;
   reprocess?: boolean;
+  /** Reprocess successful rows with logo but no colors only. */
+  reprocessMissingColors?: boolean;
+  /** Canonical site key → merged review row (for palette reprocess checks). */
+  processedReviewIndex?: Map<string, ReviewQueueRow>;
   /** When true, sort eligible URLs by root/shallow/deep priority (default for extract-and-review). */
   prioritizeRootUrls?: boolean;
   /** Keep eligible inventory order; disables root URL prioritization. */
@@ -37,6 +46,9 @@ export type UrlCandidateSelectionSummary = {
   selectedShallowPath: number;
   selectedDeepPath: number;
   skippedByRootOnly?: number;
+  alreadySuccessfulWithColors?: number;
+  successfulMissingColors?: number;
+  selectedMissingColorReprocess?: number;
 };
 
 export type UrlCandidateSelectionResult = {
@@ -75,11 +87,33 @@ function processedStatusForCandidate(
 function isEligibleForBatch(
   status: "success" | "failed" | "not_run",
   options: SelectUrlCandidatesOptions,
+  reviewRow?: ReviewQueueRow,
 ): boolean {
+  if (options.reprocessMissingColors) {
+    if (status === "not_run") return true;
+    if (status === "failed") return options.retryFailed ?? false;
+    if (status === "success") {
+      if (!reviewRow) return false;
+      return hasLogo(reviewRow) && !hasColors(reviewRow);
+    }
+    return false;
+  }
   if (options.reprocess) return true;
   if (status === "not_run") return true;
   if (status === "failed" && options.retryFailed) return true;
   return false;
+}
+
+function isMissingColorReprocessSuccess(
+  status: "success" | "failed" | "not_run",
+  reviewRow: ReviewQueueRow | undefined,
+): boolean {
+  return (
+    status === "success" &&
+    reviewRow !== undefined &&
+    hasLogo(reviewRow) &&
+    !hasColors(reviewRow)
+  );
 }
 
 function candidateUrl(row: UrlCandidateOutputRow): string {
@@ -112,6 +146,9 @@ function buildSummary(
     alreadySuccessful: number;
     alreadyFailed: number;
     notRun: number;
+    alreadySuccessfulWithColors?: number;
+    successfulMissingColors?: number;
+    selectedMissingColorReprocess?: number;
   },
   skippedByRootOnly?: number,
 ): UrlCandidateSelectionSummary {
@@ -129,6 +166,15 @@ function buildSummary(
     selectedDeepPath: byType.deep,
     ...(skippedByRootOnly !== undefined && skippedByRootOnly > 0
       ? { skippedByRootOnly }
+      : {}),
+    ...(counts.alreadySuccessfulWithColors !== undefined
+      ? { alreadySuccessfulWithColors: counts.alreadySuccessfulWithColors }
+      : {}),
+    ...(counts.successfulMissingColors !== undefined
+      ? { successfulMissingColors: counts.successfulMissingColors }
+      : {}),
+    ...(counts.selectedMissingColorReprocess !== undefined
+      ? { selectedMissingColorReprocess: counts.selectedMissingColorReprocess }
       : {}),
   };
 }
@@ -166,22 +212,44 @@ export function selectUrlCandidatesWithSummary(
   let alreadySuccessful = 0;
   let alreadyFailed = 0;
   let notRun = 0;
+  let alreadySuccessfulWithColors = 0;
+  let successfulMissingColors = 0;
 
   if (hasProcessedFilter) {
     for (const row of rows) {
       const status = processedStatusForCandidate(row, index);
-      if (status === "success") alreadySuccessful += 1;
-      else if (status === "failed") alreadyFailed += 1;
+      if (status === "success") {
+        alreadySuccessful += 1;
+        if (options.reprocessMissingColors) {
+          const key = candidateSiteKey(row);
+          const reviewRow = key
+            ? options.processedReviewIndex?.get(key)
+            : undefined;
+          if (reviewRow && hasColors(reviewRow)) {
+            alreadySuccessfulWithColors += 1;
+          } else if (reviewRow && hasLogo(reviewRow) && !hasColors(reviewRow)) {
+            successfulMissingColors += 1;
+          }
+        }
+      } else if (status === "failed") alreadyFailed += 1;
       else notRun += 1;
     }
   }
 
   const eligibleEntries: EligibleEntry[] = [];
+  let selectedMissingColorReprocess = 0;
   for (let inventoryIndex = 0; inventoryIndex < rows.length; inventoryIndex += 1) {
     const row = rows[inventoryIndex];
+    const status = hasProcessedFilter
+      ? processedStatusForCandidate(row, index)
+      : "not_run";
+    const siteKey = candidateSiteKey(row);
+    const reviewRow = siteKey
+      ? options.processedReviewIndex?.get(siteKey)
+      : undefined;
     if (
       hasProcessedFilter &&
-      !isEligibleForBatch(processedStatusForCandidate(row, index), options)
+      !isEligibleForBatch(status, options, reviewRow)
     ) {
       continue;
     }
@@ -206,17 +274,38 @@ export function selectUrlCandidatesWithSummary(
       ? []
       : rootFiltered.slice(offset, offset + limit).map((entry) => entry.row);
 
+  if (options.reprocessMissingColors && hasProcessedFilter) {
+    for (const row of selected) {
+      const status = processedStatusForCandidate(row, index);
+      const siteKey = candidateSiteKey(row);
+      const reviewRow = siteKey
+        ? options.processedReviewIndex?.get(siteKey)
+        : undefined;
+      if (isMissingColorReprocessSuccess(status, reviewRow)) {
+        selectedMissingColorReprocess += 1;
+      }
+    }
+  }
+
   const shouldSummarize =
     hasProcessedFilter ||
     options.prioritizeRootUrls ||
     options.rootOnly ||
-    options.preserveOrder;
+    options.preserveOrder ||
+    options.reprocessMissingColors;
 
   const summary = shouldSummarize
     ? buildSummary(rows, selected, {
         alreadySuccessful,
         alreadyFailed,
         notRun,
+        ...(options.reprocessMissingColors
+          ? {
+              alreadySuccessfulWithColors,
+              successfulMissingColors,
+              selectedMissingColorReprocess,
+            }
+          : {}),
       }, options.rootOnly ? skippedByRootOnly : undefined)
     : undefined;
 
@@ -247,6 +336,21 @@ export function printUrlCandidateSelectionSummary(
   if (summary.skippedByRootOnly !== undefined) {
     console.log(
       `  Skipped (--root-only): ${summary.skippedByRootOnly.toLocaleString()}`,
+    );
+  }
+  if (summary.alreadySuccessfulWithColors !== undefined) {
+    console.log(
+      `  Successful w/ colors:  ${summary.alreadySuccessfulWithColors.toLocaleString()} (skipped)`,
+    );
+  }
+  if (summary.successfulMissingColors !== undefined) {
+    console.log(
+      `  Successful missing colors:${summary.successfulMissingColors.toLocaleString()} (eligible)`,
+    );
+  }
+  if (summary.selectedMissingColorReprocess !== undefined) {
+    console.log(
+      `  Selected missing-color:${summary.selectedMissingColorReprocess.toLocaleString()} reprocess rows`,
     );
   }
 }

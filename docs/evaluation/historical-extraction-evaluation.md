@@ -32,7 +32,11 @@ npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.
 
 This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv` and **publish** sanitized JSON to `data/eval/public/` for `/internal/eval` (review rows + URL inventory, domains included). Publishing runs automatically with `--combine`; pass `--no-publish` to skip. Use `--publish` to publish without combining. Publish does not commit or push — review `data/eval/public/*` manually.
 
-By default, `eval:extract-and-review` selects only **not run** URLs — it skips sites already present in merged batch review queues. Failed and successful URLs are skipped unless you pass `--retry-failed` or `--reprocess`. Eligible URLs are sorted **root/homepage first** (then shallow paths, then deep paths) before `--limit` and `--offset` are applied. Pass `--preserve-order` to keep inventory order. The script prints a selection summary before extraction.
+By default, `eval:extract-and-review` selects only **not run** URLs — it skips sites already present in merged batch review queues. Failed and successful URLs are skipped unless you pass `--retry-failed` or `--reprocess`. Use `--reprocess-missing-colors` to reprocess only successful rows that have logos but no extracted palette (skips successful rows that already have colors). Failed rows are included only when `--retry-failed` is also passed. Eligible URLs are sorted **root/homepage first** (then shallow paths, then deep paths) before `--limit` and `--offset` are applied. Pass `--preserve-order` to keep inventory order. The script prints a selection summary before extraction.
+
+```bash
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 10 --reprocess-missing-colors --combine
+```
 
 Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/internal/eval` defaults to **Combined all batches** when a combined file exists and opens the **All URLs** tab when URL inventory is available (`?review=combined&view=inventory&sort=recent`); use **Latest batch** for the most recent extraction only.
 
@@ -72,6 +76,8 @@ Options:
 | `--api-url URL` | (in-process) | Optional: call a running dev server instead |
 | `--retry-failed` | off | `eval:extract-and-review` only — include failed URLs from prior batches |
 | `--reprocess` | off | `eval:extract-and-review` only — include successful URLs from prior batches |
+| `--reprocess-missing-colors` | off | `eval:extract-and-review` only — reprocess successful rows with logo but no colors (plus not-run; failed only with `--retry-failed`) |
+| `--reprocess-missing-palettes` | off | Alias for `--reprocess-missing-colors` |
 | `--preserve-order` | off | `eval:extract-and-review` only — skip root URL prioritization |
 | `--root-only` | off | `eval:extract-and-review` only — process only root/homepage URLs |
 | `--combine` | off | `eval:extract-and-review` only — merge batch review queues; also publishes by default |
