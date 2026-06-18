@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { shouldPublishAfterExtractAndReview } from "./extractAndReview.js";
+import {
+  devEvalViewerUrl,
+  shouldPublishAfterExtractAndReview,
+} from "./extractAndReview.js";
 
 assert.equal(
   shouldPublishAfterExtractAndReview({ combine: true }),
@@ -25,6 +28,10 @@ assert.equal(
     noPublish: true,
   }),
   false,
+);
+assert.equal(
+  devEvalViewerUrl("combined"),
+  "http://localhost:3000/internal/eval?review=combined&view=inventory&sort=recent",
 );
 
 console.log("extractAndReview.test.ts: all checks passed");

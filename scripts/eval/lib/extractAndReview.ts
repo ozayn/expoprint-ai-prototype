@@ -27,6 +27,10 @@ import {
 } from "./writeCoverageSnapshot.js";
 import { loadProcessedStatusIndexFromReviewQueues } from "./reviewQueueProcessedIndex.js";
 import type { UrlCandidateSelectionSummary } from "./selectUrlCandidates.js";
+import {
+  buildEvalViewerHref,
+  defaultInventoryViewerQuery,
+} from "../../../src/lib/evalLocal/evalViewerQuery.js";
 
 export type ExtractAndReviewResult = {
   inputPath: string;
@@ -62,8 +66,11 @@ export function devEvalViewerUrl(reviewSelection: string): string {
     process.env.DESIGN_INTAKE_API_URL?.replace(/\/$/, "") ??
     process.env.EVAL_VIEWER_BASE_URL?.replace(/\/$/, "") ??
     "http://localhost:3000";
-  const q = new URLSearchParams({ review: reviewSelection });
-  return `${base}/internal/eval?${q.toString()}`;
+  const href = buildEvalViewerHref(
+    "/internal/eval",
+    defaultInventoryViewerQuery({ review: reviewSelection }),
+  );
+  return `${base}${href}`;
 }
 
 export async function runExtractAndReview(

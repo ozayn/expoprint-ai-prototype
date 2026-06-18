@@ -34,7 +34,7 @@ This runs the same logic as `eval:extract`, then immediately builds `review_queu
 
 By default, `eval:extract-and-review` selects only **not run** URLs — it skips sites already present in merged batch review queues. Failed and successful URLs are skipped unless you pass `--retry-failed` or `--reprocess`. Eligible URLs are sorted **root/homepage first** (then shallow paths, then deep paths) before `--limit` and `--offset` are applied. Pass `--preserve-order` to keep inventory order. The script prints a selection summary before extraction.
 
-Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/internal/eval` defaults to **Combined all batches** when a combined file exists; use **Latest batch** for the most recent extraction only.
+Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/internal/eval` defaults to **Combined all batches** when a combined file exists and opens the **All URLs** tab when URL inventory is available (`?review=combined&view=inventory&sort=recent`); use **Latest batch** for the most recent extraction only.
 
 To combine batches manually:
 
@@ -117,7 +117,7 @@ In-process extraction loads `.env.local` for `ANTHROPIC_API_KEY` when present. I
 
 When you want to test websites **outside** a Metabase export, use the **Add URLs** panel on `/internal/eval` while running `npm run dev` (not available in production builds).
 
-1. Open `http://localhost:3000/internal/eval` while `npm run dev` is running.
+1. Open `http://localhost:3000/internal/eval?review=combined&view=inventory&sort=recent` while `npm run dev` is running.
 2. Click **Add URLs**, paste one URL per line (http/https; bare domains become `https://`), and optionally set a label/project title.
 3. Click **Process URLs**. Up to **25** URLs per submission; invalid lines are reported without stopping the batch. A **1 second** delay runs between extraction requests.
 
@@ -141,7 +141,7 @@ Manual runs from the Add URLs panel use `manual_extraction_run_<timestamp>.jsonl
 
 Writes `data/eval/results/review_queue_<timestamp>.csv` (or `manual_review_queue_<timestamp>.csv` for manual runs) with historical input fields, ExpoPrint output fields, logo/color audit columns (`selected_logo_url`, `logo_candidate_urls` as JSON, `extracted_color_hexes`, `primary_color_hex`, `secondary_color_hex`), optional manual score columns, and helper similarity hints. Full `expo_output` remains in the JSONL run file.
 
-View at `/internal/eval` with **Gallery** (visual brand audit cards) or **Table** (dense field extraction audit). Both views share a field-coverage summary and expandable row details. In local dev, data comes from gitignored CSV/JSONL; in production, from published sanitized JSON only.
+View at `/internal/eval?review=combined&view=inventory&sort=recent` — **All URLs** (default when inventory exists), **Gallery**, or **Extracted table**. All views share a field-coverage summary and expandable row details. In local dev, data comes from gitignored CSV/JSONL; in production, from published sanitized JSON only.
 
 **Scoring rubric** (assign in CSV or spreadsheet):
 

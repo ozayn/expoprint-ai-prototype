@@ -4,7 +4,8 @@ import { BrandAuditCoverageSummary } from "./BrandAuditCoverageSummary";
 import { EvalAuditMain } from "./EvalAuditMain";
 import { EvalColumnVisibilityProvider } from "./EvalColumnVisibilityContext";
 import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
-import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
+import { EvalViewToggle } from "./EvalViewToggle";
+import { resolveEvalViewMode } from "@/lib/evalLocal/evalViewerQuery";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import { dedupeBrandAuditRows } from "@/lib/evalLocal/evalCanonicalDedup";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
@@ -17,12 +18,6 @@ import type {
 } from "@/lib/evalLocal/urlInventoryJoin";
 
 export type EvalViewerSearchParams = EvalViewerQueryParams;
-
-export function parseEvalViewMode(view: string | undefined): EvalViewMode {
-  if (view === "table") return "table";
-  if (view === "inventory") return "inventory";
-  return "gallery";
-}
 
 export type EvalViewerDataKind = "local" | InternalEvalDataSource;
 
@@ -83,11 +78,11 @@ export function BrandAuditViewer({
   combinedReviewQueues = [],
   children,
 }: BrandAuditViewerProps) {
-  const view = parseEvalViewMode(searchParams.view);
-  const displayRows = dedupeBrandAuditRows(rows).items;
   const showUrlInventory =
     Boolean(urlInventoryFilename) ||
     Boolean(inventoryStats && inventoryStats.totalRawCandidates > 0);
+  const view = resolveEvalViewMode(searchParams.view, showUrlInventory);
+  const displayRows = dedupeBrandAuditRows(rows).items;
 
   const content = (
     <div className="min-h-full bg-zinc-50/30 text-zinc-900">

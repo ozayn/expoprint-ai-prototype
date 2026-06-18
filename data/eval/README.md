@@ -80,7 +80,7 @@ See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/h
 
 ## Viewers
 
-Canonical route: [`/internal/eval`](http://localhost:3000/internal/eval).
+Canonical route: [`/internal/eval?review=combined&view=inventory&sort=recent`](http://localhost:3000/internal/eval?review=combined&view=inventory&sort=recent).
 
 | Environment | Password | Data |
 | --- | --- | --- |

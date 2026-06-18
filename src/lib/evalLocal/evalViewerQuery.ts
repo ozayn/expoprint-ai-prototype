@@ -18,6 +18,26 @@ export type EvalViewerQueryParams = {
   urlType?: string;
 };
 
+export type EvalViewMode = "gallery" | "table" | "inventory";
+
+/**
+ * Resolves the active eval viewer tab from the `view` query param.
+ * Defaults to All URLs when inventory exists; otherwise Gallery.
+ */
+export function resolveEvalViewMode(
+  viewParam: string | undefined,
+  hasUrlInventory: boolean,
+): EvalViewMode {
+  const view = viewParam?.trim();
+  if (view === "table") return "table";
+  if (view === "gallery") return "gallery";
+  if (view === "inventory") {
+    return hasUrlInventory ? "inventory" : "gallery";
+  }
+  if (hasUrlInventory) return "inventory";
+  return "gallery";
+}
+
 export function resolveUrlCandidatesParam(
   params: EvalViewerQueryParams,
 ): string | undefined {
@@ -96,7 +116,10 @@ export function showUrlInventoryVariants(
   return variants === "1" || variants === "show" || variants === "true";
 }
 
-/** Default inventory view: recently processed first. */
+/** Canonical link for opening the eval viewer on combined review + All URLs. */
+export const EVAL_VIEWER_DEFAULT_HREF =
+  "/internal/eval?review=combined&view=inventory&sort=recent";
+
 export function defaultInventoryViewerQuery(
   current: EvalViewerQueryParams,
 ): EvalViewerQueryParams {
