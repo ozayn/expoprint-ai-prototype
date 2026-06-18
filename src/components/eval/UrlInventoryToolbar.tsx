@@ -73,7 +73,7 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3" suppressHydrationWarning>
       <div className="flex flex-wrap gap-1.5">
         {QUICK_FILTERS.map(({ id, label }) => (
           <Link
@@ -90,7 +90,10 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
         ))}
       </div>
 
-      <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+      <label
+        className="flex items-center gap-1.5 text-xs text-zinc-500"
+        suppressHydrationWarning
+      >
         <span className="text-zinc-400">URL type</span>
         <select
           value={pathTypeFilter}
@@ -102,6 +105,10 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
           }}
           className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 focus:border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-200"
           aria-label="Filter URL inventory by path type"
+          data-1p-ignore
+          data-lpignore="true"
+          data-form-type="other"
+          suppressHydrationWarning
         >
           {URL_INVENTORY_PATH_TYPE_FILTERS.map((filter) => (
             <option key={filter} value={filter}>
@@ -111,7 +118,10 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
         </select>
       </label>
 
-      <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+      <label
+        className="flex items-center gap-1.5 text-xs text-zinc-500"
+        suppressHydrationWarning
+      >
         <span className="text-zinc-400">Sort</span>
         <select
           value={sortMode}
@@ -120,6 +130,10 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
           }}
           className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 focus:border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-200"
           aria-label="Sort URL inventory"
+          data-1p-ignore
+          data-lpignore="true"
+          data-form-type="other"
+          suppressHydrationWarning
         >
           {URL_INVENTORY_SORT_MODES.map((mode) => (
             <option key={mode} value={mode}>

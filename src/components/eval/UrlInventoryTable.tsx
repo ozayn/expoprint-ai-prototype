@@ -246,7 +246,7 @@ export function UrlInventoryTable({
 
   return (
     <div suppressHydrationWarning>
-      <div className="mb-4 space-y-3">
+      <div className="mb-4 space-y-3" suppressHydrationWarning>
         {filename ? (
           <p className="text-xs text-zinc-500">
             <span className="font-mono text-zinc-600">{filename}</span>
