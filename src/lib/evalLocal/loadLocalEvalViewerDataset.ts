@@ -26,6 +26,9 @@ import type { ExtractionSummaryRow } from "@/lib/evalLocal/extractionSummaryType
 import type { ParsedScoreSummary } from "@/lib/evalLocal/scoreSummaryTypes";
 
 export const EVAL_VIEWER_BASE_PATH = "/internal/eval";
+export const EVAL_VIEWER_DATA_SOURCE_LABEL_LOCAL = "Local eval files";
+export const EVAL_VIEWER_DATA_SOURCE_LABEL_PUBLISHED =
+  "Published sanitized data";
 
 export type LocalEvalViewerDataset = {
   index: LocalEvalFileIndex;

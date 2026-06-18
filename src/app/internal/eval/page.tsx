@@ -3,23 +3,24 @@ import Link from "next/link";
 import { AddManualUrlsPanel } from "@/components/eval/AddManualUrlsPanel";
 import { BrandAuditViewer } from "@/components/eval/BrandAuditViewer";
 import { EvalInternalsPanel } from "@/components/eval/EvalInternalsPanel";
-import { InternalEvalInternalsPanel } from "@/components/eval/InternalEvalInternalsPanel";
 import {
   getEvalViewerPassword,
   isEvalViewerAuthenticated,
   isEvalViewerConfiguredInProduction,
 } from "@/lib/evalInternal/auth";
+import { mapPublishedUrlInventoryRows } from "@/lib/evalInternal/publishedUrlInventory";
 import {
   readInternalEvalDataset,
   urlInventoryPayloadToViewerRows,
 } from "@/lib/evalInternal/readInternalEvalReview";
-import { mapPublishedUrlInventoryRows } from "@/lib/evalInternal/publishedUrlInventory";
-import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
+import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import {
   EVAL_VIEWER_BASE_PATH,
+  EVAL_VIEWER_DATA_SOURCE_LABEL_LOCAL,
+  EVAL_VIEWER_DATA_SOURCE_LABEL_PUBLISHED,
   loadLocalEvalViewerDataset,
 } from "@/lib/evalLocal/loadLocalEvalViewerDataset";
-import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
+import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
 import { computeUrlInventoryStats } from "@/lib/evalLocal/urlInventoryJoin";
 import { InternalEvalLogin } from "./InternalEvalLogin";
 import { InternalEvalLogout } from "./InternalEvalLogout";
@@ -78,7 +79,7 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
         basePath={EVAL_VIEWER_BASE_PATH}
         searchParams={params}
         subtitle="Historical websites processed through ExpoPrint."
-        safetyNote="Local-only · partner data stays on this machine"
+        dataSourceLabel={EVAL_VIEWER_DATA_SOURCE_LABEL_LOCAL}
         dataKind="local"
         publishHint={data.publishHint}
         reviewFilename={data.reviewData?.filename}
@@ -121,25 +122,20 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
   const urlInventoryRows = urlInventoryPayload
     ? urlInventoryPayloadToViewerRows(urlInventoryPayload)
     : undefined;
-  const inventoryStats = urlInventoryPayload && urlInventoryRows
-    ? computeUrlInventoryStats(
-        urlInventoryRows,
-        urlInventoryPayload.rows.length,
-      )
-    : undefined;
-
-  const deployedNote =
-    reviewData.source === "published"
-      ? "Published sanitized evaluation data. Raw partner files remain local."
-      : "No published eval file yet — showing built-in sample data. Run npm run eval:publish-internal locally, review the JSON, then commit data/eval/public/internal-eval-review.json.";
+  const inventoryStats =
+    urlInventoryPayload && urlInventoryRows
+      ? computeUrlInventoryStats(
+          urlInventoryRows,
+          urlInventoryPayload.rows.length,
+        )
+      : undefined;
 
   return (
     <BrandAuditViewer
       basePath={EVAL_VIEWER_BASE_PATH}
       searchParams={params}
       subtitle="Historical websites processed through ExpoPrint."
-      deployedNote={deployedNote}
-      dataSourceLabel={reviewData.sourceLabel}
+      dataSourceLabel={EVAL_VIEWER_DATA_SOURCE_LABEL_PUBLISHED}
       publishedAt={
         reviewData.source === "published" ? reviewData.publishedAt : undefined
       }
@@ -168,18 +164,7 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
           : undefined
       }
       inventoryStats={inventoryStats}
-      emptyMessage="Sample review fixture has no rows."
-    >
-      <InternalEvalInternalsPanel
-        reviewRowCount={reviewData.rows.length}
-        urlInventoryRowCount={urlInventoryRows?.length}
-        urlInventoryIncluded={Boolean(urlInventoryPayload)}
-        sourceReviewQueue={reviewData.sourceReviewQueue}
-        sourceUrlCandidates={urlInventoryPayload?.sourceUrlCandidates}
-        publishedAt={
-          reviewData.publishedAt ?? urlInventoryPayload?.publishedAt
-        }
-      />
-    </BrandAuditViewer>
+      emptyMessage="No published review rows in this dataset."
+    />
   );
 }

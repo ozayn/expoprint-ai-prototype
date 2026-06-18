@@ -59,8 +59,6 @@ export type BrandAuditViewerProps = {
 export function BrandAuditViewer({
   title = "Historical brand audit",
   subtitle,
-  safetyNote,
-  deployedNote,
   dataSourceLabel,
   publishedAt,
   sourceReviewQueue,
@@ -89,7 +87,7 @@ export function BrandAuditViewer({
   const displayRows = dedupeBrandAuditRows(rows).items;
   const showUrlInventory =
     Boolean(urlInventoryFilename) ||
-    Boolean(inventoryStats && inventoryStats.totalCandidates > 0);
+    Boolean(inventoryStats && inventoryStats.totalRawCandidates > 0);
 
   const content = (
     <div className="min-h-full bg-zinc-50/30 text-zinc-900">
@@ -158,15 +156,8 @@ export function BrandAuditViewer({
             </div>
             <div className="flex flex-col items-start gap-2 sm:items-end">
               {headerAction}
-              {safetyNote ? (
-                <p className="text-[11px] text-zinc-400">{safetyNote}</p>
-              ) : null}
             </div>
           </div>
-
-          {deployedNote ? (
-            <p className="mt-6 text-xs leading-relaxed text-zinc-500">{deployedNote}</p>
-          ) : null}
         </header>
 
         {prependContent ? (
@@ -203,11 +194,10 @@ export function BrandAuditViewer({
           rows={displayRows}
           reviewFilename={reviewFilename}
           emptyMessage={emptyMessage}
-          dataKind={dataKind}
           urlInventoryFilename={urlInventoryFilename}
           urlInventoryRows={urlInventoryRows}
           urlInventoryRawRows={urlInventoryRawRows}
-          omitPartnerFields={dataKind !== "local"}
+          omitPartnerFields={false}
           basePath={basePath}
           searchParams={searchParams}
         />
