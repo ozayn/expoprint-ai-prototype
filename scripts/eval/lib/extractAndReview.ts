@@ -16,6 +16,10 @@ import {
   type RunHistoricalWebsiteExtractionOptions,
 } from "./historicalWebsiteExtraction.js";
 import { hasFlag, printHelp } from "./cliArgs.js";
+import {
+  runPublishLatestInternalEval,
+  type PublishLatestInternalEvalResult,
+} from "./publishLatestInternalEval.js";
 import { loadProcessedStatusIndexFromReviewQueues } from "./reviewQueueProcessedIndex.js";
 import type { UrlCandidateSelectionSummary } from "./selectUrlCandidates.js";
 
@@ -33,8 +37,19 @@ export type ExtractAndReviewResult = {
   byStatus: Record<string, number>;
   review: ReviewQueueBuildResult;
   combined?: CombineReviewQueuesResult;
+  published?: PublishLatestInternalEvalResult;
   selectionSummary?: UrlCandidateSelectionSummary;
 };
+
+export function shouldPublishAfterExtractAndReview(options: {
+  combine?: boolean;
+  publish?: boolean;
+  noPublish?: boolean;
+}): boolean {
+  if (options.noPublish) return false;
+  if (options.publish) return true;
+  return options.combine ?? false;
+}
 
 export function devEvalViewerUrl(reviewSelection: string): string {
   const base =
@@ -49,11 +64,18 @@ export async function runExtractAndReview(
   inputPath: string,
   options: Omit<RunHistoricalWebsiteExtractionOptions, "inputPath"> & {
     combine?: boolean;
+    publish?: boolean;
+    noPublish?: boolean;
   },
 ): Promise<ExtractAndReviewResult> {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
   const combine = options.combine ?? false;
+  const publishAfter = shouldPublishAfterExtractAndReview({
+    combine,
+    publish: options.publish,
+    noPublish: options.noPublish,
+  });
 
   const processedStatusIndex = loadProcessedStatusIndexFromReviewQueues();
   const retryFailed = options.processedSelection?.retryFailed ?? false;
@@ -113,6 +135,22 @@ export async function runExtractAndReview(
     combined = combineReviewQueues();
   }
 
+  let published: PublishLatestInternalEvalResult | undefined;
+  if (publishAfter) {
+    console.log("");
+    console.log("Publishing internal eval dataset for /internal/eval…");
+    published = runPublishLatestInternalEval({
+      includeDomains: true,
+      includeUrlInventory: true,
+      urlCandidatesFilename: basename(inputPath),
+    });
+    if (!published.partnerDataCheckPassed) {
+      throw new Error(
+        "Partner-data check failed after publish. Run npm run check:partner-data",
+      );
+    }
+  }
+
   return {
     inputPath,
     limit,
@@ -127,6 +165,7 @@ export async function runExtractAndReview(
     byStatus,
     review,
     combined,
+    published,
     selectionSummary: extraction.selectionSummary,
   };
 }
@@ -136,11 +175,22 @@ export function printExtractAndReviewSummary(result: ExtractAndReviewResult): vo
 
   console.log("");
   console.log("Extract + review complete");
+  console.log(`  Extraction run:      ${result.jsonlPath}`);
+  console.log(`  Review queue:        ${result.reviewQueuePath}`);
+  if (result.combined) {
+    console.log(`  Combined queue:      ${result.combined.outputPath}`);
+  }
+  if (result.published) {
+    console.log(`  Published review:    ${result.published.publish.outputPath}`);
+    if (result.published.urlInventory) {
+      console.log(
+        `  Published inventory: ${result.published.urlInventory.outputPath}`,
+      );
+    }
+  }
   console.log(`  Candidates file:     ${result.inputPath}`);
   console.log(`  Limit / offset:      ${result.limit} / ${result.offset}`);
-  console.log(`  Extraction run:      ${result.jsonlPath}`);
   console.log(`  Extraction summary:  ${result.summaryPath}`);
-  console.log(`  Review queue:        ${result.reviewQueuePath}`);
   console.log(`  Rows extracted:      ${result.recordsExtracted}`);
   console.log(`  Success:             ${result.successCount}`);
   console.log(`  Errors:              ${result.errorCount}`);
@@ -150,13 +200,18 @@ export function printExtractAndReviewSummary(result: ExtractAndReviewResult): vo
   }
   console.log(`  Latest batch viewer: ${devEvalViewerUrl("latest")}`);
   if (result.combined) {
-    console.log(`  Combined file:       ${result.combined.outputPath}`);
     console.log(
       `  Combined viewer:     ${devEvalViewerUrl("combined")}`,
     );
   } else {
     console.log(
       `  Batch viewer:        ${devEvalViewerUrl(batchFilename)}`,
+    );
+  }
+  if (result.published?.partnerDataCheckPassed) {
+    console.log("  Partner-data check:  passed");
+    console.log(
+      "  Review data/eval/public/* before committing (publish does not git commit).",
     );
   }
 }
@@ -168,6 +223,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const reprocess = hasFlag("--reprocess");
   const preserveOrder = hasFlag("--preserve-order");
   const rootOnly = hasFlag("--root-only");
+  const publish = hasFlag("--publish");
+  const noPublish = hasFlag("--no-publish");
 
   if (parsed.showHelp) {
     printHelp(
@@ -175,10 +232,16 @@ export async function runExtractAndReviewCli(): Promise<void> {
       [
         ...WEBSITE_EXTRACTION_CLI_HELP_LINES,
         "  --combine                 Also merge all batch review queues",
+        "  --publish                 Publish to data/eval/public/ (review + URL inventory)",
+        "  --no-publish              Skip publish even when --combine is set",
         "  --retry-failed            Include failed URLs from prior batches (default: not run only)",
         "  --reprocess               Include successful URLs from prior batches",
         "  --preserve-order          Keep eligible inventory order (no root URL prioritization)",
         "  --root-only               Process only root/homepage URLs",
+        "",
+        "With --combine, publishes sanitized JSON for /internal/eval by default",
+        "(same as eval:publish-latest-internal --include-url-inventory --include-domains).",
+        "Does not commit or push — review data/eval/public/* manually.",
         "",
         "By default, skips URLs already present in merged batch review queues.",
         "Eligible not-run URLs are sorted root-first before limit/offset.",
@@ -198,6 +261,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const result = await runExtractAndReview(parsed.inputPath!, {
     ...parsed.options,
     combine,
+    publish,
+    noPublish,
     processedSelection: {
       retryFailed,
       reprocess,

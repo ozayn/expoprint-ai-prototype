@@ -50,9 +50,9 @@ npm run eval:urls -- data/eval/metabase_sample.example.csv
 After `eval:urls`, run a small sample only. A full ~2k URL run can take hours and hit rate limits — batch with `--limit` and `--offset`:
 
 ```bash
-# Recommended: extraction + review queue in one command (--combine merges all batches)
-# Default: processes only not-run URLs (skips sites already in batch review queues)
-npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 5 --combine
+# Recommended: extraction + review queue + combined publish for /internal/eval
+# With --combine, publishes data/eval/public/* automatically (review + URL inventory)
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 10 --combine
 npm run eval:combine-reviews
 
 # Or separate steps

@@ -27,10 +27,10 @@ Run the same design-intake extraction pipeline as `POST /api/design-intake/extra
 **Recommended:** run extraction and review queue generation in one step so `/internal/eval` always loads the review queue from that exact run:
 
 ```bash
-npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 10 --combine
 ```
 
-This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv`. The script prints viewer URLs for the latest batch and combined dataset.
+This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv` and **publish** sanitized JSON to `data/eval/public/` for `/internal/eval` (review rows + URL inventory, domains included). Publishing runs automatically with `--combine`; pass `--no-publish` to skip. Use `--publish` to publish without combining. Publish does not commit or push — review `data/eval/public/*` manually.
 
 By default, `eval:extract-and-review` selects only **not run** URLs — it skips sites already present in merged batch review queues. Failed and successful URLs are skipped unless you pass `--retry-failed` or `--reprocess`. Eligible URLs are sorted **root/homepage first** (then shallow paths, then deep paths) before `--limit` and `--offset` are applied. Pass `--preserve-order` to keep inventory order. The script prints a selection summary before extraction.
 
@@ -74,6 +74,9 @@ Options:
 | `--reprocess` | off | `eval:extract-and-review` only — include successful URLs from prior batches |
 | `--preserve-order` | off | `eval:extract-and-review` only — skip root URL prioritization |
 | `--root-only` | off | `eval:extract-and-review` only — process only root/homepage URLs |
+| `--combine` | off | `eval:extract-and-review` only — merge batch review queues; also publishes by default |
+| `--publish` | off | `eval:extract-and-review` only — publish `data/eval/public/*` (review + inventory) |
+| `--no-publish` | off | `eval:extract-and-review` only — skip publish even with `--combine` |
 
 Outputs (gitignored):
 
