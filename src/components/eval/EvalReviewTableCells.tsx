@@ -3,7 +3,9 @@
 import {
   ColorSwatchRow,
   LogoThumbnailRow,
+  PaletteSourceLine,
 } from "./BrandExtractionCells";
+import { paletteSourceCellDisplay } from "@/lib/evalLocal/paletteSourceDisplay";
 import {
   AddressCell,
   ContactLinksCell,
@@ -102,8 +104,9 @@ export function EvalReviewTableColumnCell({
       );
     case "colors":
       return (
-        <div className="min-w-0 max-w-full overflow-hidden">
+        <div className="min-w-0 max-w-full overflow-hidden space-y-1">
           <ColorSwatchRow row={row} max={4} compact emptyLabel="No palette" />
+          <PaletteSourceLine row={row} />
         </div>
       );
     case "emails":
@@ -121,7 +124,7 @@ export function EvalReviewTableColumnCell({
     case "extracted_summary":
       return <TextFieldCell value={row.extracted_summary} maxLines={2} />;
     case "palette_source":
-      return <TextFieldCell value={row.palette_source} />;
+      return <TextFieldCell value={paletteSourceCellDisplay(row)} />;
     case "palette_confidence":
       return <TextFieldCell value={row.palette_confidence} />;
     case "status": {

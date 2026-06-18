@@ -31,6 +31,8 @@
     "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",
     "eval:audit-colors": "tsx scripts/eval/auditColorExtraction.ts",
     "eval:color-extraction:test": "tsx scripts/eval/lib/colorExtraction.test.ts",
+    "eval:inspect-palette": "tsx scripts/eval/inspectPaletteSource.ts",
+    "eval:palette-pipeline:test": "tsx scripts/eval/lib/paletteSourcePipeline.test.ts",
     "eval:snapshot": "tsx scripts/eval/writeCoverageSnapshot.ts",
     "eval:snapshot:test": "tsx scripts/eval/lib/coverageSnapshot.test.ts",
     "eval:score": "tsx scripts/eval/summarizeHistoricalReviewScores.ts",

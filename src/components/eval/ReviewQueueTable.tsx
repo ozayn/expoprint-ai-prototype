@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   ColorSwatchRow,
   LogoCandidateDetailList,
+  PaletteSourceLine,
 } from "./BrandExtractionCells";
 import { EvalDetailField } from "./EvalViewerField";
 import { DuplicateUrlVariantsDetail } from "./DuplicateUrlVariantsDetail";
@@ -496,16 +497,14 @@ export function ExpandedRowDetails({
             <div>
               <p className="mb-2 text-[11px] text-zinc-400">Colors</p>
               <ColorSwatchRow row={row} />
+              <div className="mt-2">
+                <PaletteSourceLine row={row} />
+              </div>
             </div>
             <EvalDetailField
               label="extracted color hexes"
               value={row.extracted_color_hexes}
               mono
-            />
-            <EvalDetailField label="palette source" value={row.palette_source} />
-            <EvalDetailField
-              label="palette confidence"
-              value={row.palette_confidence}
             />
           </div>
         </div>

@@ -37,6 +37,8 @@ function testSanitizeOmitsPartnerFields(): void {
         '[{"url":"https://client.com/logo.png","source":"header"},{"url":"https://client.com/fav.ico"}]',
       extracted_color_hexes: '["#111111"]',
       primary_color_hex: "#111111",
+      palette_source: "logo",
+      palette_confidence: "medium",
       status: "success",
       pages_inspected: "3",
       error_message: "fetch failed for https://client.com/secret",
@@ -55,6 +57,8 @@ function testSanitizeOmitsPartnerFields(): void {
   assert.equal(row.error_message, "fetch failed for [url]");
   assert.equal(row.normalized_url, "https://client.com");
   assert.equal(row.extracted_business_name, "Client Co");
+  assert.equal(row.palette_source, "logo");
+  assert.equal(row.palette_confidence, "medium");
   assert.ok(row.logo_candidate_urls.includes("client.com/logo.png"));
   const logos = JSON.parse(row.logo_candidate_urls) as unknown[];
   assert.ok(logos.length <= 3);

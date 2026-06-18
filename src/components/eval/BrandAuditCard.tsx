@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   ColorSwatch,
   LogoCandidateDetailList,
+  PaletteSourceLine,
 } from "./BrandExtractionCells";
 import { EvalSourceLink, EvalUrlDetailField } from "./EvalExternalLink";
 import {
@@ -193,10 +194,13 @@ export function BrandAuditCard({
             <div className="mt-2 space-y-3">
               <LogoCandidateDetailList row={row} />
               {colors.length > 0 ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                  {colors.map((entry) => (
-                    <ColorSwatch key={`d-${entry.hex}`} entry={entry} />
-                  ))}
+                <div className="space-y-1">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                    {colors.map((entry) => (
+                      <ColorSwatch key={`d-${entry.hex}`} entry={entry} />
+                    ))}
+                  </div>
+                  <PaletteSourceLine row={row} />
                 </div>
               ) : null}
             </div>

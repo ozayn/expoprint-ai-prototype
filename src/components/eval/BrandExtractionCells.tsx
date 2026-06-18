@@ -7,6 +7,7 @@ import {
   type ParsedColorEntry,
   type ParsedLogoCandidate,
 } from "@/lib/evalLocal/brandExtractionParse";
+import { formatPaletteSourceDisplay } from "@/lib/evalLocal/paletteSourceDisplay";
 import type { ReviewQueueRow } from "@/lib/evalLocal/reviewQueueTypes";
 
 function logoCandidateTotal(row: ReviewQueueRow): number {
@@ -155,6 +156,16 @@ export function ColorSwatchRow({
         <span className="text-[10px] text-zinc-400">+{extra}</span>
       ) : null}
     </div>
+  );
+}
+
+export function PaletteSourceLine({ row }: { row: ReviewQueueRow }) {
+  const text = formatPaletteSourceDisplay(row);
+  if (!text) return null;
+  return (
+    <p className="text-[10px] leading-snug text-zinc-500" title={text}>
+      {text}
+    </p>
   );
 }
 

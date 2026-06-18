@@ -383,6 +383,25 @@ export function mergeBrandAuditRows(
     const inferred = evalRunIdToIso(merged.extraction_run_id);
     if (inferred) merged.processed_at = inferred;
   }
+
+  const fillFromOther: (keyof BrandAuditRow)[] = [
+    "palette_source",
+    "palette_confidence",
+    "extracted_color_hexes",
+    "primary_color_hex",
+    "secondary_color_hex",
+    "extracted_business_name",
+    "extracted_summary",
+    "logo_candidate_count",
+    "selected_logo_url",
+    "logo_candidate_urls",
+  ];
+  for (const key of fillFromOther) {
+    if (!merged[key]?.trim() && other[key]?.trim()) {
+      merged[key] = other[key];
+    }
+  }
+
   merged.duplicate_source_urls = serializeDuplicateVariants(variants);
   return merged;
 }
