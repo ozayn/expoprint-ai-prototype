@@ -277,11 +277,14 @@ Workflow is part of this ExpoPrint prototype, not a separate project. Local-only
 **Visual brand-audit evaluation viewers (Stage 39)**  
 Historical eval shifted to a visual brand-audit workflow based on partner feedback — gallery and table review of extracted logos, colors, contacts, products/services, and related fields instead of spreadsheet-only queues.
 
-- **Views** — `/dev/eval` (local gitignored runs/results) and `/internal/eval` (password + published sanitized JSON only).
-- **URL inventory** — All URLs tab for full candidate lists with processed / not-run / success / failed status joined to review rows.
-- **Review UX** — Search, status and field filters, column show/hide, clickable URLs, coverage charts for field success rates and scrape depth.
-- **Batches** — `eval:extract-and-review`, `eval:combine-reviews` (dedupe by URL, newest wins), combined vs latest picker.
-- **Publishing** — `npm run eval:publish-latest-internal` (+ optional `--include-url-inventory`); `check:partner-data` guard; manual commit of `data/eval/public/` artifacts only — no raw partner exports or local eval CSVs/JSONL in git.
+- **Partner-driven workflow** — Visual brand-audit replaces spreadsheet-only historical review.
+- **Gallery and table views** — Logos, palettes, contact fields, offerings, scrape metadata, and scores with expandable row details.
+- **URL inventory** — All URLs tab for full database candidate lists with processed / not-run / success / failed status joined to review rows.
+- **Review UX** — Search, status and field filters, column show/hide, clickable URLs where domains are published.
+- **Combined batches** — `eval:extract-and-review`, `eval:combine-reviews` (dedupe by URL, newest wins), combined vs latest picker on `/dev/eval`.
+- **Coverage metrics** — Field success-rate charts and scrape-depth summaries for extraction coverage.
+- **Publishing** — `npm run eval:publish-latest-internal` (+ optional `--include-url-inventory`); `check:partner-data` guard; manual commit of `data/eval/public/` artifacts only — raw partner exports and local eval CSVs/JSONL stay gitignored.
+- **URL deduplication** — Normalization and dedupe from Metabase extraction through batch selection, combined queues, publish sanitization (including post-sanitize collapse), and defensive UI dedupe; committed URL inventory JSON row count matches the All URLs viewer.
 
 Docs: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.md`. Extract API unchanged.
 
@@ -300,4 +303,4 @@ Docs: `docs/evaluation/historical-extraction-evaluation.md`, `data/eval/README.m
 
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers, URL inventory, combined review queues, coverage metrics, publish flow for `/internal/eval`. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers, URL inventory, combined review queues, coverage metrics, URL deduplication across the eval pipeline, publish flow for `/internal/eval`. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
