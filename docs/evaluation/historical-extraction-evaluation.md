@@ -32,6 +32,8 @@ npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.
 
 This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv`. The script prints viewer URLs for the latest batch and combined dataset.
 
+By default, `eval:extract-and-review` selects only **not run** URLs — it skips sites already present in merged batch review queues. Failed and successful URLs are skipped unless you pass `--retry-failed` or `--reprocess`. `--offset` applies within the eligible pool (not run by default). The script prints a selection summary before extraction.
+
 Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/internal/eval` defaults to **Combined all batches** when a combined file exists; use **Latest batch** for the most recent extraction only.
 
 To combine batches manually:
@@ -64,10 +66,12 @@ Options:
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `--limit N` | 10 | Max sites after domain dedupe |
-| `--offset N` | 0 | Skip first N unique domains |
+| `--offset N` | 0 | Skip first N rows in the eligible pool (`eval:extract-and-review` defaults to not-run only) |
 | `--allow-duplicate-domains` | off | One row per domain by default |
 | `--delay-ms N` | 1000 | Pause between requests |
 | `--api-url URL` | (in-process) | Optional: call a running dev server instead |
+| `--retry-failed` | off | `eval:extract-and-review` only — include failed URLs from prior batches |
+| `--reprocess` | off | `eval:extract-and-review` only — include successful URLs from prior batches |
 
 Outputs (gitignored):
 

@@ -21,6 +21,7 @@
     "eval:urls:test": "tsx scripts/eval/lib/urlCandidates.test.ts",
     "eval:url-dedup:test": "tsx scripts/eval/lib/evalUrlDedup.test.ts",
     "eval:canonical-dedup:test": "tsx scripts/eval/lib/evalCanonicalDedup.test.ts",
+    "eval:select-urls:test": "tsx scripts/eval/lib/selectUrlCandidates.test.ts",
     "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
     "eval:extract-and-review": "tsx scripts/eval/extractAndReview.ts",
     "eval:combine-reviews": "tsx scripts/eval/combineReviewQueues.ts",

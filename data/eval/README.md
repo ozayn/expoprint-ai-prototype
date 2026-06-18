@@ -51,6 +51,7 @@ After `eval:urls`, run a small sample only. A full ~2k URL run can take hours an
 
 ```bash
 # Recommended: extraction + review queue in one command (--combine merges all batches)
+# Default: processes only not-run URLs (skips sites already in batch review queues)
 npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 5 --combine
 npm run eval:combine-reviews
 

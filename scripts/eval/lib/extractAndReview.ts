@@ -16,6 +16,8 @@ import {
   type RunHistoricalWebsiteExtractionOptions,
 } from "./historicalWebsiteExtraction.js";
 import { hasFlag, printHelp } from "./cliArgs.js";
+import { loadProcessedStatusIndexFromReviewQueues } from "./reviewQueueProcessedIndex.js";
+import type { UrlCandidateSelectionSummary } from "./selectUrlCandidates.js";
 
 export type ExtractAndReviewResult = {
   inputPath: string;
@@ -31,6 +33,7 @@ export type ExtractAndReviewResult = {
   byStatus: Record<string, number>;
   review: ReviewQueueBuildResult;
   combined?: CombineReviewQueuesResult;
+  selectionSummary?: UrlCandidateSelectionSummary;
 };
 
 export function devEvalViewerUrl(reviewSelection: string): string {
@@ -52,7 +55,16 @@ export async function runExtractAndReview(
   const offset = options.offset ?? 0;
   const combine = options.combine ?? false;
 
-  printWebsiteExtractionRunHeader(inputPath, options);
+  const processedStatusIndex = loadProcessedStatusIndexFromReviewQueues();
+  const retryFailed = options.processedSelection?.retryFailed ?? false;
+  const reprocess = options.processedSelection?.reprocess ?? false;
+
+  printWebsiteExtractionRunHeader(inputPath, options, {
+    skipProcessedByDefault: true,
+    retryFailed,
+    reprocess,
+    mergedReviewRows: processedStatusIndex.size,
+  });
 
   const extraction = await runHistoricalWebsiteExtraction({
     inputPath,
@@ -62,11 +74,16 @@ export async function runExtractAndReview(
     delayMs: options.delayMs,
     apiUrl: options.apiUrl,
     stylePreference: options.stylePreference,
+    processedSelection: {
+      processedStatusIndex,
+      retryFailed,
+      reprocess,
+    },
   });
 
   if (extraction.selectedCount === 0) {
     throw new Error(
-      "No URL candidates selected for extraction (check --limit, --offset, and input file).",
+      "No URL candidates selected for extraction (check --limit, --offset, not-run pool, and input file).",
     );
   }
 
@@ -103,6 +120,7 @@ export async function runExtractAndReview(
     byStatus,
     review,
     combined,
+    selectionSummary: extraction.selectionSummary,
   };
 }
 
@@ -139,6 +157,8 @@ export function printExtractAndReviewSummary(result: ExtractAndReviewResult): vo
 export async function runExtractAndReviewCli(): Promise<void> {
   const parsed = parseWebsiteExtractionCli();
   const combine = hasFlag("--combine");
+  const retryFailed = hasFlag("--retry-failed");
+  const reprocess = hasFlag("--reprocess");
 
   if (parsed.showHelp) {
     printHelp(
@@ -146,6 +166,11 @@ export async function runExtractAndReviewCli(): Promise<void> {
       [
         ...WEBSITE_EXTRACTION_CLI_HELP_LINES,
         "  --combine                 Also merge all batch review queues",
+        "  --retry-failed            Include failed URLs from prior batches (default: not run only)",
+        "  --reprocess               Include successful URLs from prior batches",
+        "",
+        "By default, skips URLs already present in merged batch review queues.",
+        "Offset applies within the eligible pool (not run by default).",
         "",
         "Runs eval:extract then eval:review on the exact JSONL from that run.",
         "",
@@ -162,6 +187,10 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const result = await runExtractAndReview(parsed.inputPath!, {
     ...parsed.options,
     combine,
+    processedSelection: {
+      retryFailed,
+      reprocess,
+    },
   });
   printExtractAndReviewSummary(result);
 }

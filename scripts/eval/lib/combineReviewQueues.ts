@@ -132,16 +132,16 @@ export function combinedReviewQueueToCsv(rows: CombinedReviewQueueRow[]): string
   return `${lines.join("\n")}\n`;
 }
 
-export function combineReviewQueues(
+export function mergeBatchReviewQueuesInMemory(
   resultsDir: string = EVAL_RESULTS_DIR,
-): CombineReviewQueuesResult {
-  ensureEvalDirs();
-
+): {
+  rows: CombinedReviewQueueRow[];
+  sourceFiles: string[];
+  rowsRead: number;
+} {
   const sourceFiles = listBatchReviewQueueFiles(resultsDir);
   if (sourceFiles.length === 0) {
-    throw new Error(
-      `No batch review_queue_*.csv files found in ${resultsDir}`,
-    );
+    return { rows: [], sourceFiles: [], rowsRead: 0 };
   }
 
   const merged = new Map<string, CombinedReviewQueueRow>();
@@ -168,6 +168,23 @@ export function combineReviewQueues(
   const combinedRows = [...merged.values()].sort((a, b) =>
     a.normalized_url.localeCompare(b.normalized_url),
   );
+
+  return { rows: combinedRows, sourceFiles, rowsRead };
+}
+
+export function combineReviewQueues(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): CombineReviewQueuesResult {
+  ensureEvalDirs();
+
+  const { rows: combinedRows, sourceFiles, rowsRead } =
+    mergeBatchReviewQueuesInMemory(resultsDir);
+
+  if (sourceFiles.length === 0) {
+    throw new Error(
+      `No batch review_queue_*.csv files found in ${resultsDir}`,
+    );
+  }
 
   const runId = runTimestampId();
   const outputPath = join(

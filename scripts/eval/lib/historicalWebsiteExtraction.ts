@@ -11,8 +11,6 @@ import {
 } from "../../../src/lib/evalLocal/extractionBatch";
 import type {
   ExtractionJsonlRecord,
-  ExtractionRunStatus,
-  ExtractionSummaryRow,
   UrlCandidateExtractionInput,
 } from "../../../src/lib/evalLocal/extractionTypes";
 import {
@@ -23,13 +21,18 @@ import {
   printHelp,
 } from "./cliArgs.js";
 import { loadEnvLocal } from "./loadEnvLocal.js";
+import type { ProcessedExtractionOutcome } from "./reviewQueueProcessedIndex.js";
 import {
   EVAL_RESULTS_DIR,
   EVAL_RUNS_DIR,
   ensureEvalDirs,
   runTimestampId,
 } from "./paths.js";
-import { selectUrlCandidatesForExtraction } from "./selectUrlCandidates.js";
+import {
+  selectUrlCandidatesWithSummary,
+  printUrlCandidateSelectionSummary,
+  type UrlCandidateSelectionSummary,
+} from "./selectUrlCandidates.js";
 import { loadUrlCandidatesFromCsv } from "./urlCandidates.js";
 import type { UrlCandidateOutputRow } from "./urlCandidates.js";
 
@@ -38,6 +41,12 @@ export type {
   ExtractionRunStatus,
   ExtractionSummaryRow,
   UrlCandidateExtractionInput,
+} from "../../../src/lib/evalLocal/extractionTypes.js";
+
+export type ProcessedUrlSelectionOptions = {
+  processedStatusIndex?: Map<string, ProcessedExtractionOutcome>;
+  retryFailed?: boolean;
+  reprocess?: boolean;
 };
 
 export type RunHistoricalWebsiteExtractionOptions = {
@@ -48,6 +57,7 @@ export type RunHistoricalWebsiteExtractionOptions = {
   delayMs?: number;
   apiUrl?: string;
   stylePreference?: string;
+  processedSelection?: ProcessedUrlSelectionOptions;
 };
 
 function toExtractionInput(row: UrlCandidateOutputRow): UrlCandidateExtractionInput {
@@ -131,6 +141,7 @@ export async function runHistoricalWebsiteExtraction(
   summaryPath: string;
   selectedCount: number;
   records: ExtractionJsonlRecord[];
+  selectionSummary?: UrlCandidateSelectionSummary;
 }> {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
@@ -146,11 +157,21 @@ export async function runHistoricalWebsiteExtraction(
   );
 
   const { candidates } = loadUrlCandidatesFromCsv(options.inputPath);
-  const selected = selectUrlCandidatesForExtraction(candidates, {
+  const selection = selectUrlCandidatesWithSummary(candidates, {
     allowDuplicateDomains,
     offset,
     limit,
+    processedStatusIndex: options.processedSelection?.processedStatusIndex,
+    retryFailed: options.processedSelection?.retryFailed,
+    reprocess: options.processedSelection?.reprocess,
   });
+
+  if (selection.summary) {
+    console.log("");
+    printUrlCandidateSelectionSummary(selection.summary);
+  }
+
+  const selected = selection.selected;
 
   const extract = await resolveExtractFn(options.apiUrl);
   const inputs = selected.map(toExtractionInput);
@@ -202,6 +223,7 @@ export async function runHistoricalWebsiteExtraction(
     summaryPath,
     selectedCount: selected.length,
     records,
+    selectionSummary: selection.summary,
   };
 }
 
@@ -243,6 +265,12 @@ export function parseWebsiteExtractionCli(
 export function printWebsiteExtractionRunHeader(
   inputPath: string,
   options: Omit<RunHistoricalWebsiteExtractionOptions, "inputPath">,
+  extractAndReviewContext?: {
+    skipProcessedByDefault: boolean;
+    retryFailed: boolean;
+    reprocess: boolean;
+    mergedReviewRows: number;
+  },
 ): void {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
@@ -255,6 +283,16 @@ export function printWebsiteExtractionRunHeader(
   console.log(
     `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per canonical_domain (www. stripped)"}`,
   );
+  if (extractAndReviewContext?.skipProcessedByDefault) {
+    const mode = extractAndReviewContext.reprocess
+      ? "reprocess all (including successful)"
+      : extractAndReviewContext.retryFailed
+        ? "not run + failed retries"
+        : "not run only";
+    console.log(
+      `  Prior batches: ${extractAndReviewContext.mergedReviewRows.toLocaleString()} merged review rows · pool: ${mode}`,
+    );
+  }
   console.log(`  Delay:  ${delayMs}ms between requests`);
   if (options.apiUrl) console.log(`  API:    ${options.apiUrl}`);
 }
