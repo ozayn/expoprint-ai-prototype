@@ -4,7 +4,7 @@ This workflow is part of the **ExpoPrint AI prototype** repository — not a sep
 
 **Partner feedback (2026):** The evaluation focus shifted from comparing ExpoPrint outputs field-by-field against database records toward visual review of brand extraction quality. Metabase fields provide source URLs and project context — they are not treated as ground-truth labels for every extracted field.
 
-The workflow is **internal** and **local-first** (no Metabase connection, no production database credentials). Local review runs at `/dev/eval`; deployed `/internal/eval` shows sanitized sample data only.
+The workflow is **internal** and **local-first** (no Metabase connection, no production database credentials). Review at `/internal/eval` — local dev reads gitignored run outputs; deployed builds use password-protected published sanitized JSON only.
 
 ## Milestones
 
@@ -24,7 +24,7 @@ This writes `data/eval/results/url_candidates_<timestamp>.csv` — one row per d
 
 Run the same design-intake extraction pipeline as `POST /api/design-intake/extract` on a **small sample** from a URL candidates file.
 
-**Recommended:** run extraction and review queue generation in one step so `/dev/eval` always loads the review queue from that exact run:
+**Recommended:** run extraction and review queue generation in one step so `/internal/eval` always loads the review queue from that exact run:
 
 ```bash
 npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv --limit 5
@@ -32,7 +32,7 @@ npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.
 
 This runs the same logic as `eval:extract`, then immediately builds `review_queue_<timestamp>.csv` from the JSONL path returned by that run (no guessing by newest file). Pass `--combine` to also merge all batch review queues into `review_queue_combined_<timestamp>.csv`. The script prints viewer URLs for the latest batch and combined dataset.
 
-Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/dev/eval` defaults to **Combined all batches** when a combined file exists; use **Latest batch** for the most recent extraction only.
+Each batch keeps its own timestamped `extraction_run_`, `extraction_summary_`, and `review_queue_` files (millisecond precision in ids avoids collisions). `/internal/eval` defaults to **Combined all batches** when a combined file exists; use **Latest batch** for the most recent extraction only.
 
 To combine batches manually:
 
@@ -76,11 +76,11 @@ Outputs (gitignored):
 
 In-process extraction loads `.env.local` for `ANTHROPIC_API_KEY` when present. If in-process import fails, start `npm run dev` and pass `--api-url http://localhost:3000`.
 
-#### Manual URLs from `/dev/eval` (local development only)
+#### Manual URLs (local development only)
 
-When you want to test websites **outside** a Metabase export, use the **Add URLs** panel on `/dev/eval` (not available on `/internal/eval` or in production builds).
+When you want to test websites **outside** a Metabase export, use the **Add URLs** panel on `/internal/eval` while running `npm run dev` (not available in production builds).
 
-1. Open `http://localhost:3000/dev/eval` while `npm run dev` is running.
+1. Open `http://localhost:3000/internal/eval` while `npm run dev` is running.
 2. Click **Add URLs**, paste one URL per line (http/https; bare domains become `https://`), and optionally set a label/project title.
 3. Click **Process URLs**. Up to **25** URLs per submission; invalid lines are reported without stopping the batch. A **1 second** delay runs between extraction requests.
 
@@ -90,7 +90,7 @@ The server runs the same in-process extraction pipeline as `eval:extract`, then 
 - `data/eval/results/manual_extraction_summary_<timestamp>.csv`
 - `data/eval/results/manual_review_queue_<timestamp>.csv`
 
-Manual rows use `source_column = manual_url`, `ds_number` like `MANUAL-001`, and `project_title` from the optional label (or domain). The new run appears in the `/dev/eval` gallery/table file picker after refresh.
+Manual rows use `source_column = manual_url`, `ds_number` like `MANUAL-001`, and `project_title` from the optional label (or domain). The new run appears in the `/internal/eval` gallery/table file picker after refresh.
 
 ### 3. Review queue (Milestone 3b)
 
@@ -100,11 +100,11 @@ Build a side-by-side review CSV from an extraction JSONL run for manual scoring.
 npm run eval:review -- data/eval/runs/extraction_run_<timestamp>.jsonl
 ```
 
-Manual runs from `/dev/eval` use `manual_extraction_run_<timestamp>.jsonl` and write `manual_review_queue_<timestamp>.csv` with the same columns.
+Manual runs from the Add URLs panel use `manual_extraction_run_<timestamp>.jsonl` and write `manual_review_queue_<timestamp>.csv` with the same columns.
 
 Writes `data/eval/results/review_queue_<timestamp>.csv` (or `manual_review_queue_<timestamp>.csv` for manual runs) with historical input fields, ExpoPrint output fields, logo/color audit columns (`selected_logo_url`, `logo_candidate_urls` as JSON, `extracted_color_hexes`, `primary_color_hex`, `secondary_color_hex`), optional manual score columns, and helper similarity hints. Full `expo_output` remains in the JSONL run file.
 
-View locally at `/dev/eval` (development only) with **Gallery** (visual brand audit cards) or **Table** (dense field extraction audit). Both views share a field-coverage summary and expandable row details. Deployed `/internal/eval` shows the same views on sanitized sample rows only.
+View at `/internal/eval` with **Gallery** (visual brand audit cards) or **Table** (dense field extraction audit). Both views share a field-coverage summary and expandable row details. In local dev, data comes from gitignored CSV/JSONL; in production, from published sanitized JSON only.
 
 **Scoring rubric** (assign in CSV or spreadsheet):
 
@@ -131,7 +131,7 @@ Writes gitignored outputs:
 
 The script validates scores (`0`, `1`, `2`, `3`, `N/A`, or blank). Invalid values print warnings; pass `--strict` to fail. The input review queue CSV is never modified.
 
-View score summaries locally at `/dev/eval` (compact section below the review tables).
+View score summaries locally at `/internal/eval` (compact section below the review tables).
 
 ### 5. Automated comparison (later)
 
@@ -139,12 +139,14 @@ See `npm run eval:historical` and `scoreHistoricalExtraction` for additional har
 
 ## Evaluation viewers
 
-| Route | When | Data source |
-| --- | --- | --- |
-| **`/dev/eval`** | `NODE_ENV === development` only | Local gitignored `data/eval/runs/` and `results/` |
-| **`/internal/eval`** | Deployed builds | Password (`EVAL_VIEWER_PASSWORD`) + published `data/eval/public/internal-eval-review.json` (or sample fallback) |
+Canonical route: **`/internal/eval`**. Legacy `/dev/eval` and `/eval-local` redirect there.
 
-`/dev/eval` never reads partner files in production. `/internal/eval` reads only committed sanitized JSON under `data/eval/public/` — never `data/eval/runs/`, `data/eval/results/`, or `data/private/`. Private storage can be wired in later without changing the local workflow.
+| Environment | Password | Data source |
+| --- | --- | --- |
+| Local dev (`NODE_ENV !== production`) | None | Gitignored `data/eval/runs/` and `results/` |
+| Production | `EVAL_VIEWER_PASSWORD` | Published `data/eval/public/internal-eval-review.json` (or sample fallback) |
+
+Production never reads `data/eval/runs/`, `data/eval/results/`, or `data/private/`. Local dev never requires a password.
 
 ### Publish sanitized data for `/internal/eval`
 
@@ -172,7 +174,7 @@ npm run eval:publish-latest-internal -- --include-url-inventory --include-domain
 
 When `--include-url-inventory` is passed:
 
-- Reads the largest real `url_candidates_*.csv` (same default as `/dev/eval`), or `--url-candidates <file>` to override.
+- Reads the largest real `url_candidates_*.csv` (same default as local `/internal/eval`), or `--url-candidates <file>` to override.
 - Joins candidates with the published review rows by URL/domain.
 - Writes `data/eval/public/internal-eval-url-inventory.json` (sanitized — no `ds_id`, requirement excerpts, or raw database text).
 - `/internal/eval` shows the All URLs section only when this file exists in `data/eval/public/`.

@@ -13,6 +13,11 @@ import {
   type UrlInventoryExtractionStatus,
   type UrlInventoryRow,
 } from "@/lib/evalLocal/urlInventoryJoin";
+import {
+  evalRunIdToIso,
+  resolveSourceReviewQueueFromReview,
+} from "@/lib/evalLocal/evalProcessedMeta";
+import { isCombinedReviewQueueFilename } from "@/lib/evalLocal/evalReviewQueueFiles";
 import { displayUrlHostOnly } from "./sanitizePublishedReview";
 
 export type PublishUrlInventoryOptions = {
@@ -64,7 +69,7 @@ function mergePublishedUrlInventoryRows(
   const kept = primaryRank >= secondaryRank ? primary : secondary;
   const other = primaryRank >= secondaryRank ? secondary : primary;
 
-  return {
+  const merged: PublishedUrlInventoryRow = {
     ...kept,
     source_column: mergeSourceColumn(
       kept.source_column ?? "",
@@ -72,6 +77,27 @@ function mergePublishedUrlInventoryRows(
     ),
     review: kept.review ?? other.review,
   };
+
+  const keptSource = kept.source_review_queue?.trim();
+  const otherSource = other.source_review_queue?.trim();
+  if (
+    keptSource &&
+    !isCombinedReviewQueueFilename(keptSource)
+  ) {
+    merged.source_review_queue = keptSource;
+  } else if (
+    otherSource &&
+    !isCombinedReviewQueueFilename(otherSource)
+  ) {
+    merged.source_review_queue = otherSource;
+  }
+
+  merged.extraction_run_id =
+    kept.extraction_run_id?.trim() || other.extraction_run_id?.trim() || undefined;
+  merged.processed_at =
+    kept.processed_at?.trim() || other.processed_at?.trim() || undefined;
+
+  return merged;
 }
 
 /** Deduplicate sanitized published rows (e.g. after host-only normalized_url collisions). */
@@ -190,11 +216,53 @@ export function sanitizeUrlInventoryRow(
   rowIndex: number,
   options: PublishUrlInventoryOptions,
 ): PublishedUrlInventoryRow {
-  return {
+  const published: PublishedUrlInventoryRow = {
     ...sanitizeInventoryCandidateFields(row.candidate, rowIndex, options),
     extraction_status: row.extractionStatus,
     review: row.review,
   };
+
+  const batchSource = row.review
+    ? resolveSourceReviewQueueFromReview(row.review)
+    : "";
+  const meta = row.processedMeta;
+
+  if (batchSource) {
+    published.source_review_queue = batchSource;
+  } else if (
+    meta?.sourceReviewQueue &&
+    !isCombinedReviewQueueFilename(meta.sourceReviewQueue)
+  ) {
+    published.source_review_queue = meta.sourceReviewQueue;
+  }
+
+  const extractionRunId =
+    row.review?.extraction_run_id?.trim() ||
+    meta?.extractionRunId?.trim() ||
+    "";
+  if (extractionRunId) {
+    published.extraction_run_id = extractionRunId;
+  }
+
+  const processedAt =
+    row.review?.processed_at?.trim() || meta?.processedAt?.trim() || "";
+  if (processedAt) {
+    published.processed_at = processedAt;
+  } else if (extractionRunId) {
+    const inferred = evalRunIdToIso(extractionRunId);
+    if (inferred) published.processed_at = inferred;
+  }
+
+  if (published.review && batchSource) {
+    published.review = {
+      ...published.review,
+      source_review_queue: batchSource,
+      extraction_run_id: extractionRunId || published.review.extraction_run_id,
+      processed_at: published.processed_at || published.review.processed_at,
+    };
+  }
+
+  return published;
 }
 
 export function logPublishUrlInventoryRowCounts(
@@ -240,6 +308,9 @@ export function buildPublishedUrlInventoryFile(
     candidates,
     publishedReviewRows,
     "Published URL inventory",
+    {
+      reviewQueueFilename: sourceReviewQueueBasename,
+    },
   );
 
   const sanitizedRows = inventoryRows.map((row, index) =>

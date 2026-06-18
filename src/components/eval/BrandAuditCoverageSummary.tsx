@@ -11,12 +11,15 @@ type Props = {
 function formatInventoryStatsLine(stats: UrlInventoryStats): string {
   const parts = [
     `${stats.totalCandidates.toLocaleString()} URL candidates`,
-    `${stats.uniqueDomains.toLocaleString()} unique domains`,
     `${stats.processedCount.toLocaleString()} processed`,
     `${stats.notRunCount.toLocaleString()} not run`,
+    `${stats.successCount.toLocaleString()} success`,
   ];
   if (stats.failedCount > 0) {
     parts.push(`${stats.failedCount.toLocaleString()} failed`);
+  }
+  if (stats.latestBatchCount > 0) {
+    parts.push(`${stats.latestBatchCount.toLocaleString()} in latest batch`);
   }
   return parts.join(" · ");
 }

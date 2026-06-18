@@ -12,10 +12,7 @@ import { escapeCsvCell } from "./urlCandidates.js";
 
 export const COMBINED_REVIEW_QUEUE_PREFIX = "review_queue_combined_";
 
-export const COMBINED_REVIEW_QUEUE_COLUMNS = [
-  "source_review_queue",
-  ...REVIEW_QUEUE_COLUMNS,
-] as const;
+export const COMBINED_REVIEW_QUEUE_COLUMNS = [...REVIEW_QUEUE_COLUMNS] as const;
 
 export type CombinedReviewQueueRow = ReviewQueueRow & {
   source_review_queue: string;

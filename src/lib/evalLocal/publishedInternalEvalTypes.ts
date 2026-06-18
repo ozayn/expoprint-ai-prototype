@@ -19,6 +19,9 @@ export type PublishedUrlInventoryRow = {
   project_title?: string;
   project_type?: string;
   source_column?: string;
+  source_review_queue?: string;
+  extraction_run_id?: string;
+  processed_at?: string;
   extraction_status: UrlInventoryExtractionStatus;
   review: BrandAuditRow | null;
 };

@@ -4,7 +4,7 @@ import {
 } from "./reviewQueueTypes";
 
 /**
- * Shared row shape for /dev/eval (local CSV) and /internal/eval (published JSON).
+ * Shared row shape for local CSV review queues and published JSON on `/internal/eval`.
  * Alias of the review queue CSV columns — both viewers render the same fields.
  */
 export type BrandAuditRow = ReviewQueueRow;

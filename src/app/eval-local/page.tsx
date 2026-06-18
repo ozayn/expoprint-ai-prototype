@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { EVAL_VIEWER_BASE_PATH } from "@/lib/evalLocal/loadLocalEvalViewerDataset";
 
-/** Alias for /dev/eval (local-only historical eval viewer). */
+/** Alias for the canonical eval viewer at `/internal/eval`. */
 export default function EvalLocalAliasPage() {
-  redirect("/dev/eval");
+  redirect(EVAL_VIEWER_BASE_PATH);
 }

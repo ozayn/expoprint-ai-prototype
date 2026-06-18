@@ -60,6 +60,8 @@ export const REVIEW_QUEUE_ALL_COLUMNS = [
   "reviewer_notes",
   "business_name_similarity_hint",
   "title_business_name_overlap_hint",
+  "extraction_run_id",
+  "processed_at",
   "source_review_queue",
 ] as const;
 

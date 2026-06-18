@@ -1,4 +1,4 @@
-/** Query params shared by /dev/eval and /internal/eval viewers. */
+/** Query params for the canonical eval viewer at `/internal/eval`. */
 export type EvalViewerQueryParams = {
   summary?: string;
   review?: string;
@@ -8,6 +8,10 @@ export type EvalViewerQueryParams = {
   /** @deprecated Prefer `urls`. */
   candidates?: string;
   view?: string;
+  /** URL inventory sort: recent | original | domain | status | needs_work */
+  sort?: string;
+  /** URL inventory quick filter: recent | not_run | failed (omit for all). */
+  inventory?: string;
 };
 
 export function resolveUrlCandidatesParam(
@@ -41,6 +45,13 @@ export function buildEvalViewerQueryString(
 
   if (params.view === "table") q.set("view", "table");
   if (params.view === "inventory") q.set("view", "inventory");
+
+  const sort = params.sort?.trim();
+  if (sort) q.set("sort", sort);
+
+  const inventory = params.inventory?.trim();
+  if (inventory) q.set("inventory", inventory);
+
   return q;
 }
 
@@ -52,5 +63,22 @@ export function patchEvalViewerQuery(
   if (patch.urls !== undefined) {
     delete next.candidates;
   }
+  if (patch.inventory === "" || patch.inventory === "all") {
+    delete next.inventory;
+  }
+  if (patch.sort === "" || patch.sort === "recent") {
+    delete next.sort;
+  }
   return next;
+}
+
+/** Default inventory view: recently processed first. */
+export function defaultInventoryViewerQuery(
+  current: EvalViewerQueryParams,
+): EvalViewerQueryParams {
+  return {
+    ...current,
+    view: "inventory",
+    sort: current.sort ?? "recent",
+  };
 }

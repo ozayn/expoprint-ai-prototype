@@ -5,14 +5,68 @@ import type {
   PublishedUrlInventoryRow,
 } from "@/lib/evalLocal/publishedInternalEvalTypes";
 import {
+  batchReviewQueueFilenameFromRunId,
+  extractionRunIdFromReviewQueueName,
+  newestSourceReviewQueueFromSources,
+  processedMetaFromReviewRow,
+  resolveSourceReviewQueueFromReview,
+} from "@/lib/evalLocal/evalProcessedMeta";
+import { isCombinedReviewQueueFilename } from "@/lib/evalLocal/evalReviewQueueFiles";
+import {
   URL_CANDIDATE_COLUMNS,
   type UrlCandidateRow,
 } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
 import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
 
+function publishedRowBatchSource(
+  row: PublishedUrlInventoryRow,
+  combinedDatasetRunId?: string,
+): string {
+  const fromRow = row.source_review_queue?.trim();
+  if (fromRow && !isCombinedReviewQueueFilename(fromRow)) {
+    return fromRow;
+  }
+
+  const rowRunId = row.extraction_run_id?.trim();
+  if (rowRunId && rowRunId !== combinedDatasetRunId) {
+    return batchReviewQueueFilenameFromRunId(rowRunId);
+  }
+
+  if (row.review) {
+    const fromReview = resolveSourceReviewQueueFromReview(row.review);
+    if (fromReview) return fromReview;
+    const reviewRunId = row.review.extraction_run_id?.trim();
+    if (reviewRunId && reviewRunId !== combinedDatasetRunId) {
+      return batchReviewQueueFilenameFromRunId(reviewRunId);
+    }
+  }
+
+  return "";
+}
+
+function newestSourceReviewQueueFromPublishedInventoryRows(
+  rows: PublishedUrlInventoryRow[],
+  datasetSourceReviewQueue?: string,
+): string | null {
+  const combinedDatasetRunId = datasetSourceReviewQueue
+    ? extractionRunIdFromReviewQueueName(datasetSourceReviewQueue)
+    : "";
+
+  const sources: string[] = [];
+  for (const row of rows) {
+    if (row.extraction_status === "not_run") continue;
+    const source = publishedRowBatchSource(row, combinedDatasetRunId);
+    if (source) sources.push(source);
+  }
+  return newestSourceReviewQueueFromSources(sources);
+}
+
 export function publishedUrlInventoryRowToUrlInventoryRow(
   row: PublishedUrlInventoryRow,
+  originalIndex = 0,
+  newestSourceReviewQueue?: string | null,
+  combinedDatasetRunId?: string,
 ): UrlInventoryRow {
   const candidate = Object.fromEntries(
     URL_CANDIDATE_COLUMNS.map((col) => [col, ""]),
@@ -28,19 +82,57 @@ export function publishedUrlInventoryRowToUrlInventoryRow(
   let review: BrandAuditRow | null = null;
   if (row.review) {
     review = normalizeBrandAuditRow(row.review) ?? null;
+    const batchSource = publishedRowBatchSource(row, combinedDatasetRunId);
+    if (review && batchSource) {
+      review.source_review_queue = batchSource;
+    }
+    if (review && row.extraction_run_id?.trim()) {
+      const rowRunId = row.extraction_run_id.trim();
+      if (!combinedDatasetRunId || rowRunId !== combinedDatasetRunId) {
+        review.extraction_run_id = rowRunId;
+      }
+    }
+    if (review && row.processed_at?.trim()) {
+      review.processed_at = row.processed_at.trim();
+    }
   }
+
+  const processedMeta =
+    review
+      ? processedMetaFromReviewRow(review, {
+          newestSourceReviewQueue,
+        })
+      : null;
 
   return {
     candidate,
     extractionStatus: row.extraction_status,
     review,
+    originalIndex,
+    processedMeta,
   };
 }
 
 export function publishedUrlInventoryRowsToUrlInventoryRows(
   rows: PublishedUrlInventoryRow[],
+  datasetSourceReviewQueue?: string,
 ): UrlInventoryRow[] {
-  const mapped = rows.map(publishedUrlInventoryRowToUrlInventoryRow);
+  const combinedDatasetRunId = datasetSourceReviewQueue
+    ? extractionRunIdFromReviewQueueName(datasetSourceReviewQueue)
+    : "";
+  const newestSource = newestSourceReviewQueueFromPublishedInventoryRows(
+    rows,
+    datasetSourceReviewQueue,
+  );
+
+  const mapped = rows.map((row, index) =>
+    publishedUrlInventoryRowToUrlInventoryRow(
+      row,
+      index,
+      newestSource,
+      combinedDatasetRunId,
+    ),
+  );
   return dedupeUrlInventoryRows(mapped).rows;
 }
 

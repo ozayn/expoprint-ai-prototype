@@ -6,6 +6,11 @@ import {
   normalizeEvalUrl,
   urlDedupeKeyFromFields,
 } from "./evalUrlDedup";
+import {
+  processedMetaFromReviewRow,
+  type UrlInventoryProcessedMeta,
+  applyLatestBatchFlagsToInventoryRows,
+} from "./evalProcessedMeta";
 import type { UrlCandidateRow } from "./urlCandidateTypes";
 
 export type UrlInventoryExtractionStatus = "not_run" | "success" | "failed";
@@ -14,6 +19,9 @@ export type UrlInventoryRow = {
   candidate: UrlCandidateRow;
   extractionStatus: UrlInventoryExtractionStatus;
   review: BrandAuditRow | null;
+  /** Stable index from URL candidates CSV for original-order sorting. */
+  originalIndex: number;
+  processedMeta: UrlInventoryProcessedMeta | null;
 };
 
 export type UrlInventoryStats = {
@@ -23,6 +31,7 @@ export type UrlInventoryStats = {
   notRunCount: number;
   successCount: number;
   failedCount: number;
+  latestBatchCount: number;
 };
 
 function canonicalForCandidate(candidate: UrlCandidateRow): string {
@@ -82,6 +91,8 @@ function mergeUrlInventoryRows(
     },
     extractionStatus: kept.extractionStatus,
     review: kept.review ?? other.review,
+    originalIndex: Math.min(primary.originalIndex, secondary.originalIndex),
+    processedMeta: kept.processedMeta ?? other.processedMeta,
   };
 }
 
@@ -159,21 +170,43 @@ function findReviewForCandidate(
   return null;
 }
 
+export type UrlInventoryBuildOptions = {
+  /** Batch/combined filename when a review row has no source_review_queue (non-combined only). */
+  reviewQueueFilename?: string;
+};
+
 export function buildUrlInventory(
   candidates: UrlCandidateRow[],
   reviewRows: BrandAuditRow[],
   logLabel?: string,
+  options?: UrlInventoryBuildOptions,
 ): UrlInventoryBuildResult {
   const index = buildReviewIndex(reviewRows);
-  const rawRows: UrlInventoryRow[] = candidates.map((candidate) => {
+  const rawRows: UrlInventoryRow[] = candidates.map((candidate, originalIndex) => {
     const review = findReviewForCandidate(candidate, index);
     const extractionStatus: UrlInventoryExtractionStatus = review
       ? reviewExtractionStatus(review)
       : "not_run";
-    return { candidate, extractionStatus, review };
+    const processedMeta =
+      review
+        ? processedMetaFromReviewRow(review, {
+            fallbackReviewQueueFilename: options?.reviewQueueFilename,
+          })
+        : null;
+    return {
+      candidate,
+      extractionStatus,
+      review,
+      originalIndex,
+      processedMeta,
+    };
   });
 
-  return dedupeUrlInventoryRows(rawRows, logLabel);
+  const deduped = dedupeUrlInventoryRows(rawRows, logLabel);
+  return {
+    ...deduped,
+    rows: applyLatestBatchFlagsToInventoryRows(deduped.rows),
+  };
 }
 
 export function computeUrlInventoryStats(
@@ -183,6 +216,7 @@ export function computeUrlInventoryStats(
   let notRunCount = 0;
   let successCount = 0;
   let failedCount = 0;
+  let latestBatchCount = 0;
 
   for (const row of rows) {
     const canonical = canonicalForCandidate(row.candidate);
@@ -191,6 +225,8 @@ export function computeUrlInventoryStats(
     if (row.extractionStatus === "not_run") notRunCount += 1;
     else if (row.extractionStatus === "success") successCount += 1;
     else failedCount += 1;
+
+    if (row.processedMeta?.isLatestBatch) latestBatchCount += 1;
   }
 
   const processedCount = successCount + failedCount;
@@ -202,5 +238,6 @@ export function computeUrlInventoryStats(
     notRunCount,
     successCount,
     failedCount,
+    latestBatchCount,
   };
 }

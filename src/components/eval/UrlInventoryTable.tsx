@@ -18,13 +18,22 @@ import {
 import { EvalFilterControls } from "./EvalFilterControls";
 import { useEvalViewerFilters } from "./EvalViewerFilterContext";
 import { ExpandedRowDetails } from "./ReviewQueueTable";
+import { UrlInventoryProcessedBadge } from "./UrlInventoryProcessedBadge";
+import { UrlInventoryToolbar } from "./UrlInventoryToolbar";
 import { matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
 import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
+import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import { evalTableColumnHeaderLabel } from "@/lib/evalLocal/evalTableColumns";
 import { excerptText } from "@/lib/evalLocal/textExcerpt";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
 import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
+import {
+  filterUrlInventoryQuick,
+  parseUrlInventoryQuickFilter,
+  parseUrlInventorySortMode,
+  sortUrlInventoryRows,
+} from "@/lib/evalLocal/urlInventorySort";
 
 const PAGE_SIZE = 200;
 
@@ -112,20 +121,27 @@ type Props = {
   filename?: string;
   rows: UrlInventoryRow[];
   omitPartnerFields?: boolean;
+  basePath?: string;
+  searchParams?: EvalViewerQueryParams;
 };
 
 export function UrlInventoryTable({
   filename,
   rows: inputRows,
   omitPartnerFields = false,
+  basePath = "/internal/eval",
+  searchParams = {},
 }: Props) {
   const rows = useMemo(
     () => dedupeUrlInventoryRows(inputRows).rows,
     [inputRows],
   );
+
+  const sortMode = parseUrlInventorySortMode(searchParams.sort ?? "recent");
+  const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
+
   const {
     search,
-    statusFilter,
     fieldFilters,
     paginationKey,
   } = useEvalViewerFilters();
@@ -147,10 +163,8 @@ export function UrlInventoryTable({
     expandedRow?.paginationKey === paginationKey ? expandedRow.index : null;
 
   const filtered = useMemo(() => {
-    return rows.filter((row) => {
-      if (statusFilter !== "all" && row.extractionStatus !== statusFilter) {
-        return false;
-      }
+    const quickFiltered = filterUrlInventoryQuick(rows, quickFilter);
+    return quickFiltered.filter((row) => {
       if (!matchesSearchQuery(searchHaystackForRow(row, omitPartnerFields), search)) {
         return false;
       }
@@ -163,14 +177,19 @@ export function UrlInventoryTable({
       }
       return true;
     });
-  }, [rows, statusFilter, search, fieldFilters, omitPartnerFields]);
+  }, [rows, quickFilter, search, fieldFilters, omitPartnerFields]);
 
-  const successfulInFiltered = filtered.filter(
+  const sorted = useMemo(
+    () => sortUrlInventoryRows(filtered, sortMode),
+    [filtered, sortMode],
+  );
+
+  const successfulInFiltered = sorted.filter(
     (r) => r.extractionStatus === "success",
   ).length;
 
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = sorted.length > visibleCount;
   const colSpan = visibleColumns.length + 1;
 
   const processedMatchLine =
@@ -200,11 +219,12 @@ export function UrlInventoryTable({
             </span>
           </p>
         ) : null}
+        <UrlInventoryToolbar basePath={basePath} searchParams={searchParams} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <EvalFilterControls
-              showNotRunStatus
-              resultCountLine={formatResultCount(visible.length, filtered.length)}
+              showNotRunStatus={false}
+              resultCountLine={formatResultCount(visible.length, sorted.length)}
               processedMatchLine={processedMatchLine}
             />
           </div>
@@ -234,7 +254,7 @@ export function UrlInventoryTable({
               const candidate = row.candidate;
               const review = row.review;
               return (
-                <Fragment key={i}>
+                <Fragment key={`${row.originalIndex}-${i}`}>
                   <tr
                     className={`cursor-pointer border-b border-zinc-100 align-top transition-colors hover:bg-zinc-50/80 ${
                       expanded ? "bg-zinc-50/60" : ""
@@ -251,13 +271,28 @@ export function UrlInventoryTable({
                     </td>
                     {visibleColumns.map((columnId) => (
                       <td key={columnId} className={evalTableCellClass()}>
-                        <EvalInventoryTableColumnCell
-                          columnId={columnId}
-                          candidate={candidate}
-                          review={review}
-                          extractionStatus={row.extractionStatus}
-                          omitPartnerFields={omitPartnerFields}
-                        />
+                        {columnId === "status" ? (
+                          <span className="inline-flex flex-wrap items-center gap-0.5">
+                            <EvalInventoryTableColumnCell
+                              columnId={columnId}
+                              candidate={candidate}
+                              review={review}
+                              extractionStatus={row.extractionStatus}
+                              omitPartnerFields={omitPartnerFields}
+                            />
+                            <UrlInventoryProcessedBadge
+                              processedMeta={row.processedMeta}
+                            />
+                          </span>
+                        ) : (
+                          <EvalInventoryTableColumnCell
+                            columnId={columnId}
+                            candidate={candidate}
+                            review={review}
+                            extractionStatus={row.extractionStatus}
+                            omitPartnerFields={omitPartnerFields}
+                          />
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -297,7 +332,7 @@ export function UrlInventoryTable({
           suppressHydrationWarning
           className="mt-4 text-sm text-zinc-500 hover:text-zinc-700"
         >
-          Show more ({filtered.length - visibleCount} remaining)
+          Show more ({sorted.length - visibleCount} remaining)
         </button>
       ) : null}
 

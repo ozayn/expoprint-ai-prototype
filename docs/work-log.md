@@ -281,7 +281,7 @@ Historical eval shifted to a visual brand-audit workflow based on partner feedba
 - **Gallery and table views** — Logos, palettes, contact fields, offerings, scrape metadata, and scores with expandable row details.
 - **URL inventory** — All URLs tab for full database candidate lists with processed / not-run / success / failed status joined to review rows.
 - **Review UX** — Search, status and field filters, column show/hide, clickable URLs where domains are published.
-- **Combined batches** — `eval:extract-and-review`, `eval:combine-reviews` (dedupe by URL, newest wins), combined vs latest picker on `/dev/eval`.
+- **Combined batches** — `eval:extract-and-review`, `eval:combine-reviews` (dedupe by URL, newest wins), combined vs latest picker on `/internal/eval`.
 - **Coverage metrics** — Field success-rate charts and scrape-depth summaries for extraction coverage.
 - **Publishing** — `npm run eval:publish-latest-internal` (+ optional `--include-url-inventory`); `check:partner-data` guard; manual commit of `data/eval/public/` artifacts only — raw partner exports and local eval CSVs/JSONL stay gitignored.
 - **URL deduplication** — Normalization and dedupe from Metabase extraction through batch selection, combined queues, publish sanitization (including post-sanitize collapse), and defensive UI dedupe; committed URL inventory JSON row count matches the All URLs viewer.

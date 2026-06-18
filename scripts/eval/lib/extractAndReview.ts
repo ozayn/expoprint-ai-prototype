@@ -39,7 +39,7 @@ export function devEvalViewerUrl(reviewSelection: string): string {
     process.env.EVAL_VIEWER_BASE_URL?.replace(/\/$/, "") ??
     "http://localhost:3000";
   const q = new URLSearchParams({ review: reviewSelection });
-  return `${base}/dev/eval?${q.toString()}`;
+  return `${base}/internal/eval?${q.toString()}`;
 }
 
 export async function runExtractAndReview(

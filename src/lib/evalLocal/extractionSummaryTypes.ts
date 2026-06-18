@@ -14,7 +14,7 @@ export const EXTRACTION_SUMMARY_TABLE_COLUMNS = [
   "logo_candidate_count",
 ] as const;
 
-/** Primary columns shown in /dev/eval extraction table (secondary section). */
+/** Primary columns shown in the eval viewer extraction table (secondary section). */
 export const EXTRACTION_SUMMARY_VISIBLE_COLUMNS = [
   "ds_number",
   "project_title",

@@ -11,14 +11,14 @@ type DevEvalNavLinkProps = {
 /** Local development only — omitted from production builds and deployments. */
 export function DevEvalNavLink({
   className = devEvalNavLinkClassName,
-  children = "Dev eval",
+  children = "Eval viewer",
 }: DevEvalNavLinkProps) {
   if (process.env.NODE_ENV !== "development") {
     return null;
   }
 
   return (
-    <Link href="/dev/eval" className={className}>
+    <Link href="/internal/eval" className={className}>
       {children}
     </Link>
   );
@@ -29,6 +29,10 @@ export function InternalEvalNavLink({
   className = devEvalNavLinkClassName,
   children = "Internal eval",
 }: DevEvalNavLinkProps) {
+  if (process.env.NODE_ENV === "development") {
+    return null;
+  }
+
   return (
     <Link href="/internal/eval" className={className}>
       {children}

@@ -9,6 +9,7 @@ import {
   type BrandAuditRow,
 } from "@/lib/evalLocal/brandAuditRow";
 import type { PublishedInternalEvalFile } from "@/lib/evalLocal/publishedInternalEvalTypes";
+import { evalRunIdToIso } from "@/lib/evalLocal/evalProcessedMeta";
 
 export type { PublishedInternalEvalFile } from "@/lib/evalLocal/publishedInternalEvalTypes";
 
@@ -141,6 +142,14 @@ export function sanitizeReviewQueueRecord(
   row.brief_score = record.brief_score?.trim() ?? "";
   row.overall_score = record.overall_score?.trim() ?? "";
   row.reviewer_notes = record.reviewer_notes?.trim() ?? "";
+
+  row.source_review_queue = record.source_review_queue?.trim() ?? "";
+  row.extraction_run_id = record.extraction_run_id?.trim() ?? "";
+  row.processed_at = record.processed_at?.trim() ?? "";
+  if (!row.processed_at && row.extraction_run_id) {
+    const inferred = evalRunIdToIso(row.extraction_run_id);
+    if (inferred) row.processed_at = inferred;
+  }
 
   row.extracted_color_hexes = record.extracted_color_hexes?.trim() ?? "";
   row.primary_color_hex = record.primary_color_hex?.trim() ?? "";

@@ -148,5 +148,8 @@ export async function readInternalEvalDataset(): Promise<InternalEvalDatasetPayl
 export function urlInventoryPayloadToViewerRows(
   payload: InternalEvalUrlInventoryPayload,
 ) {
-  return publishedUrlInventoryRowsToUrlInventoryRows(payload.rows);
+  return publishedUrlInventoryRowsToUrlInventoryRows(
+    payload.rows,
+    payload.sourceReviewQueue,
+  );
 }

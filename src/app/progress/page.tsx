@@ -624,13 +624,13 @@ const stages: Stage[] = [
     completed: "2026-06-12",
     lastUpdated: "2026-06-12",
     summary:
-      "Historical evaluation shifted to a visual brand-audit workflow after partner feedback — gallery and table review of extracted logos, colors, contacts, products/services, and related fields instead of spreadsheet-only queues. Local `/dev/eval` reads gitignored run outputs; password-protected `/internal/eval` reads explicitly published sanitized JSON only; raw partner exports never ship to production.",
+      "Historical evaluation shifted to a visual brand-audit workflow after partner feedback — gallery and table review of extracted logos, colors, contacts, products/services, and related fields instead of spreadsheet-only queues. `/internal/eval` is the single canonical viewer: local dev reads gitignored run outputs without a password; production is password-protected and reads explicitly published sanitized JSON only; raw partner exports never ship to production.",
     accomplishments: [
       "**Partner-driven workflow** — Replaced spreadsheet-only historical review with visual brand-audit viewers for logos, palettes, contact fields, offerings, scrape metadata, and scores.",
       "**Gallery and table views** — Side-by-side gallery cards and dense extracted-field tables with expandable row details.",
       "**URL inventory** — All URLs tab lists every database URL candidate joined to extraction results (processed, success, failed, not-run).",
       "**Review ergonomics** — Search, status and field filters, configurable column visibility, fixed table layout, and clickable external URLs where domains are published.",
-      "**Combined batches** — `eval:extract-and-review` and `eval:combine-reviews` merge batch review queues with URL deduplication (newest wins); combined vs latest batch picker on `/dev/eval`.",
+      "**Combined batches** — `eval:extract-and-review` and `eval:combine-reviews` merge batch review queues with URL deduplication (newest wins); combined vs latest batch picker on `/internal/eval`.",
       "**Coverage metrics** — Field success-rate charts and scrape-depth summaries highlight extraction coverage gaps.",
       "**Publishing** — `npm run eval:publish-latest-internal` combines batches and writes deployable sanitized JSON; optional `--include-url-inventory` for the All URLs tab; `npm run check:partner-data` allowlist; manual inspect/commit/push.",
       "**URL deduplication** — Shared normalization and dedupe from Metabase extraction through batch selection, combined queues, publish sanitization (including post-sanitize collapse), and defensive UI dedupe so committed URL inventory JSON matches the All URLs viewer row count.",

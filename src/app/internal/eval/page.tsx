@@ -1,25 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddManualUrlsPanel } from "@/components/eval/AddManualUrlsPanel";
 import { BrandAuditViewer } from "@/components/eval/BrandAuditViewer";
-import { InternalEvalLogin } from "./InternalEvalLogin";
-import { InternalEvalLogout } from "./InternalEvalLogout";
+import { EvalInternalsPanel } from "@/components/eval/EvalInternalsPanel";
+import { InternalEvalInternalsPanel } from "@/components/eval/InternalEvalInternalsPanel";
 import {
   getEvalViewerPassword,
   isEvalViewerAuthenticated,
   isEvalViewerConfiguredInProduction,
 } from "@/lib/evalInternal/auth";
-import { computeUrlInventoryStats } from "@/lib/evalLocal/urlInventoryJoin";
 import {
   readInternalEvalDataset,
   urlInventoryPayloadToViewerRows,
 } from "@/lib/evalInternal/readInternalEvalReview";
-import { InternalEvalInternalsPanel } from "@/components/eval/InternalEvalInternalsPanel";
+import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
+import {
+  EVAL_VIEWER_BASE_PATH,
+  loadLocalEvalViewerDataset,
+} from "@/lib/evalLocal/loadLocalEvalViewerDataset";
+import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
+import { computeUrlInventoryStats } from "@/lib/evalLocal/urlInventoryJoin";
+import { InternalEvalLogin } from "./InternalEvalLogin";
+import { InternalEvalLogout } from "./InternalEvalLogout";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Historical brand audit (internal) — ExpoPrint",
-  description: "Password-protected brand audit viewer (sample data).",
+  title: "Historical brand audit — ExpoPrint",
+  description: "Visual brand audit viewer for historical website extraction.",
   robots: { index: false, follow: false },
 };
 
@@ -42,21 +50,69 @@ function NotConfigured() {
 }
 
 type PageProps = {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<EvalViewerQueryParams>;
 };
 
 export default async function InternalEvalPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  if (!isEvalViewerConfiguredInProduction()) {
+  const localMode = isEvalViewerEnabled();
+
+  if (!localMode && !isEvalViewerConfiguredInProduction()) {
     return <NotConfigured />;
   }
 
-  const password = getEvalViewerPassword();
-  const authed = await isEvalViewerAuthenticated();
-  if (password && !authed) {
-    return <InternalEvalLogin />;
+  if (!localMode) {
+    const password = getEvalViewerPassword();
+    const authed = await isEvalViewerAuthenticated();
+    if (password && !authed) {
+      return <InternalEvalLogin />;
+    }
   }
 
+  if (localMode) {
+    const data = await loadLocalEvalViewerDataset(params);
+
+    return (
+      <BrandAuditViewer
+        basePath={EVAL_VIEWER_BASE_PATH}
+        searchParams={params}
+        subtitle="Historical websites processed through ExpoPrint."
+        safetyNote="Local-only · partner data stays on this machine"
+        dataKind="local"
+        publishHint={data.publishHint}
+        reviewFilename={data.reviewData?.filename}
+        batchReviewQueues={data.batchQueues}
+        combinedReviewQueues={data.combinedQueues}
+        rows={data.reviewRows}
+        urlInventoryFilename={data.candidatesData?.filename}
+        urlInventoryRows={data.urlInventory?.rows}
+        inventoryStats={data.urlInventory?.stats}
+        emptyMessage={
+          data.index.reviewQueues.length === 0
+            ? "No review queue yet. Run npm run eval:review on an extraction JSONL or use Add URLs."
+            : undefined
+        }
+        prependContent={
+          <AddManualUrlsPanel basePath={EVAL_VIEWER_BASE_PATH} />
+        }
+      >
+        <EvalInternalsPanel
+          basePath={EVAL_VIEWER_BASE_PATH}
+          index={data.index}
+          summaryName={data.summaryName}
+          reviewName={data.reviewName}
+          scoreName={data.scoreName}
+          urlCandidatesName={data.candidatesName}
+          summaryData={data.summaryData}
+          scoreData={data.scoreData}
+          searchParams={params}
+          showCliHints
+        />
+      </BrandAuditViewer>
+    );
+  }
+
+  const password = getEvalViewerPassword();
   const dataset = await readInternalEvalDataset();
   const reviewData = dataset.review;
   const urlInventoryPayload = dataset.urlInventory;
@@ -74,7 +130,7 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
 
   return (
     <BrandAuditViewer
-      basePath="/internal/eval"
+      basePath={EVAL_VIEWER_BASE_PATH}
       searchParams={params}
       subtitle="Historical websites processed through ExpoPrint."
       deployedNote={deployedNote}
@@ -83,7 +139,9 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
         reviewData.source === "published" ? reviewData.publishedAt : undefined
       }
       sourceReviewQueue={
-        reviewData.source === "published" ? reviewData.sourceReviewQueue : undefined
+        reviewData.source === "published"
+          ? reviewData.sourceReviewQueue
+          : undefined
       }
       sourceUrlCandidates={urlInventoryPayload?.sourceUrlCandidates}
       reviewRowCount={reviewData.rows.length}
@@ -105,7 +163,9 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
         urlInventoryIncluded={Boolean(urlInventoryPayload)}
         sourceReviewQueue={reviewData.sourceReviewQueue}
         sourceUrlCandidates={urlInventoryPayload?.sourceUrlCandidates}
-        publishedAt={reviewData.publishedAt ?? urlInventoryPayload?.publishedAt}
+        publishedAt={
+          reviewData.publishedAt ?? urlInventoryPayload?.publishedAt
+        }
       />
     </BrandAuditViewer>
   );

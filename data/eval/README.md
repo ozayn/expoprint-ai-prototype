@@ -68,10 +68,14 @@ See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/h
 
 ## Viewers
 
-| Route | Environment | Data |
+Canonical route: [`/internal/eval`](http://localhost:3000/internal/eval).
+
+| Environment | Password | Data |
 | --- | --- | --- |
-| [`/dev/eval`](http://localhost:3000/dev/eval) | Local dev only (`npm run dev`) | Gitignored `data/eval/runs/` + `results/` |
-| [`/internal/eval`](http://localhost:3000/internal/eval) | Deployed (password) | `data/eval/public/internal-eval-review.json` (or sample fallback) |
+| Local dev (`npm run dev`) | None | Gitignored `data/eval/runs/` + `results/` |
+| Deployed production | `EVAL_VIEWER_PASSWORD` | `data/eval/public/internal-eval-review.json` (or sample fallback) |
+
+`/dev/eval` and `/eval-local` redirect to `/internal/eval`.
 
 ### Publish for deployed viewer
 
@@ -108,6 +112,4 @@ npm run eval:publish-internal -- data/eval/results/review_queue_<timestamp>.csv 
 
 Writes `data/eval/public/internal-eval-review.json`. **Review before commit** — this is a deployable sanitized artifact. Use `--include-domains` to show customer domains to partners; omit it for `Site 1`, `Site 2` labels. Use `--no-include-logo-urls` to drop logo URLs and keep counts only.
 
-`/eval-local` redirects to `/dev/eval`.
-
-Set `EVAL_VIEWER_PASSWORD` in `.env.local` to test the deployed viewer locally. Without it, local dev still shows the sanitized sample fixture.
+Set `EVAL_VIEWER_PASSWORD` in `.env.local` to test the production data path locally (published JSON only). Without it, local dev reads gitignored eval files with no password.

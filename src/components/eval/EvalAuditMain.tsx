@@ -2,11 +2,12 @@
 
 import { BrandAuditGallery } from "./BrandAuditGallery";
 import { ReviewQueueTable } from "./ReviewQueueTable";
+import { UrlInventoryTable } from "./UrlInventoryTable";
 import type { EvalViewerDataKind } from "./BrandAuditViewer";
 import type { EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
-import { UrlInventoryTable } from "./UrlInventoryTable";
 
 type Props = {
   view: EvalViewMode;
@@ -17,6 +18,8 @@ type Props = {
   urlInventoryFilename?: string;
   urlInventoryRows?: UrlInventoryRow[];
   omitPartnerFields?: boolean;
+  basePath?: string;
+  searchParams?: EvalViewerQueryParams;
 };
 
 export function EvalAuditMain({
@@ -28,6 +31,8 @@ export function EvalAuditMain({
   urlInventoryFilename,
   urlInventoryRows,
   omitPartnerFields: omitPartnerFieldsProp,
+  basePath = "/internal/eval",
+  searchParams = {},
 }: Props) {
   const omitPartnerFields = omitPartnerFieldsProp ?? dataKind !== "local";
 
@@ -37,6 +42,8 @@ export function EvalAuditMain({
         filename={urlInventoryFilename}
         rows={urlInventoryRows ?? []}
         omitPartnerFields={omitPartnerFields}
+        basePath={basePath}
+        searchParams={searchParams}
       />
     );
   }

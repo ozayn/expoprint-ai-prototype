@@ -16,10 +16,11 @@ function buildViewHref(
 ): string {
   const viewParam =
     view === "gallery" ? undefined : view === "table" ? "table" : "inventory";
-  return buildEvalViewerHref(
-    basePath,
-    patchEvalViewerQuery(current, { view: viewParam }),
-  );
+  const patch: Partial<EvalViewerSearchParams> = { view: viewParam };
+  if (view === "inventory" && !current.sort?.trim()) {
+    patch.sort = "recent";
+  }
+  return buildEvalViewerHref(basePath, patchEvalViewerQuery(current, patch));
 }
 
 function viewToggleClass(active: boolean): string {

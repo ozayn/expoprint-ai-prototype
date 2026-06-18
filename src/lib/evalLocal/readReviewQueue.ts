@@ -5,6 +5,8 @@ import {
   type BrandAuditRow,
 } from "./brandAuditRow";
 import { canonicalDomainFromHost } from "./canonicalDomain";
+import { batchReviewQueueFilenameFromRunId } from "./evalProcessedMeta";
+import { isCombinedReviewQueueFilename } from "./evalReviewQueueFiles";
 import { isEvalViewerEnabled } from "./isEvalViewerEnabled";
 import { isSafeReviewQueueFilename } from "./listEvalFiles";
 import { csvRowsToObjects, parseCsv } from "./parseCsv";
@@ -40,6 +42,16 @@ export async function readReviewQueueFromDir(
     }
     if (!row.canonical_domain.trim() && row.domain.trim()) {
       row.canonical_domain = canonicalDomainFromHost(row.domain);
+    }
+    if (!row.source_review_queue.trim()) {
+      if (isCombinedReviewQueueFilename(filename)) {
+        const runId = row.extraction_run_id?.trim();
+        if (runId) {
+          row.source_review_queue = batchReviewQueueFilenameFromRunId(runId);
+        }
+      } else {
+        row.source_review_queue = filename;
+      }
     }
     return row;
   });

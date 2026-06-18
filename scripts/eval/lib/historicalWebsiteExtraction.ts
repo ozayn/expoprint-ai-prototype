@@ -145,7 +145,7 @@ export async function runHistoricalWebsiteExtraction(
     `extraction_summary_${runId}.csv`,
   );
 
-  const { candidates, summary } = loadUrlCandidatesFromCsv(options.inputPath);
+  const { candidates } = loadUrlCandidatesFromCsv(options.inputPath);
   const selected = selectUrlCandidatesForExtraction(candidates, {
     allowDuplicateDomains,
     offset,

@@ -203,6 +203,8 @@ export function BrandAuditViewer({
           urlInventoryFilename={urlInventoryFilename}
           urlInventoryRows={urlInventoryRows}
           omitPartnerFields={dataKind !== "local"}
+          basePath={basePath}
+          searchParams={searchParams}
         />
 
         {children}

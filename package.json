@@ -30,6 +30,7 @@
     "eval:publish-internal": "tsx scripts/eval/publishInternalEval.ts",
     "eval:publish-latest-internal": "tsx scripts/eval/publishLatestInternalEval.ts",
     "eval:publish-internal:test": "tsx scripts/eval/lib/publishInternalEval.test.ts",
+    "eval:processed-meta:test": "tsx scripts/eval/lib/evalProcessedMeta.test.ts",
     "eval:row-url:test": "tsx scripts/eval/lib/evalRowUrl.test.ts",
     "check:partner-data": "bash scripts/check-partner-data-git.sh"
   },

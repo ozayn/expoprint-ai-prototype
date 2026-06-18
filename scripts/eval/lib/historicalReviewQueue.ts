@@ -19,6 +19,7 @@ import type { LogoCandidate } from "../../../src/lib/analyzeWebsiteResponse";
 import type { ExtractionJsonlRecord } from "../../../src/lib/evalLocal/extractionTypes";
 import { EVAL_RESULTS_DIR, ensureEvalDirs, runTimestampId } from "./paths.js";
 import { escapeCsvCell } from "./urlCandidates.js";
+import { evalRunIdToIso } from "../../../src/lib/evalLocal/evalProcessedMeta.js";
 
 export const REVIEW_QUEUE_COLUMNS = [
   "ds_number",
@@ -64,6 +65,9 @@ export const REVIEW_QUEUE_COLUMNS = [
   "reviewer_notes",
   "business_name_similarity_hint",
   "title_business_name_overlap_hint",
+  "extraction_run_id",
+  "processed_at",
+  "source_review_queue",
 ] as const;
 
 export type ReviewQueueRow = Record<(typeof REVIEW_QUEUE_COLUMNS)[number], string>;
@@ -421,6 +425,14 @@ export function buildReviewQueueFromJsonl(inputPath: string): ReviewQueueBuildRe
     EVAL_RESULTS_DIR,
     reviewQueueFilenameForRunPath(inputPath),
   );
+  const runId = timestampFromExtractionRunPath(inputPath) ?? "";
+  const processedAt = runId ? evalRunIdToIso(runId) ?? "" : "";
+  const queueFilename = basename(outputPath);
+  for (const row of reviewRows) {
+    row.extraction_run_id = runId;
+    row.processed_at = processedAt;
+    row.source_review_queue = queueFilename;
+  }
   writeFileSync(outputPath, reviewQueueToCsv(reviewRows), "utf8");
 
   let successCount = 0;
