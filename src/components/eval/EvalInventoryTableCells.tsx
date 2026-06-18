@@ -43,6 +43,8 @@ const EXTRACTED_COLUMNS: EvalTableColumnId[] = [
   "contact_links",
   "offerings",
   "extracted_summary",
+  "palette_source",
+  "palette_confidence",
   "pages_inspected",
   "elapsed_ms",
   "provider_model",
@@ -125,10 +127,6 @@ export function EvalInventoryTableColumnCell({
         processedMeta={processedMeta}
       />
     );
-  }
-
-  if (columnId === "palette_source" || columnId === "palette_confidence") {
-    return <span className="text-zinc-400">—</span>;
   }
 
   if (EXTRACTED_COLUMNS.includes(columnId)) {

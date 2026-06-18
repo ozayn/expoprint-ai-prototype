@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   emptyBrandAuditRow,
+  normalizeBrandAuditRow,
   type BrandAuditRow,
 } from "./brandAuditRow";
 import { canonicalDomainFromHost } from "./canonicalDomain";
@@ -36,10 +37,7 @@ export async function readReviewQueueFromDir(
 
   const { records } = csvRowsToObjects(parseCsv(text));
   const rows: BrandAuditRow[] = records.map((record) => {
-    const row = emptyBrandAuditRow();
-    for (const col of Object.keys(row) as (keyof BrandAuditRow)[]) {
-      row[col] = record[col] ?? "";
-    }
+    const row = normalizeBrandAuditRow(record) ?? emptyBrandAuditRow();
     if (!row.canonical_domain.trim() && row.domain.trim()) {
       row.canonical_domain = canonicalDomainFromHost(row.domain);
     }

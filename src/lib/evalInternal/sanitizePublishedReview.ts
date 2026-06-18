@@ -6,6 +6,7 @@ import {
 } from "@/lib/evalLocal/brandExtractionParse";
 import {
   emptyBrandAuditRow,
+  applyPaletteMetadataAliases,
   type BrandAuditRow,
 } from "@/lib/evalLocal/brandAuditRow";
 import type { PublishedInternalEvalFile } from "@/lib/evalLocal/publishedInternalEvalTypes";
@@ -157,6 +158,7 @@ export function sanitizeReviewQueueRecord(
   row.secondary_color_hex = record.secondary_color_hex?.trim() ?? "";
   row.palette_source = record.palette_source?.trim() ?? "";
   row.palette_confidence = record.palette_confidence?.trim() ?? "";
+  applyPaletteMetadataAliases(record as Record<string, unknown>, row);
 
   if (options.includeLogoUrls) {
     const logos = sanitizeLogoCandidatesJson(record.logo_candidate_urls ?? "");

@@ -2,6 +2,43 @@ import {
   REVIEW_QUEUE_ALL_COLUMNS,
   type ReviewQueueRow,
 } from "./reviewQueueTypes";
+import {
+  normalizePaletteConfidence,
+  normalizePaletteSource,
+} from "./paletteSourceParse";
+
+const PALETTE_SOURCE_ALIASES = [
+  "paletteSource",
+  "colorsSource",
+  "colorSource",
+] as const;
+
+const PALETTE_CONFIDENCE_ALIASES = ["paletteConfidence"] as const;
+
+export function applyPaletteMetadataAliases(
+  record: Record<string, unknown>,
+  row: ReviewQueueRow,
+): void {
+  if (!row.palette_source?.trim()) {
+    for (const key of PALETTE_SOURCE_ALIASES) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        row.palette_source = normalizePaletteSource(value);
+        break;
+      }
+    }
+  }
+
+  if (!row.palette_confidence?.trim()) {
+    for (const key of PALETTE_CONFIDENCE_ALIASES) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        row.palette_confidence = normalizePaletteConfidence(value);
+        break;
+      }
+    }
+  }
+}
 
 /**
  * Shared row shape for local CSV review queues and published JSON on `/internal/eval`.
@@ -86,6 +123,7 @@ export function normalizeBrandAuditRow(
       row[col] = String(cell);
     }
   }
+  applyPaletteMetadataAliases(record, row);
   return row;
 }
 

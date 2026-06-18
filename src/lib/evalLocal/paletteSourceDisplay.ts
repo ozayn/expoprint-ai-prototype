@@ -24,11 +24,24 @@ export function formatPaletteSourceDisplay(row: BrandAuditRow): string | null {
   return "Palette source unknown";
 }
 
-export function paletteSourceCellDisplay(row: BrandAuditRow): string {
+export function paletteSourceColumnDisplay(row: BrandAuditRow): string {
   const source = row.palette_source?.trim();
-  const confidence = row.palette_confidence?.trim();
-  if (source && confidence) return `${source} / ${confidence}`;
   if (source) return source;
   if (rowHasExtractedColors(row)) return "unknown";
   return "";
+}
+
+export function paletteConfidenceColumnDisplay(row: BrandAuditRow): string {
+  const confidence = row.palette_confidence?.trim();
+  if (confidence) return confidence;
+  if (rowHasExtractedColors(row)) return "unknown";
+  return "";
+}
+
+/** Compact source/confidence label for diagnostics and inspect CLI. */
+export function paletteSourceCellDisplay(row: BrandAuditRow): string {
+  const source = paletteSourceColumnDisplay(row);
+  const confidence = paletteConfidenceColumnDisplay(row);
+  if (source && confidence) return `${source} / ${confidence}`;
+  return source;
 }

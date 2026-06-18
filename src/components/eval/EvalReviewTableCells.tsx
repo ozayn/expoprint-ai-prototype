@@ -5,7 +5,7 @@ import {
   LogoThumbnailRow,
   PaletteSourceLine,
 } from "./BrandExtractionCells";
-import { paletteSourceCellDisplay } from "@/lib/evalLocal/paletteSourceDisplay";
+import { paletteSourceColumnDisplay, paletteConfidenceColumnDisplay } from "@/lib/evalLocal/paletteSourceDisplay";
 import {
   AddressCell,
   ContactLinksCell,
@@ -124,9 +124,9 @@ export function EvalReviewTableColumnCell({
     case "extracted_summary":
       return <TextFieldCell value={row.extracted_summary} maxLines={2} />;
     case "palette_source":
-      return <TextFieldCell value={paletteSourceCellDisplay(row)} />;
+      return <TextFieldCell value={paletteSourceColumnDisplay(row)} />;
     case "palette_confidence":
-      return <TextFieldCell value={row.palette_confidence} />;
+      return <TextFieldCell value={paletteConfidenceColumnDisplay(row)} />;
     case "status": {
       const category = reviewRowStatusCategory(row.status ?? "");
       const processedMeta =

@@ -5,7 +5,9 @@ import { emptyBrandAuditRow, normalizeBrandAuditRow } from "../../../src/lib/eva
 import { mergeBrandAuditRows } from "../../../src/lib/evalLocal/evalCanonicalDedup.js";
 import {
   formatPaletteSourceDisplay,
+  paletteConfidenceColumnDisplay,
   paletteSourceCellDisplay,
+  paletteSourceColumnDisplay,
 } from "../../../src/lib/evalLocal/paletteSourceDisplay.js";
 import type { ExtractionJsonlRecord } from "../../../src/lib/evalLocal/extractionTypes.js";
 import {
@@ -175,6 +177,55 @@ function testReviewRowMapsBrandPaletteSource(): void {
   assert.equal(paletteSourceCellDisplay(row), "logo / medium");
 }
 
+function testDedicatedColumnsRenderPaletteMetadata(): void {
+  const row = reviewRow({
+    extracted_color_hexes: '["#112233"]',
+    palette_source: "logo",
+    palette_confidence: "medium",
+    status: "success",
+  });
+  assert.equal(paletteSourceColumnDisplay(row), "logo");
+  assert.equal(paletteConfidenceColumnDisplay(row), "medium");
+  assert.equal(paletteSourceCellDisplay(row), "logo / medium");
+}
+
+function testNormalizeBrandAuditRowCamelCasePalette(): void {
+  const normalized = normalizeBrandAuditRow({
+    paletteSource: "logo",
+    paletteConfidence: "high",
+    extracted_color_hexes: '["#111111"]',
+  });
+  assert.ok(normalized);
+  assert.equal(normalized.palette_source, "logo");
+  assert.equal(normalized.palette_confidence, "high");
+}
+
+function testCsvRowsMapPaletteColumns(): void {
+  const csv =
+    "palette_source,palette_confidence,extracted_color_hexes,status\n" +
+    "logo,medium,[\"#aabbcc\"],success\n";
+  const { records } = csvRowsToObjects(parseCsv(csv));
+  const row = normalizeBrandAuditRow(records[0]);
+  assert.ok(row);
+  assert.equal(row.palette_source, "logo");
+  assert.equal(row.palette_confidence, "medium");
+  assert.equal(paletteSourceColumnDisplay(row), "logo");
+  assert.equal(paletteConfidenceColumnDisplay(row), "medium");
+}
+
+function testPublishedJsonCamelCasePalette(): void {
+  const normalized = normalizeBrandAuditRow({
+    extracted_color_hexes: '["#222222"]',
+    paletteSource: "extraction",
+    paletteConfidence: "unknown",
+  });
+  assert.ok(normalized);
+  assert.equal(normalized.palette_source, "extraction");
+  assert.equal(normalized.palette_confidence, "unknown");
+  assert.equal(paletteSourceColumnDisplay(normalized), "extraction");
+  assert.equal(paletteConfidenceColumnDisplay(normalized), "unknown");
+}
+
 function testDisplayUnknownWhenColorsWithoutSource(): void {
   const row = reviewRow({
     extracted_color_hexes: '["#112233"]',
@@ -183,7 +234,9 @@ function testDisplayUnknownWhenColorsWithoutSource(): void {
     status: "success",
   });
   assert.equal(formatPaletteSourceDisplay(row), "Palette source unknown");
-  assert.equal(paletteSourceCellDisplay(row), "unknown");
+  assert.equal(paletteSourceColumnDisplay(row), "unknown");
+  assert.equal(paletteConfidenceColumnDisplay(row), "unknown");
+  assert.equal(paletteSourceCellDisplay(row), "unknown / unknown");
 }
 
 function main(): void {
@@ -191,6 +244,10 @@ function main(): void {
   testCombinedCsvPreservesPaletteSource();
   testPublishedJsonPreservesPaletteSource();
   testReviewRowMapsBrandPaletteSource();
+  testDedicatedColumnsRenderPaletteMetadata();
+  testNormalizeBrandAuditRowCamelCasePalette();
+  testCsvRowsMapPaletteColumns();
+  testPublishedJsonCamelCasePalette();
   testDisplayUnknownWhenColorsWithoutSource();
   console.log("paletteSourcePipeline.test.ts: all checks passed");
 }
