@@ -5,9 +5,13 @@ import type {
 } from "@/lib/evalLocal/publishedInternalEvalTypes";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
 import {
-  dedupeEvalUrls,
-  logEvalUrlDedupe,
-} from "@/lib/evalLocal/evalUrlDedup";
+  canonicalSiteDedupeKeyFromFields,
+  dedupeByCanonicalDomain,
+  mergeDuplicateVariants,
+  parseDuplicateVariants,
+  serializeDuplicateVariants,
+} from "@/lib/evalLocal/evalCanonicalDedup";
+import { logEvalUrlDedupe } from "@/lib/evalLocal/evalUrlDedup";
 import {
   buildUrlInventory,
   type UrlInventoryExtractionStatus,
@@ -54,10 +58,14 @@ function extractionStatusRank(status: UrlInventoryExtractionStatus): number {
   return 1;
 }
 
-function publishedRowUrlForDedupe(row: PublishedUrlInventoryRow): string {
-  const normalized = row.normalized_url?.trim();
-  if (normalized) return normalized;
-  return row.canonical_domain?.trim() || row.domain?.trim() || row.row_label?.trim() || "";
+function publishedRowCanonicalKey(row: PublishedUrlInventoryRow): string {
+  const key = canonicalSiteDedupeKeyFromFields({
+    canonical_domain: row.canonical_domain,
+    domain: row.domain,
+    normalized_url: row.normalized_url,
+  });
+  if (key) return key;
+  return row.row_label?.trim() || "";
 }
 
 function mergePublishedUrlInventoryRows(
@@ -97,6 +105,28 @@ function mergePublishedUrlInventoryRows(
   merged.processed_at =
     kept.processed_at?.trim() || other.processed_at?.trim() || undefined;
 
+  const variants = mergeDuplicateVariants(
+    [
+      ...parseDuplicateVariants(primary.duplicate_source_urls),
+      ...parseDuplicateVariants(secondary.duplicate_source_urls),
+    ],
+    [
+      {
+        normalized_url: other.normalized_url?.trim() || undefined,
+        domain: other.domain?.trim() || undefined,
+        canonical_domain: other.canonical_domain?.trim() || undefined,
+      },
+    ],
+    {
+      normalized_url: kept.normalized_url?.trim() || undefined,
+      domain: kept.domain?.trim() || undefined,
+      canonical_domain: kept.canonical_domain?.trim() || undefined,
+    },
+  );
+  if (variants.length > 0) {
+    merged.duplicate_source_urls = serializeDuplicateVariants(variants);
+  }
+
   return merged;
 }
 
@@ -105,9 +135,9 @@ export function dedupePublishedUrlInventoryRows(
   rows: PublishedUrlInventoryRow[],
   logLabel?: string,
 ): { rows: PublishedUrlInventoryRow[]; duplicatesRemoved: number } {
-  const result = dedupeEvalUrls(
+  const result = dedupeByCanonicalDomain(
     rows,
-    publishedRowUrlForDedupe,
+    (row) => publishedRowCanonicalKey(row) || null,
     mergePublishedUrlInventoryRows,
   );
   if (logLabel) {
@@ -260,6 +290,12 @@ export function sanitizeUrlInventoryRow(
       extraction_run_id: extractionRunId || published.review.extraction_run_id,
       processed_at: published.processed_at || published.review.processed_at,
     };
+  }
+
+  if (row.duplicateVariants?.length) {
+    published.duplicate_source_urls = serializeDuplicateVariants(
+      row.duplicateVariants,
+    );
   }
 
   return published;

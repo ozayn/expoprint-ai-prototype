@@ -1,7 +1,15 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { EVAL_RUN_ID_PATTERN } from "../../../src/lib/evalLocal/evalRunId.js";
-import { urlDedupeKeyFromFields } from "../../../src/lib/evalLocal/evalUrlDedup.js";
+import {
+  canonicalSiteDedupeKeyFromFields,
+  mergeBrandAuditRows,
+  mergeDuplicateVariants,
+  parseDuplicateVariants,
+  pickBetterReviewRow,
+  serializeDuplicateVariants,
+  variantFromReviewRow,
+} from "../../../src/lib/evalLocal/evalCanonicalDedup.js";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
 import {
   REVIEW_QUEUE_COLUMNS,
@@ -49,18 +57,44 @@ function timestampFromReviewQueueFilename(name: string): string {
   return combined?.[1] ?? "";
 }
 
-function urlKeyForRow(row: ReviewQueueRow): string {
-  const normalized = urlDedupeKeyFromFields(
-    row.normalized_url,
-    row.normalized_url,
-    row.canonical_domain || row.domain,
-  );
-  if (normalized) return `url:${normalized}`;
-  const domain = row.canonical_domain?.trim().toLowerCase() || row.domain?.trim().toLowerCase();
-  if (domain) return `domain:${domain}`;
+function canonicalKeyForRow(row: ReviewQueueRow): string {
+  const siteKey = canonicalSiteDedupeKeyFromFields({
+    canonical_domain: row.canonical_domain,
+    domain: row.domain,
+    normalized_url: row.normalized_url,
+  });
+  if (siteKey) return siteKey;
   const ds = row.ds_number?.trim();
   if (ds) return `ds:${ds}`;
   return `row:${row.ds_id?.trim() || row.project_title?.trim() || Math.random()}`;
+}
+
+function mergeCombinedReviewRows(
+  existing: CombinedReviewQueueRow,
+  incoming: CombinedReviewQueueRow,
+): CombinedReviewQueueRow {
+  const kept = pickBetterReviewRow(existing, incoming);
+  const other = kept === existing ? incoming : existing;
+  const merged = mergeBrandAuditRows(kept, other);
+
+  const variants = mergeDuplicateVariants(
+    [
+      ...parseDuplicateVariants(existing.duplicate_source_urls),
+      ...parseDuplicateVariants(incoming.duplicate_source_urls),
+      ...parseDuplicateVariants(merged.duplicate_source_urls),
+    ],
+    [variantFromReviewRow(other)],
+    variantFromReviewRow(kept),
+  );
+
+  const sourceReviewQueue =
+    kept.source_review_queue?.trim() || incoming.source_review_queue?.trim() || "";
+
+  return {
+    ...merged,
+    source_review_queue: sourceReviewQueue,
+    duplicate_source_urls: serializeDuplicateVariants(variants),
+  };
 }
 
 function listBatchReviewQueueFiles(resultsDir: string): string[] {
@@ -117,11 +151,17 @@ export function combineReviewQueues(
     const rows = readReviewQueueCsv(resultsDir, filename);
     for (const row of rows) {
       rowsRead += 1;
-      const key = urlKeyForRow(row);
-      merged.set(key, {
+      const incoming: CombinedReviewQueueRow = {
         ...row,
         source_review_queue: filename,
-      });
+      };
+      const key = canonicalKeyForRow(row);
+      const existing = merged.get(key);
+      if (existing) {
+        merged.set(key, mergeCombinedReviewRows(existing, incoming));
+      } else {
+        merged.set(key, incoming);
+      }
     }
   }
 

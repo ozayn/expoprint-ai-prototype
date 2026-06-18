@@ -13,6 +13,7 @@ import {
   readInternalEvalDataset,
   urlInventoryPayloadToViewerRows,
 } from "@/lib/evalInternal/readInternalEvalReview";
+import { mapPublishedUrlInventoryRows } from "@/lib/evalInternal/publishedUrlInventory";
 import { isEvalViewerEnabled } from "@/lib/evalLocal/isEvalViewerEnabled";
 import {
   EVAL_VIEWER_BASE_PATH,
@@ -86,6 +87,7 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
         rows={data.reviewRows}
         urlInventoryFilename={data.candidatesData?.filename}
         urlInventoryRows={data.urlInventory?.rows}
+        urlInventoryRawRows={data.urlInventory?.rawRows}
         inventoryStats={data.urlInventory?.stats}
         emptyMessage={
           data.index.reviewQueues.length === 0
@@ -119,8 +121,11 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
   const urlInventoryRows = urlInventoryPayload
     ? urlInventoryPayloadToViewerRows(urlInventoryPayload)
     : undefined;
-  const inventoryStats = urlInventoryRows
-    ? computeUrlInventoryStats(urlInventoryRows)
+  const inventoryStats = urlInventoryPayload && urlInventoryRows
+    ? computeUrlInventoryStats(
+        urlInventoryRows,
+        urlInventoryPayload.rows.length,
+      )
     : undefined;
 
   const deployedNote =
@@ -154,6 +159,14 @@ export default async function InternalEvalPage({ searchParams }: PageProps) {
         urlInventoryPayload ? urlInventoryPayload.filename : undefined
       }
       urlInventoryRows={urlInventoryRows}
+      urlInventoryRawRows={
+        urlInventoryPayload
+          ? mapPublishedUrlInventoryRows(
+              urlInventoryPayload.rows,
+              urlInventoryPayload.sourceReviewQueue,
+            )
+          : undefined
+      }
       inventoryStats={inventoryStats}
       emptyMessage="Sample review fixture has no rows."
     >

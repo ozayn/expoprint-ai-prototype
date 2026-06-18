@@ -22,6 +22,7 @@ export type PublishedUrlInventoryRow = {
   source_review_queue?: string;
   extraction_run_id?: string;
   processed_at?: string;
+  duplicate_source_urls?: string;
   extraction_status: UrlInventoryExtractionStatus;
   review: BrandAuditRow | null;
 };

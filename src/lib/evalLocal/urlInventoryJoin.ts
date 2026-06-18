@@ -1,11 +1,17 @@
 import type { BrandAuditRow } from "./brandAuditRow";
 import { canonicalDomainFromHost } from "./canonicalDomain";
 import {
-  dedupeEvalUrls,
-  logEvalUrlDedupe,
-  normalizeEvalUrl,
-  urlDedupeKeyFromFields,
-} from "./evalUrlDedup";
+  canonicalDomainKeyFromFields,
+  canonicalSiteDedupeKeyFromFields,
+  dedupeByCanonicalDomain,
+  inventoryRowPriorityScore,
+  isWwwHost,
+  mergeDuplicateVariants,
+  parseDuplicateVariants,
+  variantFromCandidate,
+  type DuplicateUrlVariant,
+} from "./evalCanonicalDedup";
+import { logEvalUrlDedupe } from "./evalUrlDedup";
 import {
   processedMetaFromReviewRow,
   type UrlInventoryProcessedMeta,
@@ -22,10 +28,17 @@ export type UrlInventoryRow = {
   /** Stable index from URL candidates CSV for original-order sorting. */
   originalIndex: number;
   processedMeta: UrlInventoryProcessedMeta | null;
+  /** Collapsed www/non-www and other canonical-domain duplicates. */
+  duplicateVariants?: DuplicateUrlVariant[];
 };
 
 export type UrlInventoryStats = {
+  /** URL candidate rows before canonical-domain collapse. */
+  totalRawCandidates: number;
+  /** Rows shown after canonical-domain collapse. */
   totalCandidates: number;
+  uniqueCanonicalSites: number;
+  hiddenDuplicateVariants: number;
   uniqueDomains: number;
   processedCount: number;
   notRunCount: number;
@@ -53,15 +66,11 @@ function canonicalForCandidate(candidate: UrlCandidateRow): string {
 
 export type UrlInventoryBuildResult = {
   rows: UrlInventoryRow[];
+  /** Joined rows before canonical-domain collapse. */
+  rawRows: UrlInventoryRow[];
   stats: UrlInventoryStats;
   urlDuplicatesRemoved: number;
 };
-
-function extractionStatusRank(status: UrlInventoryExtractionStatus): number {
-  if (status === "success") return 3;
-  if (status === "failed") return 2;
-  return 1;
-}
 
 function mergeSourceColumn(existing: string, next: string): string {
   if (!existing.trim()) return next.trim();
@@ -72,14 +81,42 @@ function mergeSourceColumn(existing: string, next: string): string {
   return `${existing}; ${add}`;
 }
 
+function pickBetterInventoryRow(
+  primary: UrlInventoryRow,
+  secondary: UrlInventoryRow,
+): UrlInventoryRow {
+  const scoreA = inventoryRowPriorityScore(primary);
+  const scoreB = inventoryRowPriorityScore(secondary);
+  if (scoreA > scoreB) return primary;
+  if (scoreB > scoreA) return secondary;
+  const aWww =
+    isWwwHost(primary.candidate.domain) ||
+    isWwwHost(primary.candidate.normalized_url);
+  const bWww =
+    isWwwHost(secondary.candidate.domain) ||
+    isWwwHost(secondary.candidate.normalized_url);
+  if (aWww && !bWww) return secondary;
+  if (bWww && !aWww) return primary;
+  return primary;
+}
+
 function mergeUrlInventoryRows(
   primary: UrlInventoryRow,
   secondary: UrlInventoryRow,
 ): UrlInventoryRow {
-  const primaryRank = extractionStatusRank(primary.extractionStatus);
-  const secondaryRank = extractionStatusRank(secondary.extractionStatus);
-  const kept = primaryRank >= secondaryRank ? primary : secondary;
-  const other = primaryRank >= secondaryRank ? secondary : primary;
+  const kept = pickBetterInventoryRow(primary, secondary);
+  const other = kept === primary ? secondary : primary;
+
+  const duplicateVariants = mergeDuplicateVariants(
+    [
+      ...(primary.duplicateVariants ?? []),
+      ...(secondary.duplicateVariants ?? []),
+      ...parseDuplicateVariants(kept.review?.duplicate_source_urls),
+      ...parseDuplicateVariants(other.review?.duplicate_source_urls),
+    ],
+    [variantFromCandidate(other.candidate)],
+    variantFromCandidate(kept.candidate),
+  );
 
   return {
     candidate: {
@@ -93,29 +130,40 @@ function mergeUrlInventoryRows(
     review: kept.review ?? other.review,
     originalIndex: Math.min(primary.originalIndex, secondary.originalIndex),
     processedMeta: kept.processedMeta ?? other.processedMeta,
+    duplicateVariants,
   };
 }
 
-function urlForInventoryRow(row: UrlInventoryRow): string {
-  return urlDedupeKeyFromFields(
-    row.candidate.normalized_url,
-    row.candidate.raw_url,
-    row.candidate.domain,
-  ) ?? "";
+function canonicalKeyForInventoryRow(row: UrlInventoryRow): string | null {
+  return canonicalSiteDedupeKeyFromFields({
+    canonical_domain: row.candidate.canonical_domain,
+    domain: row.candidate.domain,
+    normalized_url: row.candidate.normalized_url,
+    raw_url: row.candidate.raw_url,
+  });
 }
 
 export function dedupeUrlInventoryRows(
   rows: UrlInventoryRow[],
   logLabel?: string,
+  rawCandidateCount?: number,
 ): UrlInventoryBuildResult {
-  const result = dedupeEvalUrls(rows, urlForInventoryRow, mergeUrlInventoryRows);
+  const result = dedupeByCanonicalDomain(
+    rows,
+    canonicalKeyForInventoryRow,
+    mergeUrlInventoryRows,
+  );
   if (logLabel) {
     logEvalUrlDedupe(logLabel, result);
   }
 
-  const stats = computeUrlInventoryStats(result.items);
+  const stats = computeUrlInventoryStats(
+    result.items,
+    rawCandidateCount ?? result.beforeCount,
+  );
   return {
     rows: result.items,
+    rawRows: rows,
     stats,
     urlDuplicatesRemoved: result.duplicatesRemoved,
   };
@@ -129,16 +177,18 @@ function reviewExtractionStatus(review: BrandAuditRow): UrlInventoryExtractionSt
 }
 
 function reviewUrlKey(url: string): string | null {
-  return normalizeEvalUrl(url);
+  const key = canonicalDomainKeyFromFields({ normalized_url: url });
+  return key ? `domain:${key}` : null;
 }
 
 function buildReviewIndex(reviewRows: BrandAuditRow[]): Map<string, BrandAuditRow> {
   const index = new Map<string, BrandAuditRow>();
 
   for (const row of reviewRows) {
-    const normalized = reviewUrlKey(row.normalized_url ?? "");
+    const normalized = row.normalized_url?.trim();
     if (normalized) {
-      index.set(`url:${normalized}`, row);
+      const urlKey = reviewUrlKey(normalized);
+      if (urlKey) index.set(urlKey, row);
     }
     const canonical =
       row.canonical_domain?.trim() ||
@@ -155,10 +205,13 @@ function findReviewForCandidate(
   candidate: UrlCandidateRow,
   index: Map<string, BrandAuditRow>,
 ): BrandAuditRow | null {
-  const normalized = reviewUrlKey(candidate.normalized_url ?? "");
+  const normalized = candidate.normalized_url?.trim();
   if (normalized) {
-    const byUrl = index.get(`url:${normalized}`);
-    if (byUrl) return byUrl;
+    const urlKey = reviewUrlKey(normalized);
+    if (urlKey) {
+      const byUrl = index.get(urlKey);
+      if (byUrl) return byUrl;
+    }
   }
 
   const canonical = canonicalForCandidate(candidate);
@@ -202,7 +255,7 @@ export function buildUrlInventory(
     };
   });
 
-  const deduped = dedupeUrlInventoryRows(rawRows, logLabel);
+  const deduped = dedupeUrlInventoryRows(rawRows, logLabel, candidates.length);
   return {
     ...deduped,
     rows: applyLatestBatchFlagsToInventoryRows(deduped.rows),
@@ -211,7 +264,9 @@ export function buildUrlInventory(
 
 export function computeUrlInventoryStats(
   rows: UrlInventoryRow[],
+  rawCandidateCount?: number,
 ): UrlInventoryStats {
+  const totalRawCandidates = rawCandidateCount ?? rows.length;
   const domains = new Set<string>();
   let notRunCount = 0;
   let successCount = 0;
@@ -230,9 +285,14 @@ export function computeUrlInventoryStats(
   }
 
   const processedCount = successCount + failedCount;
+  const totalCandidates = rows.length;
+  const hiddenDuplicateVariants = Math.max(0, totalRawCandidates - totalCandidates);
 
   return {
-    totalCandidates: rows.length,
+    totalRawCandidates,
+    totalCandidates,
+    uniqueCanonicalSites: totalCandidates,
+    hiddenDuplicateVariants,
     uniqueDomains: domains.size,
     processedCount,
     notRunCount,

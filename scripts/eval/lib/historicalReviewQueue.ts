@@ -68,6 +68,7 @@ export const REVIEW_QUEUE_COLUMNS = [
   "extraction_run_id",
   "processed_at",
   "source_review_queue",
+  "duplicate_source_urls",
 ] as const;
 
 export type ReviewQueueRow = Record<(typeof REVIEW_QUEUE_COLUMNS)[number], string>;

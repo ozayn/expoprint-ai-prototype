@@ -12,6 +12,8 @@ export type EvalViewerQueryParams = {
   sort?: string;
   /** URL inventory quick filter: recent | not_run | failed (omit for all). */
   inventory?: string;
+  /** When "1" or "show", show all URL variant rows (skip canonical-domain collapse). */
+  variants?: string;
 };
 
 export function resolveUrlCandidatesParam(
@@ -52,6 +54,9 @@ export function buildEvalViewerQueryString(
   const inventory = params.inventory?.trim();
   if (inventory) q.set("inventory", inventory);
 
+  const variants = params.variants?.trim();
+  if (variants) q.set("variants", variants);
+
   return q;
 }
 
@@ -69,7 +74,18 @@ export function patchEvalViewerQuery(
   if (patch.sort === "" || patch.sort === "recent") {
     delete next.sort;
   }
+  if (patch.variants === "" || patch.variants === "0") {
+    delete next.variants;
+  }
   return next;
+}
+
+/** When "1" or "show", inventory shows all URL variant rows. */
+export function showUrlInventoryVariants(
+  params: EvalViewerQueryParams,
+): boolean {
+  const variants = params.variants?.trim().toLowerCase();
+  return variants === "1" || variants === "show" || variants === "true";
 }
 
 /** Default inventory view: recently processed first. */

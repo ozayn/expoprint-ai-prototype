@@ -17,6 +17,7 @@ type Props = {
   dataKind?: EvalViewerDataKind;
   urlInventoryFilename?: string;
   urlInventoryRows?: UrlInventoryRow[];
+  urlInventoryRawRows?: UrlInventoryRow[];
   omitPartnerFields?: boolean;
   basePath?: string;
   searchParams?: EvalViewerQueryParams;
@@ -30,6 +31,7 @@ export function EvalAuditMain({
   dataKind = "local",
   urlInventoryFilename,
   urlInventoryRows,
+  urlInventoryRawRows,
   omitPartnerFields: omitPartnerFieldsProp,
   basePath = "/internal/eval",
   searchParams = {},
@@ -41,6 +43,7 @@ export function EvalAuditMain({
       <UrlInventoryTable
         filename={urlInventoryFilename}
         rows={urlInventoryRows ?? []}
+        rawRows={urlInventoryRawRows}
         omitPartnerFields={omitPartnerFields}
         basePath={basePath}
         searchParams={searchParams}

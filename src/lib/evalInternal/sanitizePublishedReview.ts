@@ -146,6 +146,7 @@ export function sanitizeReviewQueueRecord(
   row.source_review_queue = record.source_review_queue?.trim() ?? "";
   row.extraction_run_id = record.extraction_run_id?.trim() ?? "";
   row.processed_at = record.processed_at?.trim() ?? "";
+  row.duplicate_source_urls = record.duplicate_source_urls?.trim() ?? "";
   if (!row.processed_at && row.extraction_run_id) {
     const inferred = evalRunIdToIso(row.extraction_run_id);
     if (inferred) row.processed_at = inferred;

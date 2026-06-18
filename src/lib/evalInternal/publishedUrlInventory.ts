@@ -18,6 +18,7 @@ import {
 } from "@/lib/evalLocal/urlCandidateTypes";
 import type { UrlInventoryRow } from "@/lib/evalLocal/urlInventoryJoin";
 import { dedupeUrlInventoryRows } from "@/lib/evalLocal/urlInventoryJoin";
+import { parseDuplicateVariants } from "@/lib/evalLocal/evalCanonicalDedup";
 
 function publishedRowBatchSource(
   row: PublishedUrlInventoryRow,
@@ -104,16 +105,20 @@ export function publishedUrlInventoryRowToUrlInventoryRow(
         })
       : null;
 
+  const duplicateVariants = parseDuplicateVariants(row.duplicate_source_urls);
+
   return {
     candidate,
     extractionStatus: row.extraction_status,
     review,
     originalIndex,
     processedMeta,
+    duplicateVariants:
+      duplicateVariants.length > 0 ? duplicateVariants : undefined,
   };
 }
 
-export function publishedUrlInventoryRowsToUrlInventoryRows(
+export function mapPublishedUrlInventoryRows(
   rows: PublishedUrlInventoryRow[],
   datasetSourceReviewQueue?: string,
 ): UrlInventoryRow[] {
@@ -125,7 +130,7 @@ export function publishedUrlInventoryRowsToUrlInventoryRows(
     datasetSourceReviewQueue,
   );
 
-  const mapped = rows.map((row, index) =>
+  return rows.map((row, index) =>
     publishedUrlInventoryRowToUrlInventoryRow(
       row,
       index,
@@ -133,7 +138,14 @@ export function publishedUrlInventoryRowsToUrlInventoryRows(
       combinedDatasetRunId,
     ),
   );
-  return dedupeUrlInventoryRows(mapped).rows;
+}
+
+export function publishedUrlInventoryRowsToUrlInventoryRows(
+  rows: PublishedUrlInventoryRow[],
+  datasetSourceReviewQueue?: string,
+): UrlInventoryRow[] {
+  const mapped = mapPublishedUrlInventoryRows(rows, datasetSourceReviewQueue);
+  return dedupeUrlInventoryRows(mapped, undefined, rows.length).rows;
 }
 
 export function parsePublishedUrlInventoryFile(

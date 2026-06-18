@@ -6,6 +6,7 @@ import {
   LogoCandidateDetailList,
 } from "./BrandExtractionCells";
 import { EvalDetailField } from "./EvalViewerField";
+import { DuplicateUrlVariantsDetail } from "./DuplicateUrlVariantsDetail";
 import { EvalUrlDetailField } from "./EvalExternalLink";
 import {
   contactLinksForRow,
@@ -20,6 +21,7 @@ import {
   servicesForRow,
 } from "@/lib/evalLocal/offeringsExtractionParse";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import { parseDuplicateVariants } from "@/lib/evalLocal/evalCanonicalDedup";
 import { brandAuditSearchHaystack, matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
 import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
 import {
@@ -307,6 +309,10 @@ export function ExpandedRowDetails({
               omitted={omitPartnerFields}
             />
             <EvalUrlDetailField label="normalized url" value={row.normalized_url} row={row} />
+            <DuplicateUrlVariantsDetail
+              variants={parseDuplicateVariants(row.duplicate_source_urls)}
+              label="Duplicate source URLs"
+            />
           </dl>
         </div>
 

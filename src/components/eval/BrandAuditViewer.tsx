@@ -6,6 +6,7 @@ import { EvalColumnVisibilityProvider } from "./EvalColumnVisibilityContext";
 import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
 import { EvalViewToggle, type EvalViewMode } from "./EvalViewToggle";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
+import { dedupeBrandAuditRows } from "@/lib/evalLocal/evalCanonicalDedup";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
 import type { EvalFileEntry } from "@/lib/evalLocal/listEvalFiles";
 import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
@@ -46,6 +47,7 @@ export type BrandAuditViewerProps = {
   rows: BrandAuditRow[];
   urlInventoryFilename?: string;
   urlInventoryRows?: UrlInventoryRow[];
+  urlInventoryRawRows?: UrlInventoryRow[];
   inventoryStats?: UrlInventoryStats | null;
   emptyMessage?: string;
   enableFieldFilters?: boolean;
@@ -75,6 +77,7 @@ export function BrandAuditViewer({
   rows,
   urlInventoryFilename,
   urlInventoryRows,
+  urlInventoryRawRows,
   inventoryStats,
   emptyMessage,
   enableFieldFilters = true,
@@ -83,6 +86,7 @@ export function BrandAuditViewer({
   children,
 }: BrandAuditViewerProps) {
   const view = parseEvalViewMode(searchParams.view);
+  const displayRows = dedupeBrandAuditRows(rows).items;
   const showUrlInventory =
     Boolean(urlInventoryFilename) ||
     Boolean(inventoryStats && inventoryStats.totalCandidates > 0);
@@ -170,7 +174,7 @@ export function BrandAuditViewer({
         ) : null}
 
         <BrandAuditCoverageSummary
-          rows={rows}
+          rows={displayRows}
           inventoryStats={inventoryStats}
         />
 
@@ -196,12 +200,13 @@ export function BrandAuditViewer({
 
         <EvalAuditMain
           view={view}
-          rows={rows}
+          rows={displayRows}
           reviewFilename={reviewFilename}
           emptyMessage={emptyMessage}
           dataKind={dataKind}
           urlInventoryFilename={urlInventoryFilename}
           urlInventoryRows={urlInventoryRows}
+          urlInventoryRawRows={urlInventoryRawRows}
           omitPartnerFields={dataKind !== "local"}
           basePath={basePath}
           searchParams={searchParams}

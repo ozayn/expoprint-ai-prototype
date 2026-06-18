@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   buildEvalViewerHref,
   patchEvalViewerQuery,
+  showUrlInventoryVariants,
   type EvalViewerQueryParams,
 } from "@/lib/evalLocal/evalViewerQuery";
 import {
@@ -31,6 +32,7 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
     searchParams.sort ?? "recent",
   );
   const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
+  const showVariants = showUrlInventoryVariants(searchParams);
 
   function hrefForQuickFilter(filter: UrlInventoryQuickFilter): string {
     const next = patchEvalViewerQuery(
@@ -46,6 +48,14 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
     const next = patchEvalViewerQuery(
       { ...searchParams, view: "inventory" },
       { sort },
+    );
+    return buildEvalViewerHref(basePath, next);
+  }
+
+  function hrefForVariantsToggle(): string {
+    const next = patchEvalViewerQuery(
+      { ...searchParams, view: "inventory" },
+      { variants: showVariants ? "" : "1" },
     );
     return buildEvalViewerHref(basePath, next);
   }
@@ -85,6 +95,17 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
           ))}
         </select>
       </label>
+
+      <Link
+        href={hrefForVariantsToggle()}
+        className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+          showVariants
+            ? "bg-zinc-200/80 text-zinc-900"
+            : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+        }`}
+      >
+        {showVariants ? "Hide duplicate variants" : "Show duplicate URL variants"}
+      </Link>
     </div>
   );
 }

@@ -10,11 +10,17 @@ type Props = {
 
 function formatInventoryStatsLine(stats: UrlInventoryStats): string {
   const parts = [
-    `${stats.totalCandidates.toLocaleString()} URL candidates`,
-    `${stats.processedCount.toLocaleString()} processed`,
-    `${stats.notRunCount.toLocaleString()} not run`,
-    `${stats.successCount.toLocaleString()} success`,
+    `${stats.totalRawCandidates.toLocaleString()} URL candidates`,
+    `${stats.uniqueCanonicalSites.toLocaleString()} unique sites`,
   ];
+  if (stats.hiddenDuplicateVariants > 0) {
+    parts.push(
+      `${stats.hiddenDuplicateVariants.toLocaleString()} duplicate variants hidden`,
+    );
+  }
+  parts.push(`${stats.processedCount.toLocaleString()} processed`);
+  parts.push(`${stats.notRunCount.toLocaleString()} not run`);
+  parts.push(`${stats.successCount.toLocaleString()} success`);
   if (stats.failedCount > 0) {
     parts.push(`${stats.failedCount.toLocaleString()} failed`);
   }
@@ -26,7 +32,8 @@ function formatInventoryStatsLine(stats: UrlInventoryStats): string {
 
 export function BrandAuditCoverageSummary({ rows, inventoryStats }: Props) {
   const hasExtraction = rows.length > 0;
-  const hasInventory = inventoryStats && inventoryStats.totalCandidates > 0;
+  const hasInventory =
+    inventoryStats && inventoryStats.totalRawCandidates > 0;
 
   if (!hasExtraction && !hasInventory) {
     return null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { DuplicateUrlVariantsDetail } from "./DuplicateUrlVariantsDetail";
 import { EvalDetailField } from "./EvalViewerField";
 import { EvalColumnPicker } from "./EvalColumnPicker";
 import { useOrderedVisibleEvalColumns } from "./EvalColumnVisibilityContext";
@@ -23,6 +24,7 @@ import { UrlInventoryToolbar } from "./UrlInventoryToolbar";
 import { matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
 import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
 import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
+import { showUrlInventoryVariants } from "@/lib/evalLocal/evalViewerQuery";
 import { evalTableColumnHeaderLabel } from "@/lib/evalLocal/evalTableColumns";
 import { excerptText } from "@/lib/evalLocal/textExcerpt";
 import type { UrlCandidateRow } from "@/lib/evalLocal/urlCandidateTypes";
@@ -63,9 +65,11 @@ function formatResultCount(visibleCount: number, filteredCount: number): string 
 
 function CandidateExpandedDetails({
   candidate,
+  duplicateVariants = [],
   omitPartnerFields = false,
 }: {
   candidate: UrlCandidateRow;
+  duplicateVariants?: import("@/lib/evalLocal/evalCanonicalDedup").DuplicateUrlVariant[];
   omitPartnerFields?: boolean;
 }) {
   const descExcerpt = excerptText(candidate.first_req_description ?? "");
@@ -102,6 +106,10 @@ function CandidateExpandedDetails({
           {candidate.canonical_domain ? (
             <EvalDetailField label="canonical domain" value={candidate.canonical_domain} />
           ) : null}
+          <DuplicateUrlVariantsDetail
+            variants={duplicateVariants}
+            label="Duplicate source URLs"
+          />
           {!omitPartnerFields && descExcerpt ? (
             <EvalDetailField label="first req description" value={descExcerpt} />
           ) : null}
@@ -120,6 +128,7 @@ function CandidateExpandedDetails({
 type Props = {
   filename?: string;
   rows: UrlInventoryRow[];
+  rawRows?: UrlInventoryRow[];
   omitPartnerFields?: boolean;
   basePath?: string;
   searchParams?: EvalViewerQueryParams;
@@ -128,14 +137,18 @@ type Props = {
 export function UrlInventoryTable({
   filename,
   rows: inputRows,
+  rawRows,
   omitPartnerFields = false,
   basePath = "/internal/eval",
   searchParams = {},
 }: Props) {
-  const rows = useMemo(
-    () => dedupeUrlInventoryRows(inputRows).rows,
-    [inputRows],
-  );
+  const showVariants = showUrlInventoryVariants(searchParams);
+  const rows = useMemo(() => {
+    if (showVariants) {
+      return rawRows ?? inputRows;
+    }
+    return dedupeUrlInventoryRows(inputRows).rows;
+  }, [inputRows, rawRows, showVariants]);
 
   const sortMode = parseUrlInventorySortMode(searchParams.sort ?? "recent");
   const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
@@ -307,6 +320,7 @@ export function UrlInventoryTable({
                         ) : (
                           <CandidateExpandedDetails
                             candidate={candidate}
+                            duplicateVariants={row.duplicateVariants}
                             omitPartnerFields={omitPartnerFields}
                           />
                         )}
