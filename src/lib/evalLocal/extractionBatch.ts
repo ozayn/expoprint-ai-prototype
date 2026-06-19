@@ -163,9 +163,18 @@ export type ExtractionBatchExtractFn = (
   body: DesignIntakeExtractRequest,
 ) => Promise<{ response: DesignIntakeExtractResponse; durationMs: number }>;
 
+export type ExtractionProgressEvent = {
+  index: number;
+  total: number;
+  url: string;
+  phase: "start" | "done";
+  status?: ExtractionRunStatus;
+  elapsedMs?: number;
+};
+
 export type RunExtractionBatchOptions = {
   delayMs?: number;
-  onProgress?: (index: number, total: number, url: string) => void;
+  onProgress?: (event: ExtractionProgressEvent) => void;
   extractFn?: ExtractionBatchExtractFn;
 };
 
@@ -203,7 +212,12 @@ export async function runExtractionBatchForInputs(
       continue;
     }
 
-    options.onProgress?.(i + 1, total, url);
+    options.onProgress?.({
+      index: i + 1,
+      total,
+      url,
+      phase: "start",
+    });
 
     const t0 = Date.now();
     let response: DesignIntakeExtractResponse | undefined;
@@ -225,6 +239,15 @@ export async function runExtractionBatchForInputs(
       elapsed_ms,
       ...(error_message ? { error_message } : {}),
       ...(status === "success" && response ? { expo_output: response } : {}),
+    });
+
+    options.onProgress?.({
+      index: i + 1,
+      total,
+      url,
+      phase: "done",
+      status,
+      elapsedMs: elapsed_ms,
     });
 
     if (i < inputs.length - 1 && delayMs > 0) {

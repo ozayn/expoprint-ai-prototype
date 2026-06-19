@@ -138,6 +138,10 @@ async function resolveExtractFn(apiUrl?: string): Promise<ExtractFn> {
   return createInProcessExtractFn();
 }
 
+function writeExtractionProgressLine(line: string): void {
+  process.stdout.write(`${line}\n`);
+}
+
 export async function runHistoricalWebsiteExtraction(
   options: RunHistoricalWebsiteExtractionOptions,
 ): Promise<{
@@ -185,13 +189,21 @@ export async function runHistoricalWebsiteExtraction(
 
   const extract = await resolveExtractFn(options.apiUrl);
   const inputs = selected.map(toExtractionInput);
-  const total = inputs.length;
 
   const records = await runExtractionBatchForInputs(inputs, {
     delayMs,
     extractFn: extract,
-    onProgress: (index, _total, url) => {
-      console.log(`[${index}/${total}] extracting ${url}`);
+    onProgress: (event) => {
+      if (event.phase === "start") {
+        writeExtractionProgressLine(
+          `[${event.index}/${event.total}] extracting ${event.url}`,
+        );
+        return;
+      }
+      const seconds = Math.max(1, Math.round((event.elapsedMs ?? 0) / 1000));
+      writeExtractionProgressLine(
+        `[${event.index}/${event.total}] ${event.status ?? "done"} (${seconds}s) ${event.url}`,
+      );
     },
   });
 
@@ -314,6 +326,11 @@ export function printWebsiteExtractionRunHeader(
     }
   }
   console.log(`  Delay:  ${delayMs}ms between requests`);
+  if (options.limit && options.limit > 1) {
+    console.log(
+      "  Progress: one start + done line per URL (extraction can take 30–90s each)",
+    );
+  }
   if (options.apiUrl) console.log(`  API:    ${options.apiUrl}`);
 }
 
