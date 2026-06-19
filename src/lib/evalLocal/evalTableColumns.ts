@@ -1,22 +1,22 @@
 /** Column ids shared between review queue table and URL inventory table. */
 export const EVAL_TABLE_COLUMN_IDS = [
   "status",
+  "logos",
+  "colors",
   "domain",
+  "extracted_business_name",
+  "emails",
+  "phones",
+  "social",
+  "offerings",
   "normalized_url",
   "ds_number",
   "project_title",
   "project_type",
   "shop_code",
   "source_column",
-  "extracted_business_name",
-  "logos",
-  "colors",
-  "emails",
-  "phones",
-  "social",
   "address",
   "contact_links",
-  "offerings",
   "extracted_summary",
   "palette_source",
   "palette_confidence",
@@ -35,10 +35,10 @@ export const EVAL_TABLE_COLUMN_ORDER: EvalTableColumnId[] = [...EVAL_TABLE_COLUM
 
 export const EVAL_TABLE_DEFAULT_VISIBLE: EvalTableColumnId[] = [
   "status",
-  "domain",
-  "extracted_business_name",
   "logos",
   "colors",
+  "domain",
+  "extracted_business_name",
   "emails",
   "phones",
   "social",
@@ -47,10 +47,10 @@ export const EVAL_TABLE_DEFAULT_VISIBLE: EvalTableColumnId[] = [
 
 export const EVAL_TABLE_MINIMAL_VISIBLE: EvalTableColumnId[] = [
   "status",
-  "domain",
-  "extracted_business_name",
   "logos",
   "colors",
+  "domain",
+  "extracted_business_name",
 ];
 
 export const EVAL_TABLE_INVENTORY_ONLY_COLUMNS: EvalTableColumnId[] = [
