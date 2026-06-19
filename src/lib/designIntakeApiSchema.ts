@@ -33,6 +33,9 @@ export type DesignIntakeApiBrand = {
   /** Where brand.colors originated (additive — optional on older responses). */
   paletteSource?: "extraction" | "logo";
   paletteConfidence?: "high" | "medium" | "low" | "unknown";
+  /** Logo fallback diagnostics (before perceptual merge). */
+  paletteRawColorCount?: number;
+  paletteDistinctColorCount?: number;
 };
 
 export type DesignIntakeApiContact = {
@@ -84,6 +87,9 @@ export type DesignIntakeApiMetadata = {
   warnings: string[];
   /** Prototype quality signals for integration/debugging (additive field). */
   quality?: ExtractionQualitySummary;
+  /** Logo-derived palette stats (additive). */
+  paletteRawColorCount?: number;
+  paletteDistinctColorCount?: number;
 };
 
 export type DesignIntakeExtractSuccess = {

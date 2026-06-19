@@ -13,7 +13,9 @@ import {
 import {
   brandColorFieldsFromTokens,
   collectColorTokensFromExpo,
+  parseHexListJson,
 } from "../../../src/lib/evalLocal/brandExtractionParse";
+import { refineLogoPaletteHexes } from "../../../src/lib/evalLocal/logoPaletteRefine";
 import {
   computePaletteSourceDiagnostics,
   resolveReviewPaletteFields,
@@ -60,6 +62,8 @@ export const REVIEW_QUEUE_COLUMNS = [
   "secondary_color_hex",
   "palette_source",
   "palette_confidence",
+  "palette_raw_color_count",
+  "palette_distinct_color_count",
   "pages_inspected",
   "extraction_provider",
   "extraction_model",
@@ -183,6 +187,8 @@ function emptyExpoFields(): Pick<
   | "secondary_color_hex"
   | "palette_source"
   | "palette_confidence"
+  | "palette_raw_color_count"
+  | "palette_distinct_color_count"
   | "pages_inspected"
   | "extraction_provider"
   | "extraction_model"
@@ -208,6 +214,8 @@ function emptyExpoFields(): Pick<
     secondary_color_hex: "",
     palette_source: "",
     palette_confidence: "",
+    palette_raw_color_count: "",
+    palette_distinct_color_count: "",
     pages_inspected: "",
     extraction_provider: "",
     extraction_model: "",
@@ -240,6 +248,35 @@ function logoFieldsFromCandidates(logos: LogoCandidate[]): Pick<
   };
 }
 
+function refineLogoPaletteColorFields(
+  colorFields: Pick<
+    ReviewQueueRow,
+    "extracted_color_hexes" | "primary_color_hex" | "secondary_color_hex"
+  >,
+  paletteSource: string,
+): {
+  colorFields: Pick<
+    ReviewQueueRow,
+    "extracted_color_hexes" | "primary_color_hex" | "secondary_color_hex"
+  >;
+  rawColorCount?: number;
+  distinctColorCount?: number;
+} {
+  if (paletteSource !== "logo") {
+    return { colorFields };
+  }
+
+  const hexes = parseHexListJson(colorFields.extracted_color_hexes);
+  if (hexes.length === 0) return { colorFields };
+
+  const refined = refineLogoPaletteHexes(hexes);
+  return {
+    colorFields: brandColorFieldsFromTokens(refined.colors),
+    rawColorCount: refined.rawColorCount,
+    distinctColorCount: refined.distinctColorCount,
+  };
+}
+
 function extractExpoFields(
   expo?: DesignIntakeExtractResponse,
 ): ReturnType<typeof emptyExpoFields> {
@@ -269,8 +306,23 @@ function extractExpoFields(
     if (parts.length > 0) summary = parts.slice(0, 4).join("; ");
   }
 
-  const colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
+  let colorFields = brandColorFieldsFromTokens(collectColorTokensFromExpo(expo));
   const paletteFields = resolveReviewPaletteFields(expo, colorFields);
+  const refinedColors = refineLogoPaletteColorFields(
+    colorFields,
+    paletteFields.palette_source,
+  );
+  colorFields = refinedColors.colorFields;
+
+  const rawColorCount =
+    brand?.paletteRawColorCount ??
+    meta?.paletteRawColorCount ??
+    refinedColors.rawColorCount;
+  const distinctColorCount =
+    brand?.paletteDistinctColorCount ??
+    meta?.paletteDistinctColorCount ??
+    refinedColors.distinctColorCount;
+
   const logoFields = logoFieldsFromCandidates(logos);
   const contactFields = contactFieldsFromCollected(collectContactFromExpo(expo));
   const offeringsFields = offeringsFieldsFromCollected(
@@ -287,6 +339,12 @@ function extractExpoFields(
     ...logoFields,
     ...colorFields,
     ...paletteFields,
+    palette_raw_color_count:
+      rawColorCount != null && rawColorCount > 0 ? String(rawColorCount) : "",
+    palette_distinct_color_count:
+      distinctColorCount != null && distinctColorCount > 0
+        ? String(distinctColorCount)
+        : "",
     pages_inspected:
       typeof meta?.pagesInspected === "number"
         ? String(meta.pagesInspected)

@@ -26,6 +26,10 @@ export async function applyLogoPaletteFallback(
   response.brand.colors = derived.colors;
   response.brand.paletteSource = derived.paletteSource;
   response.brand.paletteConfidence = derived.paletteConfidence;
+  response.brand.paletteRawColorCount = derived.rawColorCount;
+  response.brand.paletteDistinctColorCount = derived.distinctColorCount;
+  response.metadata.paletteRawColorCount = derived.rawColorCount;
+  response.metadata.paletteDistinctColorCount = derived.distinctColorCount;
   response.metadata.warnings.push(
     "Brand colors derived from logo image (palette fallback).",
   );

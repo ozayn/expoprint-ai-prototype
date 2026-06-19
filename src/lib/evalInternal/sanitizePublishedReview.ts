@@ -158,6 +158,9 @@ export function sanitizeReviewQueueRecord(
   row.secondary_color_hex = record.secondary_color_hex?.trim() ?? "";
   row.palette_source = record.palette_source?.trim() ?? "";
   row.palette_confidence = record.palette_confidence?.trim() ?? "";
+  row.palette_raw_color_count = record.palette_raw_color_count?.trim() ?? "";
+  row.palette_distinct_color_count =
+    record.palette_distinct_color_count?.trim() ?? "";
   applyPaletteMetadataAliases(record as Record<string, unknown>, row);
 
   if (options.includeLogoUrls) {

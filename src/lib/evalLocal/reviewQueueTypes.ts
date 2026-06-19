@@ -51,6 +51,8 @@ export const REVIEW_QUEUE_ALL_COLUMNS = [
   "secondary_color_hex",
   "palette_source",
   "palette_confidence",
+  "palette_raw_color_count",
+  "palette_distinct_color_count",
   "pages_inspected",
   "extraction_provider",
   "extraction_model",

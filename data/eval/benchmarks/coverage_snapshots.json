@@ -730,6 +730,152 @@
         }
       },
       "processed_unique_sites": 141
+    },
+    {
+      "snapshot_id": "20260619161118923",
+      "timestamp": "2026-06-19T16:11:18.925Z",
+      "source_review_queue": "review_queue_combined_20260619161118462.csv",
+      "total_rows": 141,
+      "successful_rows": 131,
+      "failed_rows": 10,
+      "field_coverage": {
+        "business_name": {
+          "count": 131,
+          "percent": 100
+        },
+        "logo": {
+          "count": 131,
+          "percent": 100
+        },
+        "colors": {
+          "count": 93,
+          "percent": 71
+        },
+        "email": {
+          "count": 67,
+          "percent": 51
+        },
+        "phone": {
+          "count": 74,
+          "percent": 56
+        },
+        "social_links": {
+          "count": 83,
+          "percent": 63
+        },
+        "address_location": {
+          "count": 73,
+          "percent": 56
+        },
+        "products_services": {
+          "count": 122,
+          "percent": 93
+        },
+        "summary": {
+          "count": 122,
+          "percent": 93
+        }
+      },
+      "scrape_depth": {
+        "unknown_or_0": {
+          "count": 10,
+          "percent": 7
+        },
+        "pages_1": {
+          "count": 16,
+          "percent": 11
+        },
+        "pages_2": {
+          "count": 3,
+          "percent": 2
+        },
+        "pages_3": {
+          "count": 6,
+          "percent": 4
+        },
+        "pages_4_5": {
+          "count": 106,
+          "percent": 75
+        },
+        "pages_6_plus": {
+          "count": 0,
+          "percent": 0
+        }
+      },
+      "processed_unique_sites": 141
+    },
+    {
+      "snapshot_id": "20260619161329823",
+      "timestamp": "2026-06-19T16:13:29.826Z",
+      "source_review_queue": "review_queue_combined_20260619161329354.csv",
+      "total_rows": 191,
+      "successful_rows": 177,
+      "failed_rows": 14,
+      "field_coverage": {
+        "business_name": {
+          "count": 177,
+          "percent": 100
+        },
+        "logo": {
+          "count": 177,
+          "percent": 100
+        },
+        "colors": {
+          "count": 139,
+          "percent": 79
+        },
+        "email": {
+          "count": 88,
+          "percent": 50
+        },
+        "phone": {
+          "count": 103,
+          "percent": 58
+        },
+        "social_links": {
+          "count": 113,
+          "percent": 64
+        },
+        "address_location": {
+          "count": 94,
+          "percent": 53
+        },
+        "products_services": {
+          "count": 168,
+          "percent": 95
+        },
+        "summary": {
+          "count": 168,
+          "percent": 95
+        }
+      },
+      "scrape_depth": {
+        "unknown_or_0": {
+          "count": 14,
+          "percent": 7
+        },
+        "pages_1": {
+          "count": 21,
+          "percent": 11
+        },
+        "pages_2": {
+          "count": 3,
+          "percent": 2
+        },
+        "pages_3": {
+          "count": 8,
+          "percent": 4
+        },
+        "pages_4_5": {
+          "count": 145,
+          "percent": 76
+        },
+        "pages_6_plus": {
+          "count": 0,
+          "percent": 0
+        }
+      },
+      "processed_unique_sites": 191
     }
   ]
 }

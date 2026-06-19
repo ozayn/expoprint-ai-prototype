@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import sharp from "sharp";
 import { runColorExtractionAudit } from "./auditColorExtraction.js";
+import { refineLogoPaletteHexes } from "../../../src/lib/evalLocal/logoPaletteRefine.js";
 import { extractDominantHexColorsFromImageBuffer } from "../../../src/lib/server/logoPaletteExtraction.js";
 import {
   reviewRowFromExtractionRecord,
@@ -364,6 +365,140 @@ function testReviewRowSnakeCaseBrandPaletteSource(): void {
   assert.equal(row.palette_confidence, "medium");
 }
 
+function testRefineLogoPaletteFixtures(): void {
+  const mgFoundation = refineLogoPaletteHexes([
+    "#191e26",
+    "#1b2028",
+    "#1a1f28",
+    "#171d25",
+    "#1a2027",
+  ]);
+  assert.equal(mgFoundation.rawColorCount, 5);
+  assert.ok(mgFoundation.distinctColorCount <= 2);
+  assert.ok(mgFoundation.colors.length <= 4);
+  assert.ok(mgFoundation.colors.length >= 1);
+
+  const agenticBricks = refineLogoPaletteHexes([
+    "#3b82f6",
+    "#2e63bb",
+    "#21427e",
+    "#142241",
+    "#387ae7",
+    "#0a0a14",
+  ]);
+  assert.equal(agenticBricks.rawColorCount, 6);
+  assert.ok(agenticBricks.colors.length <= 4);
+  assert.ok(agenticBricks.colors.length >= 2);
+  assert.ok(
+    agenticBricks.colors.some((hex) => hex.includes("3b82f6") || hex.includes("2e63bb")),
+  );
+
+  const allCounties = refineLogoPaletteHexes([
+    "#de002d",
+    "#1b4692",
+    "#2c559c",
+    "#1d4994",
+    "#224b95",
+    "#fefefe",
+  ]);
+  assert.equal(allCounties.rawColorCount, 6);
+  assert.ok(allCounties.colors.length <= 4);
+  assert.ok(allCounties.colors.length >= 2);
+  assert.ok(allCounties.colors.some((hex) => hex.includes("de002d")));
+  assert.ok(allCounties.colors.some((hex) => hex.includes("1b4692") || hex.includes("2c559c")));
+
+  const countryAcres = refineLogoPaletteHexes([
+    "#4d4b51",
+    "#46434a",
+    "#3b393d",
+    "#49464d",
+    "#3e3b42",
+    "#565359",
+  ]);
+  assert.equal(countryAcres.rawColorCount, 6);
+  assert.ok(countryAcres.distinctColorCount <= 2);
+  assert.ok(countryAcres.colors.length <= 4);
+}
+
+function testReviewRowRefinesLegacyLogoPalette(): void {
+  const row = reviewRowFromExtractionRecord({
+    input: {
+      ds_id: "1",
+      ds_number: "DS-1",
+      project_title: "MG",
+      project_type: "",
+      shop_code: "",
+      source_column: "first_req_description",
+      normalized_url: "https://mgfoundationusa.org/",
+      domain: "mgfoundationusa.org",
+      canonical_domain: "mgfoundationusa.org",
+      first_req_description: "",
+      first_req_note: "",
+    },
+    status: "success",
+    elapsed_ms: 100,
+    expo_output: {
+      ok: true,
+      business: {
+        name: "MG Foundation",
+        website: "https://mgfoundationusa.org/",
+        domain: "mgfoundationusa.org",
+        canonicalUrl: "https://mgfoundationusa.org/",
+      },
+      brand: {
+        colors: [
+          "#191e26",
+          "#1b2028",
+          "#1a1f28",
+          "#171d25",
+          "#1a2027",
+        ],
+        typography: {
+          fontFamilies: [],
+          headingFontCandidates: [],
+          bodyFontCandidates: [],
+          googleFontFamilies: [],
+          styleGuess: "unknown",
+        },
+        logoCandidates: [{ url: "https://mgfoundationusa.org/logo.png", source: "icon" }],
+        paletteSource: "logo",
+        paletteConfidence: "medium",
+        paletteRawColorCount: 5,
+        paletteDistinctColorCount: 5,
+      },
+      content: {
+        services: [],
+        products: [],
+        contact: { phone: "", email: "", address: "", social: [] },
+      },
+      designIntake: {
+        productCategory: "",
+        components: [],
+        stylePreference: "",
+        recommendedHeadline: "",
+        recommendedSupportingText: "",
+        missingAssets: [],
+        confidenceNotes: [],
+        needsHumanReview: false,
+      },
+      metadata: {
+        source: "scraper_plus_claude",
+        pagesInspected: 1,
+        durationMs: 100,
+        websiteFetch: { status: "success", reason: "" },
+        claude: { attempted: true, model: "test", status: "success" },
+        warnings: [],
+      },
+    },
+  });
+
+  assert.equal(row.palette_source, "logo");
+  assert.equal(row.palette_raw_color_count, "5");
+  const colors = JSON.parse(row.extracted_color_hexes) as string[];
+  assert.ok(colors.length <= 4);
+  assert.ok(colors.length <= 2);
+}
+
 function testColorAuditSummary(): void {
   const runId = "20990101120000000";
   const jsonlPath = join(EVAL_RUNS_DIR, `extraction_run_${runId}.jsonl`);
@@ -445,6 +580,8 @@ async function main(): Promise<void> {
   testReviewRowColorsWithoutSourceDefaultsExtractionUnknown();
   testReviewRowLogoFallbackMapsLogoMedium();
   testReviewRowSnakeCaseBrandPaletteSource();
+  testRefineLogoPaletteFixtures();
+  testReviewRowRefinesLegacyLogoPalette();
   testColorAuditSummary();
   console.log("color extraction tests: all checks passed");
 }

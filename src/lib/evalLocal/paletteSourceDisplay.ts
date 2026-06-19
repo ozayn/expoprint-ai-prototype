@@ -14,14 +14,20 @@ export function formatPaletteSourceDisplay(row: BrandAuditRow): string | null {
 
   const source = row.palette_source?.trim();
   const confidence = row.palette_confidence?.trim();
+  const rawCount = row.palette_raw_color_count?.trim();
+  const distinctCount = row.palette_distinct_color_count?.trim();
+  const statsSuffix =
+    rawCount && distinctCount
+      ? ` · ${rawCount} raw → ${distinctCount} distinct`
+      : "";
 
   if (source && confidence) {
-    return `Palette source: ${source} / ${confidence}`;
+    return `Palette source: ${source} / ${confidence}${statsSuffix}`;
   }
   if (source) {
-    return `Palette source: ${source}`;
+    return `Palette source: ${source}${statsSuffix}`;
   }
-  return "Palette source unknown";
+  return `Palette source unknown${statsSuffix}`;
 }
 
 export function paletteSourceColumnDisplay(row: BrandAuditRow): string {

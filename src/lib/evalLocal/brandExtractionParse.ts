@@ -345,7 +345,7 @@ export function brandColorFieldsFromTokens(
   if (!secondary && hexes[1]) secondary = hexes[1];
 
   return {
-    extracted_color_hexes: hexes.length > 0 ? JSON.stringify(hexes.slice(0, 8)) : "",
+    extracted_color_hexes: hexes.length > 0 ? JSON.stringify(hexes.slice(0, 4)) : "",
     primary_color_hex: primary,
     secondary_color_hex: secondary,
   };

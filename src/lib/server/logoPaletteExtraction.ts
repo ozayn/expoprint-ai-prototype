@@ -1,12 +1,18 @@
 import sharp from "sharp";
 import type { LogoCandidate } from "@/lib/analyzeWebsiteResponse";
 import { normalizeHex } from "@/lib/evalLocal/brandExtractionParse";
+import {
+  refineLogoDerivedPalette,
+  type WeightedLogoColor,
+} from "@/lib/evalLocal/logoPaletteRefine";
 import { fetchImageBytesSafe } from "@/lib/server/safeImageFetch";
 
 export type LogoPaletteResult = {
   colors: string[];
   paletteSource: "logo";
   paletteConfidence: "medium";
+  rawColorCount: number;
+  distinctColorCount: number;
 };
 
 function hexFromRgb(r: number, g: number, b: number): string {
@@ -14,70 +20,10 @@ function hexFromRgb(r: number, g: number, b: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-function rgbToHsl(r: number, g: number, b: number): { l: number; s: number } {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const l = (max + min) / 2;
-  if (max === min) return { l, s: 0 };
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  return { l, s };
-}
-
-function isNearWhite(r: number, g: number, b: number): boolean {
-  const { l, s } = rgbToHsl(r, g, b);
-  return l > 0.92 && s < 0.12;
-}
-
-function isNearBlack(r: number, g: number, b: number): boolean {
-  const { l } = rgbToHsl(r, g, b);
-  return l < 0.08;
-}
-
-function filterExtremeNeutrals(hexes: string[]): string[] {
-  if (hexes.length <= 1) return hexes;
-  const rgbList = hexes
-    .map((hex) => {
-      const n = normalizeHex(hex);
-      if (!n || n.length !== 7) return null;
-      return {
-        hex: n,
-        r: parseInt(n.slice(1, 3), 16),
-        g: parseInt(n.slice(3, 5), 16),
-        b: parseInt(n.slice(5, 7), 16),
-      };
-    })
-    .filter(
-      (v): v is { hex: string; r: number; g: number; b: number } => Boolean(v),
-    );
-
-  const accentLike = rgbList.filter(
-    (c) => !isNearWhite(c.r, c.g, c.b) && !isNearBlack(c.r, c.g, c.b),
-  );
-  if (accentLike.length === 0) return hexes;
-  const keptNeutrals = rgbList.filter(
-    (c) =>
-      (isNearWhite(c.r, c.g, c.b) || isNearBlack(c.r, c.g, c.b)) &&
-      accentLike.length >= 2,
-  );
-  const merged = [...accentLike, ...keptNeutrals.slice(0, 1)];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of merged) {
-    if (seen.has(item.hex)) continue;
-    seen.add(item.hex);
-    out.push(item.hex);
-  }
-  return out.length > 0 ? out : hexes;
-}
-
-export async function extractDominantHexColorsFromImageBuffer(
+export async function extractRawDominantColorsFromImageBuffer(
   buffer: Buffer,
-  maxColors = 6,
-): Promise<string[]> {
+  maxColors = 12,
+): Promise<WeightedLogoColor[]> {
   const { data, info } = await sharp(buffer)
     .resize(64, 64, { fit: "inside", withoutEnlargement: true })
     .ensureAlpha()
@@ -113,17 +59,31 @@ export async function extractDominantHexColorsFromImageBuffer(
     .sort((a, b) => b.count - a.count)
     .slice(0, maxColors * 2);
 
-  const hexes: string[] = [];
+  const weighted: WeightedLogoColor[] = [];
+  const seen = new Set<string>();
+
   for (const bucket of ranked) {
     const r = Math.round(bucket.r / bucket.count);
     const g = Math.round(bucket.g / bucket.count);
     const b = Math.round(bucket.b / bucket.count);
     const hex = hexFromRgb(r, g, b);
-    if (!hexes.includes(hex)) hexes.push(hex);
-    if (hexes.length >= maxColors) break;
+    if (seen.has(hex)) continue;
+    seen.add(hex);
+    weighted.push({ hex, weight: bucket.count });
+    if (weighted.length >= maxColors) break;
   }
 
-  return filterExtremeNeutrals(hexes).slice(0, maxColors);
+  return weighted;
+}
+
+/** Dominant colors from a logo image buffer, merged and capped for brand review. */
+export async function extractDominantHexColorsFromImageBuffer(
+  buffer: Buffer,
+  maxColors = 4,
+): Promise<string[]> {
+  const raw = await extractRawDominantColorsFromImageBuffer(buffer);
+  const refined = refineLogoDerivedPalette(raw, { maxCount: maxColors });
+  return refined.colors;
 }
 
 function pickLogoCandidates(logos: LogoCandidate[]): LogoCandidate[] {
@@ -147,8 +107,9 @@ export async function derivePaletteFromLogoCandidates(
     if (!bytes || bytes.length === 0) continue;
 
     try {
-      const colors = await extractDominantHexColorsFromImageBuffer(bytes);
-      const normalized = colors
+      const raw = await extractRawDominantColorsFromImageBuffer(bytes);
+      const refined = refineLogoDerivedPalette(raw);
+      const normalized = refined.colors
         .map((c) => normalizeHex(c))
         .filter((c): c is string => Boolean(c));
       if (normalized.length === 0) continue;
@@ -156,6 +117,8 @@ export async function derivePaletteFromLogoCandidates(
         colors: normalized,
         paletteSource: "logo",
         paletteConfidence: "medium",
+        rawColorCount: refined.rawColorCount,
+        distinctColorCount: refined.distinctColorCount,
       };
     } catch {
       continue;
