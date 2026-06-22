@@ -5,8 +5,10 @@ import {
   buildEvalViewerHref,
   patchEvalViewerQuery,
   showUrlInventoryVariants,
+  statusFilterFromQueryParams,
   type EvalViewerQueryParams,
 } from "@/lib/evalLocal/evalViewerQuery";
+import type { EvalStatusFilter } from "@/lib/evalLocal/evalRowFilters";
 import {
   parseUrlInventoryPathTypeFilter,
   parseUrlInventoryQuickFilter,
@@ -26,6 +28,9 @@ type Props = {
 const QUICK_FILTERS: { id: UrlInventoryQuickFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "recent", label: "Recently processed" },
+];
+
+const STATUS_FILTERS: { id: EvalStatusFilter; label: string }[] = [
   { id: "not_run", label: "Not run" },
   { id: "failed", label: "Failed" },
 ];
@@ -35,6 +40,7 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
     searchParams.sort ?? "recent",
   );
   const quickFilter = parseUrlInventoryQuickFilter(searchParams.inventory);
+  const statusFilter = statusFilterFromQueryParams(searchParams);
   const pathTypeFilter = parseUrlInventoryPathTypeFilter(searchParams.urlType);
   const showVariants = showUrlInventoryVariants(searchParams);
 
@@ -43,6 +49,21 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
       { ...searchParams, view: "inventory" },
       {
         inventory: filter === "all" ? "" : filter,
+      },
+    );
+    return buildEvalViewerHref(basePath, next);
+  }
+
+  function hrefForStatusFilter(filter: EvalStatusFilter): string {
+    const legacyInventory = searchParams.inventory?.trim().toLowerCase();
+    const clearLegacyInventory =
+      legacyInventory === "not_run" || legacyInventory === "failed";
+
+    const next = patchEvalViewerQuery(
+      { ...searchParams, view: "inventory" },
+      {
+        status: filter === "all" ? "" : filter,
+        inventory: clearLegacyInventory ? "" : searchParams.inventory,
       },
     );
     return buildEvalViewerHref(basePath, next);
@@ -80,7 +101,20 @@ export function UrlInventoryToolbar({ basePath, searchParams }: Props) {
             key={id}
             href={hrefForQuickFilter(id)}
             className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-              quickFilter === id
+              quickFilter === id && statusFilter === "all"
+                ? "bg-zinc-200/80 text-zinc-900"
+                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+        {STATUS_FILTERS.map(({ id, label }) => (
+          <Link
+            key={id}
+            href={hrefForStatusFilter(id)}
+            className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+              statusFilter === id
                 ? "bg-zinc-200/80 text-zinc-900"
                 : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
             }`}

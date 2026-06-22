@@ -12,6 +12,7 @@ import {
   type DuplicateUrlVariant,
 } from "./evalCanonicalDedup";
 import { logEvalUrlDedupe } from "./evalUrlDedup";
+import { normalizeEvalStatus } from "./normalizeEvalStatus";
 import {
   processedMetaFromReviewRow,
   type UrlInventoryProcessedMeta,
@@ -170,10 +171,10 @@ export function dedupeUrlInventoryRows(
 }
 
 function reviewExtractionStatus(review: BrandAuditRow): UrlInventoryExtractionStatus {
-  const status = review.status?.trim() ?? "";
-  if (status === "success") return "success";
-  if (status) return "failed";
-  return "failed";
+  const normalized = normalizeEvalStatus({ status: review.status });
+  if (normalized === "success") return "success";
+  if (normalized === "failed") return "failed";
+  return "not_run";
 }
 
 function reviewUrlKey(url: string): string | null {

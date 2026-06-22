@@ -1,3 +1,6 @@
+import type { EvalStatusFilter } from "./evalRowFilters";
+import { normalizeStatusValue } from "./normalizeEvalStatus";
+
 /** Query params for the canonical eval viewer at `/internal/eval`. */
 export type EvalViewerQueryParams = {
   summary?: string;
@@ -10,7 +13,9 @@ export type EvalViewerQueryParams = {
   view?: string;
   /** URL inventory sort: recent | original | domain | status | needs_work */
   sort?: string;
-  /** URL inventory quick filter: recent | not_run | failed (omit for all). */
+  /** Status filter: success | failed | not_run (omit for all). */
+  status?: string;
+  /** URL inventory quick filter: recent (omit for all). Legacy: not_run | failed map to status. */
   inventory?: string;
   /** When "1" or "show", show all URL variant rows (skip canonical-domain collapse). */
   variants?: string;
@@ -73,6 +78,9 @@ export function buildEvalViewerQueryString(
   const sort = params.sort?.trim();
   if (sort) q.set("sort", sort);
 
+  const status = params.status?.trim();
+  if (status) q.set("status", status);
+
   const inventory = params.inventory?.trim();
   if (inventory) q.set("inventory", inventory);
 
@@ -92,6 +100,9 @@ export function patchEvalViewerQuery(
   const next: EvalViewerQueryParams = { ...current, ...patch };
   if (patch.urls !== undefined) {
     delete next.candidates;
+  }
+  if (patch.status === "" || patch.status === "all") {
+    delete next.status;
   }
   if (patch.inventory === "" || patch.inventory === "all") {
     delete next.inventory;
@@ -128,4 +139,32 @@ export function defaultInventoryViewerQuery(
     view: "inventory",
     sort: current.sort ?? "recent",
   };
+}
+
+/** Parse ?status=success|failed|not_run (case-insensitive). */
+export function parseEvalStatusParam(
+  value: string | undefined,
+): EvalStatusFilter {
+  const v = value?.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!v || v === "all") return "all";
+  const normalized = normalizeStatusValue(v);
+  if (normalized === "success" || normalized === "failed" || normalized === "not_run") {
+    return normalized;
+  }
+  return "all";
+}
+
+/**
+ * Resolve status filter from ?status= or legacy ?inventory=not_run|failed.
+ */
+export function statusFilterFromQueryParams(
+  params: EvalViewerQueryParams,
+): EvalStatusFilter {
+  const fromStatus = parseEvalStatusParam(params.status);
+  if (fromStatus !== "all") return fromStatus;
+
+  const inv = params.inventory?.trim().toLowerCase().replace(/\s+/g, "_");
+  if (inv === "not_run") return "not_run";
+  if (inv === "failed") return "failed";
+  return "all";
 }

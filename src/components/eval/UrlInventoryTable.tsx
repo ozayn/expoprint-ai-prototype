@@ -20,8 +20,11 @@ import { EvalFilterControls } from "./EvalFilterControls";
 import { useEvalViewerFilters } from "./EvalViewerFilterContext";
 import { ExpandedRowDetails } from "./ReviewQueueTable";
 import { UrlInventoryToolbar } from "./UrlInventoryToolbar";
-import { matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
-import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
+import {
+  countInventoryRowsByStatus,
+  filterUrlInventoryRows,
+  normalizedStatusFromInventoryRow,
+} from "@/lib/evalLocal/evalRowFilters";
 import type { EvalViewerQueryParams } from "@/lib/evalLocal/evalViewerQuery";
 import { showUrlInventoryVariants } from "@/lib/evalLocal/evalViewerQuery";
 import { evalTableColumnHeaderLabel } from "@/lib/evalLocal/evalTableColumns";
@@ -44,26 +47,6 @@ import {
 } from "@/lib/evalLocal/urlInventorySort";
 
 const PAGE_SIZE = 200;
-
-function searchHaystackForRow(
-  row: UrlInventoryRow,
-  omitPartnerFields = false,
-): string {
-  const candidate = row.candidate;
-  const review = row.review;
-  return [
-    candidate.domain,
-    candidate.canonical_domain,
-    candidate.normalized_url,
-    candidate.project_title,
-    candidate.project_type,
-    omitPartnerFields ? "" : candidate.ds_number,
-    omitPartnerFields ? "" : candidate.shop_code,
-    review?.extracted_business_name,
-  ]
-    .map((v) => (v ?? "").toLowerCase())
-    .join(" ");
-}
 
 function formatResultCount(visibleCount: number, filteredCount: number): string {
   return `Showing ${visibleCount.toLocaleString()} of ${filteredCount.toLocaleString()} URLs`;
@@ -175,6 +158,7 @@ export function UrlInventoryTable({
 
   const {
     search,
+    statusFilter,
     fieldFilters,
     paginationKey,
   } = useEvalViewerFilters();
@@ -195,26 +179,31 @@ export function UrlInventoryTable({
   const expandedIndex =
     expandedRow?.paginationKey === paginationKey ? expandedRow.index : null;
 
+  const statusCounts = useMemo(
+    () => countInventoryRowsByStatus(rows),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const quickFiltered = filterUrlInventoryQuick(rows, quickFilter);
     const pathFiltered = filterUrlInventoryByPathType(
       quickFiltered,
       pathTypeFilter,
     );
-    return pathFiltered.filter((row) => {
-      if (!matchesSearchQuery(searchHaystackForRow(row, omitPartnerFields), search)) {
-        return false;
-      }
-      if (
-        !matchesFieldFilters(row.review, fieldFilters, {
-          extractionStatus: row.extractionStatus,
-        })
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [rows, quickFilter, pathTypeFilter, search, fieldFilters, omitPartnerFields]);
+    return filterUrlInventoryRows(pathFiltered, {
+      search,
+      statusFilter,
+      fieldFilters,
+    }, { omitPartnerFields });
+  }, [
+    rows,
+    quickFilter,
+    pathTypeFilter,
+    search,
+    statusFilter,
+    fieldFilters,
+    omitPartnerFields,
+  ]);
 
   const sorted = useMemo(
     () => sortUrlInventoryRows(filtered, sortMode),
@@ -222,7 +211,7 @@ export function UrlInventoryTable({
   );
 
   const successfulInFiltered = sorted.filter(
-    (r) => r.extractionStatus === "success",
+    (r) => normalizedStatusFromInventoryRow(r) === "success",
   ).length;
 
   const visible = sorted.slice(0, visibleCount);
@@ -231,8 +220,10 @@ export function UrlInventoryTable({
 
   const processedMatchLine =
     fieldFilters.length > 0 && successfulInFiltered > 0
-      ? `${successfulInFiltered.toLocaleString()} successful rows match field filters`
-      : undefined;
+      ? `${successfulInFiltered.toLocaleString()} successful rows match field filters (field filters apply to processed rows with extraction data)`
+      : fieldFilters.length > 0
+        ? "Field filters apply to processed rows with extraction data"
+        : undefined;
 
   if (rows.length === 0) {
     return (
@@ -260,9 +251,10 @@ export function UrlInventoryTable({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <EvalFilterControls
-              showNotRunStatus={false}
-              resultCountLine={formatResultCount(visible.length, sorted.length)}
+              showNotRunStatus
+              resultCountLine={formatResultCount(sorted.length, rows.length)}
               processedMatchLine={processedMatchLine}
+              statusCounts={statusCounts}
             />
           </div>
           <EvalColumnPicker />

@@ -10,6 +10,7 @@ import {
   useEvalViewerFilters,
   type EvalStatusFilter,
 } from "./EvalViewerFilterContext";
+import type { EvalNormalizedStatus } from "@/lib/evalLocal/normalizeEvalStatus";
 
 function statusLabel(filter: EvalStatusFilter): string {
   if (filter === "all") return "All";
@@ -24,6 +25,7 @@ type Props = {
   activeSummary?: string;
   resultCountLine?: string;
   processedMatchLine?: string;
+  statusCounts?: Record<EvalNormalizedStatus, number>;
 };
 
 export function EvalFilterControls({
@@ -32,6 +34,7 @@ export function EvalFilterControls({
   activeSummary,
   resultCountLine,
   processedMatchLine,
+  statusCounts,
 }: Props) {
   const {
     search,
@@ -77,7 +80,14 @@ export function EvalFilterControls({
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {statusOptions.map((key) => (
+          {statusOptions.map((key) => {
+            const count =
+              key !== "all" && statusCounts ? statusCounts[key] : undefined;
+            const label =
+              count !== undefined
+                ? `${statusLabel(key)} (${count.toLocaleString()})`
+                : statusLabel(key);
+            return (
             <button
               key={key}
               type="button"
@@ -89,9 +99,10 @@ export function EvalFilterControls({
                   : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
               }`}
             >
-              {statusLabel(key)}
+              {label}
             </button>
-          ))}
+            );
+          })}
         </div>
 
         <div className="relative">

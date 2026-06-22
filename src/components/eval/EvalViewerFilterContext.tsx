@@ -8,10 +8,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { FieldFilterId } from "@/lib/evalLocal/fieldCoverageHelpers";
-import type { UrlInventoryExtractionStatus } from "@/lib/evalLocal/urlInventoryJoin";
+import type { EvalStatusFilter } from "@/lib/evalLocal/evalRowFilters";
+import {
+  buildEvalViewerHref,
+  patchEvalViewerQuery,
+  type EvalViewerQueryParams,
+} from "@/lib/evalLocal/evalViewerQuery";
 
-export type EvalStatusFilter = "all" | UrlInventoryExtractionStatus;
+type EvalViewerFilterUrlSync = {
+  basePath: string;
+  searchParams: EvalViewerQueryParams;
+};
+
+type EvalViewerFilterProviderProps = {
+  children: ReactNode;
+  initialStatusFilter?: EvalStatusFilter;
+  urlSync?: EvalViewerFilterUrlSync;
+};
 
 type EvalViewerFilterContextValue = {
   search: string;
@@ -30,9 +45,15 @@ const EvalViewerFilterContext = createContext<EvalViewerFilterContextValue | nul
   null,
 );
 
-export function EvalViewerFilterProvider({ children }: { children: ReactNode }) {
+export function EvalViewerFilterProvider({
+  children,
+  initialStatusFilter = "all",
+  urlSync,
+}: EvalViewerFilterProviderProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<EvalStatusFilter>("all");
+  const [statusFilter, setStatusFilter] =
+    useState<EvalStatusFilter>(initialStatusFilter);
   const [fieldFilters, setFieldFilters] = useState<FieldFilterId[]>([]);
   const [paginationKey, setPaginationKey] = useState(0);
 
@@ -73,8 +94,22 @@ export function EvalViewerFilterProvider({ children }: { children: ReactNode }) 
     (value: EvalStatusFilter) => {
       setStatusFilter(value);
       resetPagination();
+
+      if (!urlSync) return;
+
+      const legacyInventory = urlSync.searchParams.inventory?.trim().toLowerCase();
+      const clearLegacyInventory =
+        legacyInventory === "not_run" || legacyInventory === "failed";
+
+      const next = patchEvalViewerQuery(urlSync.searchParams, {
+        status: value === "all" ? "" : value,
+        inventory: clearLegacyInventory ? "" : urlSync.searchParams.inventory,
+      });
+      router.replace(buildEvalViewerHref(urlSync.basePath, next), {
+        scroll: false,
+      });
     },
-    [resetPagination],
+    [resetPagination, router, urlSync],
   );
 
   const value = useMemo(
@@ -122,3 +157,5 @@ export function useEvalViewerFilters(): EvalViewerFilterContextValue {
 export function useOptionalEvalViewerFilters(): EvalViewerFilterContextValue | null {
   return useContext(EvalViewerFilterContext);
 }
+
+export type { EvalStatusFilter };

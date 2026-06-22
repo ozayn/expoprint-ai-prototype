@@ -25,7 +25,7 @@
     "eval:url-priority:test": "tsx src/lib/evalLocal/evalUrlPriority.test.ts",
     "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
     "eval:extract-and-review": "tsx scripts/eval/extractAndReview.ts",
-    "eval:extract-and-review:test": "tsx scripts/eval/lib/extractionBatch.test.ts && tsx scripts/eval/lib/extractAndReview.test.ts && tsx scripts/eval/lib/evalViewerQuery.test.ts",
+    "eval:extract-and-review:test": "tsx scripts/eval/lib/extractionBatch.test.ts && tsx scripts/eval/lib/extractAndReview.test.ts && tsx scripts/eval/lib/evalViewerQuery.test.ts && tsx scripts/eval/lib/normalizeEvalStatus.test.ts",
     "eval:combine-reviews": "tsx scripts/eval/combineReviewQueues.ts",
     "eval:review": "tsx scripts/eval/buildHistoricalReviewQueue.ts",
     "eval:review:test": "tsx scripts/eval/lib/historicalReviewQueue.test.ts",

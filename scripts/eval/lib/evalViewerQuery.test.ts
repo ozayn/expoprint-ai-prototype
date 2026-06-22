@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import {
   buildEvalViewerHref,
   defaultInventoryViewerQuery,
+  parseEvalStatusParam,
   resolveEvalViewMode,
+  statusFilterFromQueryParams,
 } from "../../../src/lib/evalLocal/evalViewerQuery.js";
 
 assert.equal(resolveEvalViewMode(undefined, true), "inventory");
@@ -21,5 +23,8 @@ assert.equal(
   combinedHref,
   "/internal/eval?review=combined&view=inventory&sort=recent",
 );
+
+assert.equal(statusFilterFromQueryParams({ status: "failed" }), "failed");
+assert.equal(parseEvalStatusParam("success"), "success");
 
 console.log("evalViewerQuery.test.ts: all checks passed");

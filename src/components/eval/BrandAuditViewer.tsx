@@ -5,7 +5,10 @@ import { EvalAuditMain } from "./EvalAuditMain";
 import { EvalColumnVisibilityProvider } from "./EvalColumnVisibilityContext";
 import { EvalViewerFilterProvider } from "./EvalViewerFilterContext";
 import { EvalViewToggle } from "./EvalViewToggle";
-import { resolveEvalViewMode } from "@/lib/evalLocal/evalViewerQuery";
+import {
+  resolveEvalViewMode,
+  statusFilterFromQueryParams,
+} from "@/lib/evalLocal/evalViewerQuery";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import { dedupeBrandAuditRows } from "@/lib/evalLocal/evalCanonicalDedup";
 import type { InternalEvalDataSource } from "@/lib/evalLocal/publishedInternalEvalTypes";
@@ -207,7 +210,15 @@ export function BrandAuditViewer({
   );
 
   if (enableFieldFilters) {
-    return <EvalViewerFilterProvider>{wrapped}</EvalViewerFilterProvider>;
+    return (
+      <EvalViewerFilterProvider
+        key={statusFilterFromQueryParams(searchParams)}
+        initialStatusFilter={statusFilterFromQueryParams(searchParams)}
+        urlSync={{ basePath, searchParams }}
+      >
+        {wrapped}
+      </EvalViewerFilterProvider>
+    );
   }
   return wrapped;
 }

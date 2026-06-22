@@ -47,7 +47,7 @@ export function urlInventorySortLabel(mode: UrlInventorySortMode): string {
   }
 }
 
-export type UrlInventoryQuickFilter = "all" | "recent" | "not_run" | "failed";
+export type UrlInventoryQuickFilter = "all" | "recent";
 
 export type UrlInventoryPathTypeFilter = "all" | UrlPathType;
 
@@ -85,8 +85,6 @@ export function parseUrlInventoryQuickFilter(
 ): UrlInventoryQuickFilter {
   const inv = inventoryParam?.trim().toLowerCase();
   if (inv === "recent") return "recent";
-  if (inv === "not_run") return "not_run";
-  if (inv === "failed") return "failed";
   return "all";
 }
 
@@ -200,17 +198,11 @@ export function filterUrlInventoryQuick(
   filter: UrlInventoryQuickFilter,
 ): UrlInventoryRow[] {
   if (filter === "all") return rows;
-  if (filter === "recent") {
-    return rows.filter(
-      (row) =>
-        row.processedMeta?.sourceReviewQueue ||
-        row.extractionStatus !== "not_run",
-    );
-  }
-  if (filter === "not_run") {
-    return rows.filter((row) => row.extractionStatus === "not_run");
-  }
-  return rows.filter((row) => row.extractionStatus === "failed");
+  return rows.filter(
+    (row) =>
+      row.processedMeta?.sourceReviewQueue ||
+      row.extractionStatus !== "not_run",
+  );
 }
 
 export function filterUrlInventoryByPathType(

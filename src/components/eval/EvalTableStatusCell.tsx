@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  normalizeEvalStatus,
+} from "@/lib/evalLocal/normalizeEvalStatus";
+import {
   formatProcessedLabel,
   type UrlInventoryProcessedMeta,
 } from "@/lib/evalLocal/evalProcessedMeta";
@@ -8,13 +11,11 @@ import type { UrlInventoryExtractionStatus } from "@/lib/evalLocal/urlInventoryJ
 
 export type EvalExtractionStatusCategory = UrlInventoryExtractionStatus;
 
+/** Map review row status to success / failed / not_run for filters and display. */
 export function reviewRowStatusCategory(
   status: string,
 ): EvalExtractionStatusCategory {
-  const s = status.trim();
-  if (!s) return "not_run";
-  if (s === "success") return "success";
-  return "failed";
+  return normalizeEvalStatus({ status });
 }
 
 function StatusCategoryPill({ category }: { category: EvalExtractionStatusCategory }) {

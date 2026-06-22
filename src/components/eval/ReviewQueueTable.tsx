@@ -23,8 +23,11 @@ import {
 } from "@/lib/evalLocal/offeringsExtractionParse";
 import type { BrandAuditRow } from "@/lib/evalLocal/brandAuditRow";
 import { parseDuplicateVariants } from "@/lib/evalLocal/evalCanonicalDedup";
-import { brandAuditSearchHaystack, matchesSearchQuery } from "@/lib/evalLocal/evalRowSearch";
-import { matchesFieldFilters } from "@/lib/evalLocal/fieldCoverageHelpers";
+import {
+  countBrandAuditRowsByStatus,
+  filterBrandAuditRows,
+  normalizedStatusFromReviewRow,
+} from "@/lib/evalLocal/evalRowFilters";
 import {
   evalTableColumnHeaderLabel,
   type EvalTableColumnId,
@@ -43,7 +46,6 @@ import {
   evalTableHeaderClass,
 } from "./evalTableLayout";
 import { EvalFilterControls } from "./EvalFilterControls";
-import { reviewRowStatusCategory } from "./EvalTableStatusCell";
 import { useOptionalEvalViewerFilters } from "./EvalViewerFilterContext";
 import {
   newestSourceReviewQueueFromSources,
@@ -85,45 +87,29 @@ export function ReviewQueueTable({
   const expandedIndex =
     expandedRow?.paginationKey === paginationKey ? expandedRow.index : null;
 
+  const statusCounts = useMemo(() => countBrandAuditRowsByStatus(rows), [rows]);
+
   const filtered = useMemo(() => {
     if (!filterCtx) return rows;
-
-    const { search, statusFilter, fieldFilters } = filterCtx;
-
-    return rows.filter((row) => {
-      const category = reviewRowStatusCategory(row.status ?? "");
-      if (statusFilter !== "all" && category !== statusFilter) {
-        return false;
-      }
-      if (!matchesSearchQuery(brandAuditSearchHaystack(row), search)) {
-        return false;
-      }
-      if (
-        !matchesFieldFilters(row, fieldFilters, {
-          extractionStatus:
-            category === "success"
-              ? "success"
-              : category === "failed"
-                ? "failed"
-                : "not_run",
-        })
-      ) {
-        return false;
-      }
-      return true;
+    return filterBrandAuditRows(rows, {
+      search: filterCtx.search,
+      statusFilter: filterCtx.statusFilter,
+      fieldFilters: filterCtx.fieldFilters,
     });
   }, [rows, filterCtx]);
 
   const successfulInFiltered = filtered.filter(
-    (r) => r.status?.trim() === "success",
+    (r) => normalizedStatusFromReviewRow(r) === "success",
   ).length;
 
   const processedMatchLine =
     filterCtx &&
     filterCtx.fieldFilters.length > 0 &&
     successfulInFiltered > 0
-      ? `${successfulInFiltered.toLocaleString()} successful rows match field filters`
-      : undefined;
+      ? `${successfulInFiltered.toLocaleString()} successful rows match field filters (field filters apply to processed rows with extraction data)`
+      : filterCtx && filterCtx.fieldFilters.length > 0
+        ? "Field filters apply to processed rows with extraction data"
+        : undefined;
 
   if (rows.length === 0) {
     return (
@@ -142,6 +128,7 @@ export function ReviewQueueTable({
                 searchPlaceholder="Search domain, URL, project, business…"
                 resultCountLine={`Showing ${filtered.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`}
                 processedMatchLine={processedMatchLine}
+                statusCounts={statusCounts}
               />
             </div>
             <EvalColumnPicker omitPartnerFields={omitPartnerFields} />

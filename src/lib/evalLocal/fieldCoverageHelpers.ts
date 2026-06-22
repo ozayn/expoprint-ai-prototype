@@ -174,13 +174,14 @@ function matchesSingleFieldFilter(row: BrandAuditRow, filterId: FieldFilterId): 
   }
 }
 
-/** Successful extraction rows are eligible for has/missing field filters. */
+/** Successful and failed extraction rows are eligible for has/missing field filters. */
 export function isEligibleForFieldFilters(
   review: BrandAuditRow | null | undefined,
   extractionStatus?: UrlInventoryExtractionStatus,
 ): boolean {
-  if (extractionStatus === "not_run" || !review) return false;
-  return review.status?.trim() === "success";
+  if (!review) return false;
+  if (extractionStatus === "not_run") return false;
+  return extractionStatus === "success" || extractionStatus === "failed";
 }
 
 export function matchesFieldFilters(
