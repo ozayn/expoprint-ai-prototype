@@ -1314,6 +1314,79 @@
         }
       },
       "processed_unique_sites": 1401
+    },
+    {
+      "snapshot_id": "20260622200559228",
+      "timestamp": "2026-06-22T20:05:59.237Z",
+      "source_review_queue": "review_queue_combined_20260622194707419.csv",
+      "total_rows": 1415,
+      "successful_rows": 1231,
+      "failed_rows": 184,
+      "field_coverage": {
+        "business_name": {
+          "count": 1231,
+          "percent": 100
+        },
+        "logo": {
+          "count": 1231,
+          "percent": 100
+        },
+        "colors": {
+          "count": 1141,
+          "percent": 93
+        },
+        "email": {
+          "count": 555,
+          "percent": 45
+        },
+        "phone": {
+          "count": 729,
+          "percent": 59
+        },
+        "social_links": {
+          "count": 781,
+          "percent": 63
+        },
+        "address_location": {
+          "count": 649,
+          "percent": 53
+        },
+        "products_services": {
+          "count": 1181,
+          "percent": 96
+        },
+        "summary": {
+          "count": 1181,
+          "percent": 96
+        }
+      },
+      "scrape_depth": {
+        "unknown_or_0": {
+          "count": 184,
+          "percent": 13
+        },
+        "pages_1": {
+          "count": 153,
+          "percent": 11
+        },
+        "pages_2": {
+          "count": 27,
+          "percent": 2
+        },
+        "pages_3": {
+          "count": 48,
+          "percent": 3
+        },
+        "pages_4_5": {
+          "count": 1003,
+          "percent": 71
+        },
+        "pages_6_plus": {
+          "count": 0,
+          "percent": 0
+        }
+      },
+      "processed_unique_sites": 1415
     }
   ]
 }
