@@ -24,6 +24,14 @@ import {
   extractTypographyFromHtml,
   mergeTypographyAcrossPages,
 } from "@/lib/server/extractTypographySignals";
+import { normalizeEmail, normalizePhoneDisplay } from "@/lib/contactFieldNormalize";
+import { isStaticFetchBlocked } from "@/lib/websiteFetchBlocked";
+import { filterBrandProfileSocialUrls } from "@/lib/socialPlatformDisplay";
+import {
+  extractStructuredContactFromHtml,
+  mergeStructuredContacts,
+  type ScrapedStructuredContact,
+} from "@/lib/server/scrapeContactSignals";
 
 /** Per GET (homepage or one extra page); avoids one short global timeout for multi-fetch. */
 const PER_PAGE_FETCH_MS = 12_000;
@@ -82,6 +90,14 @@ export type ScrapedPageSummary = {
   /** Raw parse cap; formatter applies global budget. */
   visibleTextSample: string;
   typography: TypographySignals;
+  /** JSON-LD / structured contact signals (deduped per page). */
+  structuredEmails: string[];
+  structuredPhones: string[];
+  structuredAddresses: string[];
+  /** Footer / contentinfo text sample when present. */
+  footerTextSample: string;
+  /** Social hrefs before brand-profile filter. */
+  socialHrefsDiscovered: string[];
 };
 
 export type WebsiteContentExtraction = {
@@ -105,6 +121,7 @@ export type WebsiteContentExtraction = {
   socialHrefs: string[];
   visibleTextSample: string;
   typography: TypographySignals;
+  structuredContact: ScrapedStructuredContact;
 };
 
 function toAbsolute(href: string, base: string): string | null {
@@ -540,7 +557,7 @@ async function parseHtmlToPageSummary(
 
   const mailtoHrefs: string[] = [];
   const telHrefs: string[] = [];
-  const socialHrefs: string[] = [];
+  const socialHrefsDiscovered: string[] = [];
 
   $("a[href]").each((_, el) => {
     const href = ($(el).attr("href") ?? "").trim();
@@ -554,13 +571,31 @@ async function parseHtmlToPageSummary(
       try {
         const u = new URL(href, baseFinalUrl);
         if (SOCIAL_HOST_RE.test(u.hostname)) {
-          socialHrefs.push(u.href);
+          socialHrefsDiscovered.push(u.href);
         }
       } catch {
         /* ignore */
       }
     }
   });
+
+  const structuredFromHtml = extractStructuredContactFromHtml(html);
+  for (const href of mailtoHrefs) {
+    const email = normalizeEmail(href);
+    if (email) structuredFromHtml.emails.push(email);
+  }
+  for (const href of telHrefs) {
+    const phone = normalizePhoneDisplay(href);
+    if (phone) structuredFromHtml.phones.push(phone);
+  }
+  structuredFromHtml.emails = [...new Set(structuredFromHtml.emails)].slice(0, 16);
+  structuredFromHtml.phones = [...new Set(structuredFromHtml.phones)].slice(0, 16);
+
+  const socialHrefs = filterBrandProfileSocialUrls(
+    uniqCap(socialHrefsDiscovered, MAX_SOCIAL_MERGED),
+    {},
+    MAX_SOCIAL_MERGED,
+  );
 
   $("script, style, noscript, svg").remove();
   const textSource = $("body").length > 0 ? $("body") : $("html");
@@ -597,7 +632,12 @@ async function parseHtmlToPageSummary(
     ),
     mailtoHrefs: uniqCap(mailtoHrefs, MAX_MAILTO_MERGED),
     telHrefs: uniqCap(telHrefs, MAX_TEL_MERGED),
-    socialHrefs: uniqCap(socialHrefs, MAX_SOCIAL_MERGED),
+    socialHrefs,
+    socialHrefsDiscovered: uniqCap(socialHrefsDiscovered, MAX_SOCIAL_MERGED),
+    structuredEmails: structuredFromHtml.emails,
+    structuredPhones: structuredFromHtml.phones,
+    structuredAddresses: structuredFromHtml.addresses,
+    footerTextSample: structuredFromHtml.footerTextSample,
     visibleTextSample,
     typography,
   };
@@ -670,19 +710,23 @@ async function fetchHtmlPage(
 function mergePageLists(
   pages: ScrapedPageSummary[],
   rankingCtx: LogoRankingContext = { brandTokens: [] },
+  websiteUrl?: string,
 ): {
   logoCandidateUrls: string[];
   logoCandidatesDetailed: LogoCandidate[];
   mailtoHrefs: string[];
   telHrefs: string[];
   socialHrefs: string[];
+  socialHrefsDiscovered: string[];
+  structuredContact: ScrapedStructuredContact;
 } {
   const logos: string[] = [];
   const logoDetailed: LogoCandidate[] = [];
   const logoSeen = new Set<string>();
   const mails: string[] = [];
   const tels: string[] = [];
-  const socials: string[] = [];
+  const socialsDiscovered: string[] = [];
+  const structuredPages: ScrapedStructuredContact[] = [];
   for (const p of pages) {
     logos.push(...p.logoCandidateUrls);
     for (const c of p.logoCandidatesDetailed) {
@@ -702,14 +746,32 @@ function mergePageLists(
     }
     mails.push(...p.mailtoHrefs);
     tels.push(...p.telHrefs);
-    socials.push(...p.socialHrefs);
+    socialsDiscovered.push(...p.socialHrefsDiscovered);
+    structuredPages.push({
+      emails: p.structuredEmails,
+      phones: p.structuredPhones,
+      addresses: p.structuredAddresses,
+      footerTextSample: p.footerTextSample,
+    });
   }
+  const structuredContact = mergeStructuredContacts(structuredPages);
+  const socialCtx = {
+    businessName: rankingCtx.brandTokens.join(" "),
+    websiteUrl,
+  };
+  const socialsFiltered = filterBrandProfileSocialUrls(
+    uniqCap(socialsDiscovered, MAX_SOCIAL_MERGED),
+    socialCtx,
+    MAX_SOCIAL_MERGED,
+  );
   return {
     logoCandidateUrls: uniqCap(logos, MAX_LOGO_CANDIDATES_MERGED),
     logoCandidatesDetailed: logoDetailed.slice(0, MAX_LOGO_CANDIDATES_MERGED),
     mailtoHrefs: uniqCap(mails, MAX_MAILTO_MERGED),
     telHrefs: uniqCap(tels, MAX_TEL_MERGED),
-    socialHrefs: uniqCap(socials, MAX_SOCIAL_MERGED),
+    socialHrefs: socialsFiltered,
+    socialHrefsDiscovered: uniqCap(socialsDiscovered, MAX_SOCIAL_MERGED),
+    structuredContact,
   };
 }
 
@@ -762,17 +824,58 @@ function emptySlice(url: string): ScrapedPageSummary {
     mailtoHrefs: [],
     telHrefs: [],
     socialHrefs: [],
+    socialHrefsDiscovered: [],
+    structuredEmails: [],
+    structuredPhones: [],
+    structuredAddresses: [],
+    footerTextSample: "",
     visibleTextSample: "",
     typography: emptyTypographySignals(),
   };
+}
+
+function buildScrapeDepthDiagnostics(params: {
+  status: WebsiteFetchMeta["status"];
+  reason?: string;
+  pagesFetched: number;
+  pagesFailed: number;
+  rankedLinksCount: number;
+  picks: RankedLink[];
+  pageTypesFound: Set<string>;
+}): string[] {
+  const codes: string[] = [];
+  if (params.reason === "timeout") codes.push("timeout");
+  if (params.status === "partial" || params.reason === "body_truncated") {
+    codes.push("body_truncated");
+  }
+  if (params.pagesFailed > 0) codes.push("pages_failed");
+  if (params.rankedLinksCount === 0) codes.push("no_same_domain_links");
+  const hasContact =
+    params.pageTypesFound.has("contact") ||
+    params.picks.some((p) => p.pageType === "contact");
+  if (!hasContact && params.rankedLinksCount > 0) {
+    codes.push("no_contact_pages_found");
+  }
+  if (params.pagesFetched <= 1) codes.push("scrape_depth_low");
+  return codes;
 }
 
 function buildFlatExtraction(
   meta: WebsiteFetchMeta,
   homepage: ScrapedPageSummary,
   additionalPages: ScrapedPageSummary[],
+  structuredContact?: ScrapedStructuredContact,
 ): WebsiteContentExtraction {
   const merged = mergePageLists([homepage, ...additionalPages]);
+  const contact =
+    structuredContact ?? mergeStructuredContacts(
+      [homepage, ...additionalPages].map((p) => ({
+        emails: p.structuredEmails,
+        phones: p.structuredPhones,
+        addresses: p.structuredAddresses,
+        footerTextSample: p.footerTextSample,
+      })),
+    );
   return {
     meta,
     homepage,
@@ -788,6 +891,7 @@ function buildFlatExtraction(
     socialHrefs: merged.socialHrefs,
     visibleTextSample: homepage.visibleTextSample,
     typography: mergeTypographyAcrossPages([homepage, ...additionalPages]),
+    structuredContact: contact,
   };
 }
 
@@ -820,16 +924,33 @@ export async function extractWebsiteContent(
     pagesAttempted = 1;
     const homeResult = await fetchHtmlPage(normalized.href);
     if (!homeResult.ok) {
-      const meta: WebsiteFetchMeta = {
+      const failedMeta: WebsiteFetchMeta = {
         status: "failed",
         reason: homeResult.reason,
         finalUrl: homeResult.finalUrl,
         pagesAttempted: 1,
         pagesFetched: 0,
         pagesFailed: 1,
+        scrapeDepthDiagnostics: buildScrapeDepthDiagnostics({
+          status: "failed",
+          reason: homeResult.reason,
+          pagesFetched: 0,
+          pagesFailed: 1,
+          rankedLinksCount: 0,
+          picks: [],
+          pageTypesFound: new Set(),
+        }),
       };
+      if (isStaticFetchBlocked(failedMeta)) {
+        failedMeta.scrapeDepthDiagnostics = [
+          ...new Set([
+            ...(failedMeta.scrapeDepthDiagnostics ?? []),
+            "blocked",
+          ]),
+        ];
+      }
       const empty = emptySlice(homeResult.finalUrl);
-      return buildFlatExtraction(meta, empty, []);
+      return buildFlatExtraction(failedMeta, empty, []);
     }
 
     const homeFinal = homeResult.finalUrl;
@@ -884,7 +1005,21 @@ export async function extractWebsiteContent(
       pageTitle: homepage.title,
       ogTitle: homepage.ogTitle,
     });
-    const merged = mergePageLists([homepage, ...additionalPages], rankingCtx);
+    const merged = mergePageLists(
+      [homepage, ...additionalPages],
+      rankingCtx,
+      homeFinal,
+    );
+
+    const scrapeDepthDiagnostics = buildScrapeDepthDiagnostics({
+      status: homeBodyTruncated ? "partial" : "success",
+      reason: homeBodyTruncated ? "body_truncated" : undefined,
+      pagesFetched,
+      pagesFailed,
+      rankedLinksCount: ranked.length,
+      picks,
+      pageTypesFound,
+    });
 
     const logoCandidatesList = await prepareLogoCandidatesForUi(
       merged.logoCandidatesDetailed,
@@ -911,10 +1046,16 @@ export async function extractWebsiteContent(
         pagesFailed,
         pageTypesFound:
           pageTypesFound.size > 0 ? Array.from(pageTypesFound).sort() : undefined,
+        scrapeDepthDiagnostics,
+        socialLinksDiscovered: merged.socialHrefsDiscovered,
+        structuredEmailsFound: merged.structuredContact.emails.length,
+        structuredPhonesFound: merged.structuredContact.phones.length,
+        structuredAddressesFound: merged.structuredContact.addresses.length,
         typography: toWebsiteTypographyMeta(typographyMerged),
       },
       homepage,
       additionalPages,
+      merged.structuredContact,
     );
     return {
       ...flat,
@@ -972,6 +1113,11 @@ export function formatWebsiteContextForClaude(
   if (extraction.meta.pageTypesFound?.length) {
     lines.push(`Page types detected (heuristic): ${extraction.meta.pageTypesFound.join(", ")}`);
   }
+  if (extraction.meta.scrapeDepthDiagnostics?.length) {
+    lines.push(
+      `Scrape depth diagnostics: ${extraction.meta.scrapeDepthDiagnostics.join(", ")}`,
+    );
+  }
 
   lines.push("", "=== Homepage ===");
   const h = extraction.homepage;
@@ -997,8 +1143,14 @@ export function formatWebsiteContextForClaude(
     lines.push(
       `Visible text excerpt (capped):\n${sliceVisibleForBudget(p.visibleTextSample, EXTRA_PAGE_VISIBLE_BUDGET, budget)}`,
     );
+    if (p.footerTextSample.trim()) {
+      lines.push(
+        `Footer / contact block excerpt (capped):\n${p.footerTextSample.slice(0, 600)}`,
+      );
+    }
   }
 
+  const structured = extraction.structuredContact;
   lines.push("", "=== Collected across inspected pages (deduped) ===");
   if (extraction.logoCandidateUrls.length) {
     lines.push(
@@ -1011,8 +1163,27 @@ export function formatWebsiteContextForClaude(
   if (extraction.telHrefs.length) {
     lines.push(`tel links: ${extraction.telHrefs.join(" | ")}`);
   }
+  if (structured.emails.length) {
+    lines.push(`Structured emails (JSON-LD / mailto): ${structured.emails.join(" | ")}`);
+  }
+  if (structured.phones.length) {
+    lines.push(`Structured phones (JSON-LD / tel): ${structured.phones.join(" | ")}`);
+  }
+  if (structured.addresses.length) {
+    lines.push(`Structured addresses (JSON-LD): ${structured.addresses.join(" | ")}`);
+  }
+  if (structured.footerTextSample.trim()) {
+    lines.push(
+      `Combined footer excerpt: ${structured.footerTextSample.slice(0, 800)}`,
+    );
+  }
   if (extraction.socialHrefs.length) {
-    lines.push(`Social links found: ${extraction.socialHrefs.join(" | ")}`);
+    lines.push(`Social profile links (filtered): ${extraction.socialHrefs.join(" | ")}`);
+  }
+  if (extraction.meta.socialLinksDiscovered?.length) {
+    lines.push(
+      `Social links discovered (raw, may include share/watch URLs): ${extraction.meta.socialLinksDiscovered.join(" | ")}`,
+    );
   }
 
   const typo = extraction.typography;

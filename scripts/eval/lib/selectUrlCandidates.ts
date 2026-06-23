@@ -9,6 +9,10 @@ import {
   isRootUrl,
   urlForCandidateFields,
 } from "../../../src/lib/evalLocal/evalUrlPriority.js";
+import type {
+  MissingContactFilter,
+} from "./missingContactSelection.js";
+import { reviewRowMatchesMissingContactFilter } from "./missingContactSelection.js";
 import type { ReviewQueueRow } from "./historicalReviewQueue.js";
 import type { ProcessedExtractionOutcome } from "./reviewQueueProcessedIndex.js";
 import {
@@ -26,7 +30,11 @@ export type SelectUrlCandidatesOptions = {
   reprocess?: boolean;
   /** Reprocess successful rows with logo but no colors only. */
   reprocessMissingColors?: boolean;
-  /** Canonical site key → merged review row (for palette reprocess checks). */
+  /** Reprocess successful rows missing contact fields (see missingContactFilter). */
+  reprocessMissingContact?: boolean;
+  /** Contact fields to treat as missing when reprocessMissingContact is set. */
+  missingContactFilter?: MissingContactFilter;
+  /** Canonical site key → merged review row (for palette / contact reprocess checks). */
   processedReviewIndex?: Map<string, ReviewQueueRow>;
   /** When true, sort eligible URLs by root/shallow/deep priority (default for extract-and-review). */
   prioritizeRootUrls?: boolean;
@@ -49,6 +57,9 @@ export type UrlCandidateSelectionSummary = {
   alreadySuccessfulWithColors?: number;
   successfulMissingColors?: number;
   selectedMissingColorReprocess?: number;
+  alreadySuccessfulWithContact?: number;
+  successfulMissingContact?: number;
+  selectedMissingContactReprocess?: number;
 };
 
 export type UrlCandidateSelectionResult = {
@@ -89,6 +100,18 @@ function isEligibleForBatch(
   options: SelectUrlCandidatesOptions,
   reviewRow?: ReviewQueueRow,
 ): boolean {
+  if (options.reprocessMissingContact) {
+    if (status === "not_run") return false;
+    if (status === "failed") return options.retryFailed ?? false;
+    if (status === "success") {
+      if (!reviewRow || !options.missingContactFilter) return false;
+      return reviewRowMatchesMissingContactFilter(
+        reviewRow,
+        options.missingContactFilter,
+      );
+    }
+    return false;
+  }
   if (options.reprocessMissingColors) {
     if (status === "not_run") return true;
     if (status === "failed") return options.retryFailed ?? false;
@@ -114,6 +137,26 @@ function isMissingColorReprocessSuccess(
     hasLogo(reviewRow) &&
     !hasColors(reviewRow)
   );
+}
+
+function isMissingContactReprocessSuccess(
+  status: "success" | "failed" | "not_run",
+  reviewRow: ReviewQueueRow | undefined,
+  filter: MissingContactFilter | undefined,
+): boolean {
+  return (
+    status === "success" &&
+    reviewRow !== undefined &&
+    filter !== undefined &&
+    reviewRowMatchesMissingContactFilter(reviewRow, filter)
+  );
+}
+
+function reviewRowHasCompleteContactForFilter(
+  row: ReviewQueueRow,
+  filter: MissingContactFilter,
+): boolean {
+  return !reviewRowMatchesMissingContactFilter(row, filter);
 }
 
 function candidateUrl(row: UrlCandidateOutputRow): string {
@@ -149,6 +192,9 @@ function buildSummary(
     alreadySuccessfulWithColors?: number;
     successfulMissingColors?: number;
     selectedMissingColorReprocess?: number;
+    alreadySuccessfulWithContact?: number;
+    successfulMissingContact?: number;
+    selectedMissingContactReprocess?: number;
   },
   skippedByRootOnly?: number,
 ): UrlCandidateSelectionSummary {
@@ -175,6 +221,17 @@ function buildSummary(
       : {}),
     ...(counts.selectedMissingColorReprocess !== undefined
       ? { selectedMissingColorReprocess: counts.selectedMissingColorReprocess }
+      : {}),
+    ...(counts.alreadySuccessfulWithContact !== undefined
+      ? { alreadySuccessfulWithContact: counts.alreadySuccessfulWithContact }
+      : {}),
+    ...(counts.successfulMissingContact !== undefined
+      ? { successfulMissingContact: counts.successfulMissingContact }
+      : {}),
+    ...(counts.selectedMissingContactReprocess !== undefined
+      ? {
+          selectedMissingContactReprocess: counts.selectedMissingContactReprocess,
+        }
       : {}),
   };
 }
@@ -214,21 +271,42 @@ export function selectUrlCandidatesWithSummary(
   let notRun = 0;
   let alreadySuccessfulWithColors = 0;
   let successfulMissingColors = 0;
+  let alreadySuccessfulWithContact = 0;
+  let successfulMissingContact = 0;
 
   if (hasProcessedFilter) {
     for (const row of rows) {
       const status = processedStatusForCandidate(row, index);
       if (status === "success") {
         alreadySuccessful += 1;
+        const key = candidateSiteKey(row);
+        const reviewRow = key
+          ? options.processedReviewIndex?.get(key)
+          : undefined;
         if (options.reprocessMissingColors) {
-          const key = candidateSiteKey(row);
-          const reviewRow = key
-            ? options.processedReviewIndex?.get(key)
-            : undefined;
           if (reviewRow && hasColors(reviewRow)) {
             alreadySuccessfulWithColors += 1;
           } else if (reviewRow && hasLogo(reviewRow) && !hasColors(reviewRow)) {
             successfulMissingColors += 1;
+          }
+        }
+        if (options.reprocessMissingContact && options.missingContactFilter) {
+          if (
+            reviewRow &&
+            reviewRowHasCompleteContactForFilter(
+              reviewRow,
+              options.missingContactFilter,
+            )
+          ) {
+            alreadySuccessfulWithContact += 1;
+          } else if (
+            reviewRow &&
+            reviewRowMatchesMissingContactFilter(
+              reviewRow,
+              options.missingContactFilter,
+            )
+          ) {
+            successfulMissingContact += 1;
           }
         }
       } else if (status === "failed") alreadyFailed += 1;
@@ -238,6 +316,7 @@ export function selectUrlCandidatesWithSummary(
 
   const eligibleEntries: EligibleEntry[] = [];
   let selectedMissingColorReprocess = 0;
+  let selectedMissingContactReprocess = 0;
   for (let inventoryIndex = 0; inventoryIndex < rows.length; inventoryIndex += 1) {
     const row = rows[inventoryIndex];
     const status = hasProcessedFilter
@@ -287,12 +366,32 @@ export function selectUrlCandidatesWithSummary(
     }
   }
 
+  if (options.reprocessMissingContact && hasProcessedFilter) {
+    for (const row of selected) {
+      const status = processedStatusForCandidate(row, index);
+      const siteKey = candidateSiteKey(row);
+      const reviewRow = siteKey
+        ? options.processedReviewIndex?.get(siteKey)
+        : undefined;
+      if (
+        isMissingContactReprocessSuccess(
+          status,
+          reviewRow,
+          options.missingContactFilter,
+        )
+      ) {
+        selectedMissingContactReprocess += 1;
+      }
+    }
+  }
+
   const shouldSummarize =
     hasProcessedFilter ||
     options.prioritizeRootUrls ||
     options.rootOnly ||
     options.preserveOrder ||
-    options.reprocessMissingColors;
+    options.reprocessMissingColors ||
+    options.reprocessMissingContact;
 
   const summary = shouldSummarize
     ? buildSummary(rows, selected, {
@@ -304,6 +403,13 @@ export function selectUrlCandidatesWithSummary(
               alreadySuccessfulWithColors,
               successfulMissingColors,
               selectedMissingColorReprocess,
+            }
+          : {}),
+        ...(options.reprocessMissingContact
+          ? {
+              alreadySuccessfulWithContact,
+              successfulMissingContact,
+              selectedMissingContactReprocess,
             }
           : {}),
       }, options.rootOnly ? skippedByRootOnly : undefined)
@@ -351,6 +457,21 @@ export function printUrlCandidateSelectionSummary(
   if (summary.selectedMissingColorReprocess !== undefined) {
     console.log(
       `  Selected missing-color:${summary.selectedMissingColorReprocess.toLocaleString()} reprocess rows`,
+    );
+  }
+  if (summary.alreadySuccessfulWithContact !== undefined) {
+    console.log(
+      `  Successful w/ contact: ${summary.alreadySuccessfulWithContact.toLocaleString()} (skipped)`,
+    );
+  }
+  if (summary.successfulMissingContact !== undefined) {
+    console.log(
+      `  Successful missing contact:${summary.successfulMissingContact.toLocaleString()} (eligible)`,
+    );
+  }
+  if (summary.selectedMissingContactReprocess !== undefined) {
+    console.log(
+      `  Selected missing-contact:${summary.selectedMissingContactReprocess.toLocaleString()} reprocess rows`,
     );
   }
 }

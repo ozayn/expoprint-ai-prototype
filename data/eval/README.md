@@ -76,7 +76,44 @@ npm run eval:score -- data/eval/results/review_queue_<timestamp>.csv
 
 Each extraction run also writes `extraction_run_meta_<timestamp>.json` with `run_id`, batch offset/limit, and output paths for comparing batches.
 
+### Targeted rerun: missing contact fields
+
+After improving contact extraction, rerun only **successful** rows missing email, phone, address, or social — not the full URL inventory.
+
+**Preview counts** (merged batch review queues + URL candidate selection):
+
+```bash
+npm run eval:count-missing-contact -- data/eval/results/url_candidates_<timestamp>.csv
+npm run eval:count-missing-contact -- data/eval/results/url_candidates_<timestamp>.csv --missing-email
+```
+
+**Rerun** (non-destructive: new `data/eval/runs/extraction_run_<timestamp>.jsonl` and `data/eval/results/review_queue_<timestamp>.csv`; prior runs are kept):
+
+```bash
+npm run eval:extract-and-review -- data/eval/results/url_candidates_<timestamp>.csv \
+  --missing-contact --limit 50 --offset 0 --combine --snapshot
+```
+
+Field-specific filters (combine with `--limit` / `--offset` for batching):
+
+| Flag | Selects successful rows missing |
+| --- | --- |
+| `--missing-contact` | Any of email, phone, address, social |
+| `--missing-email` | Email only |
+| `--missing-phone` | Phone only |
+| `--missing-address` | Address only |
+| `--missing-social` | Social links only |
+
+`--combine` merges all batch review queues into a new `review_queue_combined_<timestamp>.csv` and publishes `data/eval/public/*`. `--snapshot` writes `data/eval/benchmarks/coverage_snapshots.json` for before/after comparison on `/progress`.
+
+**Refresh dashboard metrics** after combine (without a new extraction run):
+
+```bash
+npm run eval:snapshot -- --latest-combined
+```
+
 See [`docs/evaluation/historical-extraction-evaluation.md`](../docs/evaluation/historical-extraction-evaluation.md).
+
 
 ## Viewers
 

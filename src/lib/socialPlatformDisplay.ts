@@ -444,6 +444,38 @@ export function filterSocialLinksForCanvasDisplay(
   return parseSocialLinksFromRaw(raw, ctx);
 }
 
+/** True when URL is a brand/profile link (not share/watch/post/personal noise). */
+export function isBrandProfileSocialUrl(
+  rawUrl: string,
+  ctx: SocialLinkParseContext = {},
+): boolean {
+  return parseSocialLinkToken(rawUrl, ctx) !== null;
+}
+
+/**
+ * Filter discovered social URLs to official brand profile links for design use.
+ * Rejects share/watch/post/personal paths; preserves order; dedupes by URL.
+ */
+export function filterBrandProfileSocialUrls(
+  urls: string[],
+  ctx: SocialLinkParseContext = {},
+  max = 20,
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of urls) {
+    const t = raw.trim();
+    if (!t) continue;
+    if (!isBrandProfileSocialUrl(t, ctx)) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** Split a selected social field into ranked, deduped profile entries. */
 export function parseSocialLinksFromRaw(
   raw: string,

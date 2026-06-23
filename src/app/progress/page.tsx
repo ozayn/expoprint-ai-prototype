@@ -641,6 +641,21 @@ const stages: Stage[] = [
       "`docs/evaluation/historical-extraction-evaluation.md` and `data/eval/README.md` updated. Extract API contract unchanged.",
     ],
   },
+  {
+    id: 40,
+    title: "Contact extraction and scrape-depth diagnostics",
+    status: "Complete",
+    completed: "2026-06-22",
+    summary:
+      "Improves contact field extraction in the shared website scrape pipeline (mailto/tel, JSON-LD Organization/LocalBusiness, footer excerpts) and adds scrape-depth diagnostic codes so low page counts and blocked/partial fetches are easier to interpret in API metadata.",
+    accomplishments: [
+      "**Structured contact signals** — JSON-LD email/telephone/PostalAddress parsing; footer/contentinfo text excerpts; mailto/tel normalization (lowercase emails, deduped phone formats).",
+      "**Social link quality** — Brand-profile filter at scrape and API response (rejects share/watch/post/personal paths); raw discovered social URLs preserved in `websiteFetch.socialLinksDiscovered`.",
+      "**Scrape-depth diagnostics** — `websiteFetch.scrapeDepthDiagnostics` codes: `blocked`, `timeout`, `body_truncated`, `pages_failed`, `no_same_domain_links`, `no_contact_pages_found`, `scrape_depth_low`; mirrored in `metadata.warnings`.",
+      "**Evaluation fixtures** — ExpoPrint email (nice-to-have), Shopify official social links, CVS partial/body_truncated warnings; `contactFieldNormalize` unit tests.",
+      "No Fabric canvas or layout changes. Extract API contract additive only.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {

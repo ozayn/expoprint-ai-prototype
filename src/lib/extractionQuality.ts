@@ -25,6 +25,12 @@ export const RELIABILITY_WARNING_CODES = {
   largeSitePartialExtraction: "large_site_partial_extraction",
   faviconOnlyLogo: "favicon_only_logo_candidate",
   siteBlockedStaticFetch: SITE_BLOCKED_STATIC_FETCH_CODE,
+  scrapeDepthLow: "scrape_depth_low",
+  pagesFailed: "pages_failed",
+  noSameDomainLinks: "no_same_domain_links",
+  noContactPagesFound: "no_contact_pages_found",
+  scrapeTimeout: "timeout",
+  bodyTruncated: "body_truncated",
 } as const;
 
 export {
@@ -161,6 +167,27 @@ export function collectReliabilityWarningCodes(params: {
     websiteFetch.reason === "body_truncated"
   ) {
     codes.push(RELIABILITY_WARNING_CODES.largeSitePartialExtraction);
+    codes.push(RELIABILITY_WARNING_CODES.bodyTruncated);
+  }
+
+  if (websiteFetch.scrapeDepthDiagnostics?.length) {
+    for (const code of websiteFetch.scrapeDepthDiagnostics) {
+      if (code === "scrape_depth_low") {
+        codes.push(RELIABILITY_WARNING_CODES.scrapeDepthLow);
+      } else if (code === "pages_failed") {
+        codes.push(RELIABILITY_WARNING_CODES.pagesFailed);
+      } else if (code === "no_same_domain_links") {
+        codes.push(RELIABILITY_WARNING_CODES.noSameDomainLinks);
+      } else if (code === "no_contact_pages_found") {
+        codes.push(RELIABILITY_WARNING_CODES.noContactPagesFound);
+      } else if (code === "timeout") {
+        codes.push(RELIABILITY_WARNING_CODES.scrapeTimeout);
+      } else if (code === "body_truncated") {
+        codes.push(RELIABILITY_WARNING_CODES.bodyTruncated);
+      } else if (code === "blocked") {
+        codes.push(RELIABILITY_WARNING_CODES.siteBlockedStaticFetch);
+      }
+    }
   }
 
   if (!result.claudeAttempted || !result.ok) {

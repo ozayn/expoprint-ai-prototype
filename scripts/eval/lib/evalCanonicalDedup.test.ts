@@ -186,11 +186,90 @@ function testInventoryCanonicalDedupe(): void {
   assert.equal(deduped.rows[0]?.duplicateVariants?.length, 1);
 }
 
+function testNewerFailureDoesNotBeatOlderSuccess(): void {
+  const olderSuccess = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "success",
+    extracted_business_name: "Kept Co",
+    processed_at: "2026-06-01T00:00:00.000Z",
+    source_review_queue: "review_queue_20260601000000000.csv",
+    extraction_run_id: "20260601000000000",
+  });
+  const newerFailure = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "fetch_error",
+    error_message: "timeout",
+    processed_at: "2026-06-22T00:00:00.000Z",
+    source_review_queue: "review_queue_20260622000000000.csv",
+    extraction_run_id: "20260622000000000",
+  });
+
+  const kept = pickBetterReviewRow(newerFailure, olderSuccess);
+  assert.equal(kept.status, "success");
+  assert.equal(kept.extracted_business_name, "Kept Co");
+}
+
+function testNewerSuccessBeatsOlderFailure(): void {
+  const olderFailure = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "error",
+    processed_at: "2026-06-01T00:00:00.000Z",
+    source_review_queue: "review_queue_20260601000000000.csv",
+  });
+  const newerSuccess = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "success",
+    extracted_business_name: "Recovered",
+    processed_at: "2026-06-22T00:00:00.000Z",
+    source_review_queue: "review_queue_20260622000000000.csv",
+  });
+
+  const kept = pickBetterReviewRow(olderFailure, newerSuccess);
+  assert.equal(kept.status, "success");
+  assert.equal(kept.extracted_business_name, "Recovered");
+}
+
+function testLatestFailureWinsWhenOnlyFailures(): void {
+  const olderFailure = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "error",
+    error_message: "old",
+    processed_at: "2026-06-01T00:00:00.000Z",
+    source_review_queue: "review_queue_20260601000000000.csv",
+  });
+  const newerFailure = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "fetch_error",
+    error_message: "new",
+    processed_at: "2026-06-22T00:00:00.000Z",
+    source_review_queue: "review_queue_20260622000000000.csv",
+  });
+
+  const kept = pickBetterReviewRow(olderFailure, newerFailure);
+  assert.equal(kept.status, "fetch_error");
+  assert.equal(kept.error_message, "new");
+}
+
 function main(): void {
   testWwwNonWwwCollapse();
   testProcessedBeatsNotRun();
   testSuccessBeatsFailed();
   testNewerProcessedBeatsOlder();
+  testNewerFailureDoesNotBeatOlderSuccess();
+  testNewerSuccessBeatsOlderFailure();
+  testLatestFailureWinsWhenOnlyFailures();
   testDuplicateVariantsPreservedInMerge();
   testInventoryCanonicalDedupe();
   console.log("evalCanonicalDedup.test.ts: all checks passed");

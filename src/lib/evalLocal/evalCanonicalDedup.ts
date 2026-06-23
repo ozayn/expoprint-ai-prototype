@@ -5,6 +5,11 @@ import {
   evalRunIdToIso,
   extractionRunIdFromReviewQueueName,
 } from "./evalProcessedMeta";
+import { normalizeStatusValue, type EvalNormalizedStatus } from "./normalizeEvalStatus";
+import {
+  hasPlausibleAddressForMerge,
+  shouldPreserveRicherContact,
+} from "./reviewRowMergeQuality";
 import type { ReviewQueueRow } from "./reviewQueueTypes";
 import type { UrlCandidateRow } from "./urlCandidateTypes";
 
@@ -116,6 +121,23 @@ export function countBrandAuditExtractedFields(row: BrandAuditRow): number {
   return count;
 }
 
+function reviewRowOutcome(row: ReviewQueueRow): EvalNormalizedStatus {
+  const status = row.status?.trim();
+  if (!status) return "not_run";
+  return normalizeStatusValue(status);
+}
+
+function outcomeRank(outcome: EvalNormalizedStatus): number {
+  switch (outcome) {
+    case "success":
+      return 3;
+    case "failed":
+      return 2;
+    case "not_run":
+      return 1;
+  }
+}
+
 function extractionStatusRank(status: InventoryExtractionStatus): number {
   if (status === "success") return 3;
   if (status === "failed") return 2;
@@ -172,10 +194,53 @@ function reviewRowPriorityScore(row: ReviewQueueRow): number {
   return score;
 }
 
+function pickBetterSuccessReviewRow(
+  a: ReviewQueueRow,
+  b: ReviewQueueRow,
+): ReviewQueueRow {
+  const tsA = reviewRowSortTimestamp(a);
+  const tsB = reviewRowSortTimestamp(b);
+  let newer: ReviewQueueRow = a;
+  let older: ReviewQueueRow = b;
+
+  if (tsB > tsA) {
+    newer = b;
+    older = a;
+  } else if (tsA === tsB && reviewRowPriorityScore(b) > reviewRowPriorityScore(a)) {
+    newer = b;
+    older = a;
+  }
+
+  if (shouldPreserveRicherContact(older, newer)) {
+    return older;
+  }
+
+  return newer;
+}
+
 export function pickBetterReviewRow(
   a: ReviewQueueRow,
   b: ReviewQueueRow,
 ): ReviewQueueRow {
+  const outcomeA = reviewRowOutcome(a);
+  const outcomeB = reviewRowOutcome(b);
+  const rankA = outcomeRank(outcomeA);
+  const rankB = outcomeRank(outcomeB);
+
+  if (rankA !== rankB) {
+    return rankA > rankB ? a : b;
+  }
+
+  if (outcomeA === "success" && outcomeB === "success") {
+    return pickBetterSuccessReviewRow(a, b);
+  }
+
+  const tsA = reviewRowSortTimestamp(a);
+  const tsB = reviewRowSortTimestamp(b);
+  if (tsA !== tsB) {
+    return tsA > tsB ? a : b;
+  }
+
   const scoreA = reviewRowPriorityScore(a);
   const scoreB = reviewRowPriorityScore(b);
   if (scoreA > scoreB) return a;
@@ -395,8 +460,22 @@ export function mergeBrandAuditRows(
     "logo_candidate_count",
     "selected_logo_url",
     "logo_candidate_urls",
+    "extracted_emails",
+    "extracted_phone_numbers",
+    "extracted_addresses",
+    "extracted_social_links",
+    "extracted_contact_links",
   ];
   for (const key of fillFromOther) {
+    if (key === "extracted_addresses") {
+      if (
+        !hasPlausibleAddressForMerge(merged) &&
+        hasPlausibleAddressForMerge(other)
+      ) {
+        merged.extracted_addresses = other.extracted_addresses;
+      }
+      continue;
+    }
     if (!merged[key]?.trim() && other[key]?.trim()) {
       merged[key] = other[key];
     }

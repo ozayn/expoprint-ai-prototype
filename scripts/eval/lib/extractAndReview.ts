@@ -16,6 +16,7 @@ import {
   type RunHistoricalWebsiteExtractionOptions,
 } from "./historicalWebsiteExtraction.js";
 import { hasFlag, printHelp } from "./cliArgs.js";
+import { parseMissingContactFilter } from "./missingContactSelection.js";
 import {
   runPublishLatestInternalEval,
   type PublishLatestInternalEvalResult,
@@ -100,18 +101,24 @@ export async function runExtractAndReview(
   const reprocess = options.processedSelection?.reprocess ?? false;
   const reprocessMissingColors =
     options.processedSelection?.reprocessMissingColors ?? false;
+  const missingContactFilter = options.processedSelection?.missingContactFilter;
+  const reprocessMissingContact =
+    options.processedSelection?.reprocessMissingContact ?? false;
   const preserveOrder = options.processedSelection?.preserveOrder ?? false;
   const rootOnly = options.processedSelection?.rootOnly ?? false;
 
-  const processedReviewIndex = reprocessMissingColors
-    ? loadProcessedReviewIndexFromReviewQueues()
-    : options.processedSelection?.processedReviewIndex;
+  const processedReviewIndex =
+    reprocessMissingColors || reprocessMissingContact
+      ? loadProcessedReviewIndexFromReviewQueues()
+      : options.processedSelection?.processedReviewIndex;
 
   printWebsiteExtractionRunHeader(inputPath, options, {
     skipProcessedByDefault: true,
     retryFailed,
     reprocess,
     reprocessMissingColors,
+    reprocessMissingContact,
+    missingContactFilter,
     mergedReviewRows: processedStatusIndex.size,
     prioritizeRootUrls: !preserveOrder,
     rootOnly,
@@ -131,6 +138,8 @@ export async function runExtractAndReview(
       retryFailed,
       reprocess,
       reprocessMissingColors,
+      reprocessMissingContact,
+      missingContactFilter,
       prioritizeRootUrls: !preserveOrder,
       preserveOrder,
       rootOnly,
@@ -270,6 +279,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
   const reprocessMissingColors =
     hasFlag("--reprocess-missing-colors") ||
     hasFlag("--reprocess-missing-palettes");
+  const missingContactFilter = parseMissingContactFilter(process.argv);
+  const reprocessMissingContact = missingContactFilter !== null;
   const preserveOrder = hasFlag("--preserve-order");
   const rootOnly = hasFlag("--root-only");
   const publish = hasFlag("--publish");
@@ -289,6 +300,11 @@ export async function runExtractAndReviewCli(): Promise<void> {
         "  --reprocess               Include successful URLs from prior batches",
         "  --reprocess-missing-colors Reprocess successful rows with logo but no colors",
         "  --reprocess-missing-palettes Alias for --reprocess-missing-colors",
+        "  --missing-contact         Reprocess successful rows missing any contact field",
+        "  --missing-email             Reprocess successful rows missing email",
+        "  --missing-phone             Reprocess successful rows missing phone",
+        "  --missing-address           Reprocess successful rows missing address",
+        "  --missing-social            Reprocess successful rows missing social links",
         "  --preserve-order          Keep eligible inventory order (no root URL prioritization)",
         "  --root-only               Process only root/homepage URLs",
         "",
@@ -303,6 +319,7 @@ export async function runExtractAndReviewCli(): Promise<void> {
         "",
         "Example:",
         "  npm run eval:extract-and-review -- data/eval/results/url_candidates_<id>.csv --limit 10 --combine",
+        "  npm run eval:extract-and-review -- data/eval/results/url_candidates_<id>.csv --missing-contact --limit 50 --combine --snapshot",
       ],
     );
     process.exit(
@@ -321,6 +338,8 @@ export async function runExtractAndReviewCli(): Promise<void> {
       retryFailed,
       reprocess,
       reprocessMissingColors,
+      reprocessMissingContact,
+      missingContactFilter: missingContactFilter ?? undefined,
       preserveOrder,
       rootOnly,
     },

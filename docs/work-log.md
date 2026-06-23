@@ -332,6 +332,13 @@ Expanded the historical brand audit to 191 unique processed sites and materially
 
 ---
 
+## 2026-06-22
+
+**Contact extraction and scrape-depth diagnostics (Stage 40)**  
+JSON-LD/footer/mailto/tel contact signals in shared scrape pipeline; email/phone normalization; brand-profile social filter with raw URLs in metadata; scrape-depth diagnostic codes in `websiteFetch` and warnings; eval fixture checks for ExpoPrint email, Shopify social, CVS partial extraction.
+
+---
+
 ## Later (planned)
 
 Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers on `/internal/eval`, URL inventory, combined review queues, coverage metrics, palette extraction improvements (logo fallback with perceptual merge, 79% colors coverage on 191 processed sites), URL deduplication, publish flow, and batch-selection refinements. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

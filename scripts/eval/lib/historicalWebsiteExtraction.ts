@@ -21,6 +21,7 @@ import {
   printHelp,
 } from "./cliArgs.js";
 import { loadEnvLocal } from "./loadEnvLocal.js";
+import type { MissingContactFilter } from "./missingContactSelection.js";
 import type { ProcessedExtractionOutcome } from "./reviewQueueProcessedIndex.js";
 import {
   EVAL_RESULTS_DIR,
@@ -49,6 +50,8 @@ export type ProcessedUrlSelectionOptions = {
   retryFailed?: boolean;
   reprocess?: boolean;
   reprocessMissingColors?: boolean;
+  reprocessMissingContact?: boolean;
+  missingContactFilter?: MissingContactFilter;
   prioritizeRootUrls?: boolean;
   preserveOrder?: boolean;
   rootOnly?: boolean;
@@ -175,6 +178,8 @@ export async function runHistoricalWebsiteExtraction(
     retryFailed: options.processedSelection?.retryFailed,
     reprocess: options.processedSelection?.reprocess,
     reprocessMissingColors: options.processedSelection?.reprocessMissingColors,
+    reprocessMissingContact: options.processedSelection?.reprocessMissingContact,
+    missingContactFilter: options.processedSelection?.missingContactFilter,
     prioritizeRootUrls: options.processedSelection?.prioritizeRootUrls,
     preserveOrder: options.processedSelection?.preserveOrder,
     rootOnly: options.processedSelection?.rootOnly,
@@ -292,6 +297,8 @@ export function printWebsiteExtractionRunHeader(
     retryFailed: boolean;
     reprocess: boolean;
     reprocessMissingColors?: boolean;
+    reprocessMissingContact?: boolean;
+    missingContactFilter?: MissingContactFilter;
     mergedReviewRows: number;
     prioritizeRootUrls?: boolean;
     rootOnly?: boolean;
@@ -309,13 +316,15 @@ export function printWebsiteExtractionRunHeader(
     `  Domains: ${allowDuplicateDomains ? "duplicates allowed" : "one row per canonical_domain (www. stripped)"}`,
   );
   if (extractAndReviewContext?.skipProcessedByDefault) {
-    const mode = extractAndReviewContext.reprocessMissingColors
-      ? "missing colors (logo, no palette)"
-      : extractAndReviewContext.reprocess
-        ? "reprocess all (including successful)"
-        : extractAndReviewContext.retryFailed
-          ? "not run + failed retries"
-          : "not run only";
+    const mode = extractAndReviewContext.reprocessMissingContact
+      ? `missing contact (${extractAndReviewContext.missingContactFilter?.fields.join(", ") ?? "any"})`
+      : extractAndReviewContext.reprocessMissingColors
+        ? "missing colors (logo, no palette)"
+        : extractAndReviewContext.reprocess
+          ? "reprocess all (including successful)"
+          : extractAndReviewContext.retryFailed
+            ? "not run + failed retries"
+            : "not run only";
     console.log(
       `  Prior batches: ${extractAndReviewContext.mergedReviewRows.toLocaleString()} merged review rows · pool: ${mode}`,
     );

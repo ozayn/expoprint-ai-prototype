@@ -84,6 +84,11 @@
           "severity": "required"
         },
         {
+          "type": "exists",
+          "path": "content.contact.email",
+          "severity": "nice_to_have"
+        },
+        {
           "type": "exact",
           "path": "designIntake.needsHumanReview",
           "expected": true,
@@ -260,6 +265,12 @@
           "type": "arrayIncludes",
           "path": "content.services",
           "substring": "commerce",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "anyArrayIncludes",
+          "paths": ["content.contact.social"],
+          "substrings": ["shopify"],
           "severity": "nice_to_have"
         },
         {
@@ -489,6 +500,12 @@
           "type": "arrayIncludes",
           "path": "metadata.warnings",
           "substring": "large_site_partial_extraction",
+          "severity": "nice_to_have"
+        },
+        {
+          "type": "arrayIncludes",
+          "path": "metadata.warnings",
+          "substring": "body_truncated",
           "severity": "nice_to_have"
         }
       ]

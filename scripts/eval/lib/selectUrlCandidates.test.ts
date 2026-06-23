@@ -314,6 +314,76 @@ function testReprocessMissingColorsRetryFailedIncludesFailed(): void {
   assert.equal(withRetry.selected.length, 2);
 }
 
+function testReprocessMissingContactSkipsNotRunAndComplete(): void {
+  const candidates = [
+    candidate("https://complete.com/", "complete.com"),
+    candidate("https://missing-email.com/", "missing-email.com"),
+    candidate("https://new.com/", "new.com"),
+  ];
+  const reviews = [
+    successReview("https://complete.com/", "complete.com", {
+      extracted_emails: "hello@complete.com",
+      extracted_phone_numbers: "555-0100",
+      extracted_addresses: "1 Main St",
+      extracted_social_links: '[{"url":"https://facebook.com/complete"}]',
+    }),
+    successReview("https://missing-email.com/", "missing-email.com", {
+      extracted_phone_numbers: "555-0200",
+      extracted_addresses: "2 Main St",
+      extracted_social_links: '[{"url":"https://facebook.com/missing"}]',
+    }),
+  ];
+  const index = buildProcessedStatusIndex(reviews);
+  const reviewIndex = buildProcessedReviewIndex(reviews);
+  const filter = { fields: ["email", "phone", "address", "social"] as const };
+
+  const { selected, summary } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingContact: true,
+    missingContactFilter: { fields: [...filter.fields] },
+  });
+
+  assert.equal(summary?.alreadySuccessfulWithContact, 1);
+  assert.equal(summary?.successfulMissingContact, 1);
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0]?.domain, "missing-email.com");
+  assert.equal(summary?.selectedMissingContactReprocess, 1);
+}
+
+function testReprocessMissingContactEmailOnlyFilter(): void {
+  const candidates = [
+    candidate("https://missing-email.com/", "missing-email.com"),
+    candidate("https://missing-phone.com/", "missing-phone.com"),
+  ];
+  const reviews = [
+    successReview("https://missing-email.com/", "missing-email.com", {
+      extracted_phone_numbers: "555-0100",
+    }),
+    successReview("https://missing-phone.com/", "missing-phone.com", {
+      extracted_emails: "hello@phone.com",
+    }),
+  ];
+  const index = buildProcessedStatusIndex(reviews);
+  const reviewIndex = buildProcessedReviewIndex(reviews);
+
+  const { selected } = selectUrlCandidatesWithSummary(candidates, {
+    allowDuplicateDomains: false,
+    offset: 0,
+    limit: 10,
+    processedStatusIndex: index,
+    processedReviewIndex: reviewIndex,
+    reprocessMissingContact: true,
+    missingContactFilter: { fields: ["email"] },
+  });
+
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0]?.domain, "missing-email.com");
+}
+
 function main(): void {
   testDefaultSelectsNotRunOnly();
   testRetryFailedIncludesFailed();
@@ -326,6 +396,8 @@ function main(): void {
   testReprocessMissingColorsSkipsSuccessfulWithColors();
   testReprocessMissingColorsSkipsSuccessWithoutLogo();
   testReprocessMissingColorsRetryFailedIncludesFailed();
+  testReprocessMissingContactSkipsNotRunAndComplete();
+  testReprocessMissingContactEmailOnlyFilter();
   console.log("selectUrlCandidates.test.ts: all checks passed");
 }
 

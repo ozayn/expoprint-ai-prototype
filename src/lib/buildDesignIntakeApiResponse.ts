@@ -37,6 +37,11 @@ import type {
   ClaudeWebsiteAnalyzeSuccess,
 } from "@/lib/server/claudeWebsiteAnalyze";
 import type { WebsiteContentExtraction } from "@/lib/server/extractWebsiteContent";
+import {
+  normalizeContactEmailField,
+  normalizeContactPhoneField,
+} from "@/lib/contactFieldNormalize";
+import { filterBrandProfileSocialUrls } from "@/lib/socialPlatformDisplay";
 
 const HEX_COLOR_RE = /#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b/gi;
 
@@ -148,6 +153,30 @@ function buildBusiness(
     website,
     domain,
     canonicalUrl: canonical || website,
+  };
+}
+
+function normalizeContactForApi(
+  content: DesignIntakeApiContent,
+  business: DesignIntakeApiBusiness,
+): DesignIntakeApiContent {
+  const socialCtx = {
+    businessName: business.name,
+    websiteUrl: business.canonicalUrl || business.website,
+  };
+  const socialFromRows = filterBrandProfileSocialUrls(
+    content.contact.social,
+    socialCtx,
+    6,
+  );
+  return {
+    ...content,
+    contact: {
+      phone: normalizeContactPhoneField(content.contact.phone),
+      email: normalizeContactEmailField(content.contact.email),
+      address: content.contact.address.replace(/\s+/g, " ").trim(),
+      social: socialFromRows,
+    },
   };
 }
 
@@ -343,6 +372,17 @@ function humanReadableWarnings(result: ClaudeWebsiteAnalyzeResult): string[] {
     warnings.push("No typography signals detected from static HTML/CSS.");
   }
 
+  if (websiteFetch.scrapeDepthDiagnostics?.length) {
+    warnings.push(
+      `Scrape depth diagnostics: ${websiteFetch.scrapeDepthDiagnostics.join(", ")}`,
+    );
+  }
+  if ((websiteFetch.pagesFetched ?? 0) <= 1) {
+    warnings.push(
+      "Only one page inspected — contact details may be missing if they live on contact/about pages.",
+    );
+  }
+
   return warnings;
 }
 
@@ -374,7 +414,7 @@ function assembleResponseParts(
       ? { paletteSource: "extraction", paletteConfidence: "high" as const }
       : {}),
   };
-  const content = buildContent(rows);
+  const content = normalizeContactForApi(buildContent(rows), business);
 
   const businessNameSourceNote = resolved.inferredFromDomain
     ? "Business name inferred from domain (cautious fallback)."

@@ -10,6 +10,12 @@ import {
   serializeDuplicateVariants,
   variantFromReviewRow,
 } from "../../../src/lib/evalLocal/evalCanonicalDedup.js";
+import { shouldPreserveRicherContact } from "../../../src/lib/evalLocal/reviewRowMergeQuality.js";
+import {
+  evalRunIdToIso,
+  extractionRunIdFromReviewQueueName,
+} from "../../../src/lib/evalLocal/evalProcessedMeta.js";
+import { normalizeStatusValue } from "../../../src/lib/evalLocal/normalizeEvalStatus.js";
 import { csvRowsToObjects, parseCsv } from "./parseCsv.js";
 import {
   REVIEW_QUEUE_COLUMNS,
@@ -20,10 +26,24 @@ import { escapeCsvCell } from "./urlCandidates.js";
 
 export const COMBINED_REVIEW_QUEUE_PREFIX = "review_queue_combined_";
 
-export const COMBINED_REVIEW_QUEUE_COLUMNS = [...REVIEW_QUEUE_COLUMNS] as const;
+export const COMBINED_REVIEW_MERGE_COLUMNS = [
+  "latest_rerun_status",
+  "latest_rerun_timestamp",
+  "preserved_previous_success",
+  "preserved_richer_contact",
+] as const;
+
+export const COMBINED_REVIEW_QUEUE_COLUMNS = [
+  ...REVIEW_QUEUE_COLUMNS,
+  ...COMBINED_REVIEW_MERGE_COLUMNS,
+] as const;
 
 export type CombinedReviewQueueRow = ReviewQueueRow & {
   source_review_queue: string;
+  latest_rerun_status: string;
+  latest_rerun_timestamp: string;
+  preserved_previous_success: string;
+  preserved_richer_contact: string;
 };
 
 export type CombineReviewQueuesResult = {
@@ -85,6 +105,10 @@ function timestampFromReviewQueueFilename(name: string): string {
   return combined?.[1] ?? "";
 }
 
+export function reviewQueueTimestampFromFilename(name: string): string {
+  return timestampFromReviewQueueFilename(name);
+}
+
 function canonicalKeyForRow(row: ReviewQueueRow): string {
   const siteKey = canonicalSiteDedupeKeyFromFields({
     canonical_domain: row.canonical_domain,
@@ -97,7 +121,62 @@ function canonicalKeyForRow(row: ReviewQueueRow): string {
   return `row:${row.ds_id?.trim() || row.project_title?.trim() || Math.random()}`;
 }
 
-function mergeCombinedReviewRows(
+function reviewRowTimestampIso(row: ReviewQueueRow): string {
+  const processedAt = row.processed_at?.trim();
+  if (processedAt) return processedAt;
+
+  const runId =
+    row.extraction_run_id?.trim() ||
+    extractionRunIdFromReviewQueueName(row.source_review_queue ?? "");
+  if (runId) {
+    const iso = evalRunIdToIso(runId);
+    if (iso) return iso;
+  }
+  return "";
+}
+
+function reviewRowSortTimestamp(row: ReviewQueueRow): number {
+  const processedAt = row.processed_at?.trim();
+  if (processedAt) {
+    const ms = Date.parse(processedAt);
+    if (!Number.isNaN(ms)) return ms;
+  }
+
+  const runId =
+    row.extraction_run_id?.trim() ||
+    extractionRunIdFromReviewQueueName(row.source_review_queue ?? "");
+  if (runId) {
+    const iso = evalRunIdToIso(runId);
+    if (iso) {
+      const ms = Date.parse(iso);
+      if (!Number.isNaN(ms)) return ms;
+    }
+    const numeric = Number(runId);
+    if (!Number.isNaN(numeric)) return numeric;
+  }
+
+  return 0;
+}
+
+function newerReviewRow(a: ReviewQueueRow, b: ReviewQueueRow): ReviewQueueRow {
+  return reviewRowSortTimestamp(a) >= reviewRowSortTimestamp(b) ? a : b;
+}
+
+function combinedRowFromBatch(
+  row: ReviewQueueRow,
+  filename: string,
+): CombinedReviewQueueRow {
+  return {
+    ...row,
+    source_review_queue: filename,
+    latest_rerun_status: row.status?.trim() || "",
+    latest_rerun_timestamp: reviewRowTimestampIso(row),
+    preserved_previous_success: "",
+    preserved_richer_contact: "",
+  };
+}
+
+export function mergeCombinedReviewRows(
   existing: CombinedReviewQueueRow,
   incoming: CombinedReviewQueueRow,
 ): CombinedReviewQueueRow {
@@ -118,10 +197,28 @@ function mergeCombinedReviewRows(
   const sourceReviewQueue =
     kept.source_review_queue?.trim() || incoming.source_review_queue?.trim() || "";
 
+  const latestAttempt = newerReviewRow(existing, incoming);
+  const olderAttempt = latestAttempt === existing ? incoming : existing;
+  const latestOutcome = normalizeStatusValue(latestAttempt.status);
+  const olderOutcome = normalizeStatusValue(olderAttempt.status);
+  const preservedPreviousSuccess =
+    olderOutcome === "success" &&
+    latestOutcome === "failed" &&
+    kept !== latestAttempt;
+  const preservedRicherContact =
+    olderOutcome === "success" &&
+    latestOutcome === "success" &&
+    shouldPreserveRicherContact(olderAttempt, latestAttempt) &&
+    kept === olderAttempt;
+
   return {
     ...merged,
     source_review_queue: sourceReviewQueue,
     duplicate_source_urls: serializeDuplicateVariants(variants),
+    latest_rerun_status: latestAttempt.status?.trim() || "",
+    latest_rerun_timestamp: reviewRowTimestampIso(latestAttempt),
+    preserved_previous_success: preservedPreviousSuccess ? "true" : "",
+    preserved_richer_contact: preservedRicherContact ? "true" : "",
   };
 }
 
@@ -131,6 +228,22 @@ function listBatchReviewQueueFiles(resultsDir: string): string[] {
     .sort((a, b) => timestampFromReviewQueueFilename(a).localeCompare(
       timestampFromReviewQueueFilename(b),
     ));
+}
+
+export function listBatchReviewQueueFilenames(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): string[] {
+  return listBatchReviewQueueFiles(resultsDir);
+}
+
+export function findLatestBatchReviewQueueFilename(
+  resultsDir: string = EVAL_RESULTS_DIR,
+): string {
+  const files = listBatchReviewQueueFilenames(resultsDir);
+  if (files.length === 0) {
+    throw new Error(`No batch review_queue_*.csv files found in ${resultsDir}`);
+  }
+  return files[files.length - 1];
 }
 
 function readReviewQueueCsv(
@@ -143,6 +256,32 @@ function readReviewQueueCsv(
     const row = {} as ReviewQueueRow;
     for (const col of REVIEW_QUEUE_COLUMNS) {
       row[col] = record[col] ?? "";
+    }
+    return row;
+  });
+}
+
+export function readReviewQueueCsvFromResults(
+  resultsDir: string,
+  filename: string,
+): ReviewQueueRow[] {
+  return readReviewQueueCsv(resultsDir, filename);
+}
+
+export function readCombinedReviewQueueCsv(filePath: string): ReviewQueueRow[] {
+  const text = readFileSync(filePath, "utf8");
+  const { records } = csvRowsToObjects(parseCsv(text));
+  return records.map((record) => {
+    const row = {} as ReviewQueueRow;
+    for (const col of COMBINED_REVIEW_QUEUE_COLUMNS) {
+      if (col in record) {
+        row[col as keyof ReviewQueueRow] = record[col] ?? "";
+      }
+    }
+    for (const col of REVIEW_QUEUE_COLUMNS) {
+      if (!row[col]?.trim()) {
+        row[col] = record[col] ?? "";
+      }
     }
     return row;
   });
@@ -162,12 +301,16 @@ export function combinedReviewQueueToCsv(rows: CombinedReviewQueueRow[]): string
 
 export function mergeBatchReviewQueuesInMemory(
   resultsDir: string = EVAL_RESULTS_DIR,
+  options?: { excludeFilenames?: string[] },
 ): {
   rows: CombinedReviewQueueRow[];
   sourceFiles: string[];
   rowsRead: number;
 } {
-  const sourceFiles = listBatchReviewQueueFiles(resultsDir);
+  const exclude = new Set(options?.excludeFilenames ?? []);
+  const sourceFiles = listBatchReviewQueueFiles(resultsDir).filter(
+    (name) => !exclude.has(name),
+  );
   if (sourceFiles.length === 0) {
     return { rows: [], sourceFiles: [], rowsRead: 0 };
   }
@@ -179,10 +322,7 @@ export function mergeBatchReviewQueuesInMemory(
     const rows = readReviewQueueCsv(resultsDir, filename);
     for (const row of rows) {
       rowsRead += 1;
-      const incoming: CombinedReviewQueueRow = {
-        ...row,
-        source_review_queue: filename,
-      };
+      const incoming = combinedRowFromBatch(row, filename);
       const key = canonicalKeyForRow(row);
       const existing = merged.get(key);
       if (existing) {

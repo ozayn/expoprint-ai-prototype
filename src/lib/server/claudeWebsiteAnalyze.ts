@@ -261,8 +261,8 @@ Inside "extracted", optional alias: you may also include "colors" as a string; i
 Rules for "extracted":
 - logo: short description only; never invent or guess a logo URL. The server may have collected candidate image URLs (icon / apple-touch-icon / og:image / logo-class img / header img) and exposes them to the UI for human review — you do not need to repeat URLs.
 - brandColors: hex or labels if suggested by page or intake; otherwise "".
-- phone, email, address: ONLY from visible text, mailto/tel links, or user special instructions — not guessed.
-- social: prefer real URLs/handles found in the homepage block or user input.
+- phone, email, address: ONLY from visible text, mailto/tel links, JSON-LD Organization/LocalBusiness fields, footer/contact excerpts in the website block, or user special instructions — not guessed.
+- social: prefer real brand profile URLs found in the website block (reject share/watch/post links); use structured social lists when present.
 - services, products: a single readable line, **comma-separated** (or semicolons), e.g. \`"Custom canopy tents, branded backdrops, event flags"\`. **Do NOT include** broken fragments, isolated punctuation, repeated commas, empty parentheses (\`()\`), partial words, navigation labels (\`Home\`, \`Menu\`), or raw text dumps from the page. Each item must be a real phrase of at least 3 letters or a clearly meaningful size token (e.g. \`10x10\`). Limit to **at most ~6 items** per field. If the source pages do not clearly describe services / products in print-ready phrasing, return \`""\` instead of guessing.
 - Do not claim the full site was crawled; at most one homepage plus a few same-origin links were fetched.
 

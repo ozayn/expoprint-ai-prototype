@@ -86,6 +86,14 @@ export type WebsiteFetchMeta = {
   pagesFailed?: number;
   /** Heuristic buckets seen on fetched paths, e.g. about / services / contact. */
   pageTypesFound?: string[];
+  /** Machine-readable scrape-depth / crawl diagnostic codes. */
+  scrapeDepthDiagnostics?: string[];
+  /** Social profile URLs discovered before brand-profile filter. */
+  socialLinksDiscovered?: string[];
+  /** Counts from JSON-LD / structured HTML contact signals. */
+  structuredEmailsFound?: number;
+  structuredPhonesFound?: number;
+  structuredAddressesFound?: number;
   /** Typography/font signals (names only — no raw CSS). */
   typography?: WebsiteTypographyMeta;
 };
