@@ -450,6 +450,12 @@ export function mergeBrandAuditRows(
   }
 
   const fillFromOther: (keyof BrandAuditRow)[] = [
+    "ds_number",
+    "ds_id",
+    "project_title",
+    "project_type",
+    "shop_code",
+    "source_column",
     "palette_source",
     "palette_confidence",
     "extracted_color_hexes",

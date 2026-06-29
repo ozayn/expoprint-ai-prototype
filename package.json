@@ -27,6 +27,8 @@
     "eval:contact-delta:test": "tsx scripts/eval/lib/contactDeltaReport.test.ts",
     "eval:merge-quality:test": "tsx src/lib/evalLocal/reviewRowMergeQuality.test.ts",
     "eval:count-missing-contact": "tsx scripts/eval/countMissingContact.ts",
+    "eval:ds-number-stats": "tsx scripts/eval/dsNumberStats.ts",
+    "eval:ds-number-stats:test": "tsx scripts/eval/lib/dsNumberAudit.test.ts",
     "eval:missing-contact:test": "tsx scripts/eval/lib/missingContactSelection.test.ts",
     "eval:extract": "tsx scripts/eval/runHistoricalWebsiteExtraction.ts",
     "eval:extract-and-review": "tsx scripts/eval/extractAndReview.ts",

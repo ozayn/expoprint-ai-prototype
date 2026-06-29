@@ -656,6 +656,26 @@ const stages: Stage[] = [
       "No Fabric canvas or layout changes. Extract API contract additive only.",
     ],
   },
+  {
+    id: 41,
+    title: "Targeted contact reruns and safer evaluation merging",
+    status: "In progress",
+    completed: "2026-06-23",
+    lastUpdated: "2026-06-23",
+    summary:
+      "Adds targeted missing-contact rerun selection, row-level contact delta reporting, and safer combined review-queue merging so reruns do not silently drop prior successes or richer contact rows. First 50-row missing-contact batch completed; focused missing-email reruns are underway. Row-level contact gains were detected in the first batch, but aggregate email coverage still needs more targeted batches — social coverage moved modestly (+1 pt).",
+    accomplishments: [
+      "**Targeted rerun filters** — `eval:extract-and-review` flags: `--missing-contact`, `--missing-email`, `--missing-phone`, `--missing-address`, `--missing-social` (with `--limit` / `--offset` for batching). Default pool still skips already-processed URLs unless these reprocess flags are set.",
+      "**Preview counts** — `npm run eval:count-missing-contact` reports merged-queue gaps and how many URL candidates would be selected before a rerun (see `data/eval/README.md`).",
+      "**Non-destructive reruns** — Each batch writes new timestamped `extraction_run_*.jsonl` and `review_queue_*.csv`; prior runs are kept. `--combine` merges into a new `review_queue_combined_*.csv` and can publish sanitized JSON + `eval:snapshot` checkpoints.",
+      "**Safer failure merge** — Combined merge no longer replaces an older successful row with a newer failed or `fetch_error` rerun; `preserved_previous_success: true` when a prior success is kept.",
+      "**Contact-aware success merge** — Among two successful rows, newer wins when contact quality is equal or better; older richer contact is preserved when a newer success loses email/phone/address/social without meaningful logo/color/offerings gains (`preserved_richer_contact: true`). Noise addresses (social URLs miscast as address, design-note text) are not treated as real contact for merge scoring.",
+      "**Row-level delta report** — `npm run eval:contact-delta -- --latest-run` compares a rerun batch to the pre-rerun combined baseline (not snapshot percentages alone): newly filled fields, unchanged rows, and regressions with example URLs.",
+      "**First missing-contact batch (50 rows)** — 49 successes, 1 `fetch_error` (dreamstime.com). Row-level deltas vs pre-rerun baseline: 11 rows gained at least one contact field (4 email, 2 phone, 6 address, 2 social newly filled). Aggregate snapshot social links on successful rows: ~63% → 64% (+1 pt). Aggregate email coverage did not move materially yet (~45–46% on latest checkpoint) — more targeted batches (especially `--missing-email`) are needed before claiming global email improvement.",
+      "**In progress** — Additional `--missing-email` rerun batches (e.g. offset 100+) to probe email coverage without reprocessing the full ~1,415-site inventory.",
+      "Validation: `npm run lint`, `npm run build`, `npm run eval:count-missing-contact`, `npm run eval:contact-delta`, `npm run eval:merge-quality:test`, `npm run eval:combine-reviews:test`, `npm run eval:select-urls:test`.",
+    ],
+  },
 ];
 
 function StatusBadge({ status }: { status: StageStatus }) {
@@ -744,7 +764,9 @@ export default function ProgressPage() {
             adds the unified `/internal/eval` brand-audit workflow (gallery, table, All URLs
             inventory), combined review queues, coverage and scrape-depth metrics, batch
             processing refinements, URL deduplication, publish flow, and color/palette diagnostics;
-            Stage 38 plans
+            Stage 40 improves scrape contact signals and scrape-depth diagnostics; Stage 41 adds
+            targeted missing-contact reruns, safer combined-queue merge rules, and row-level contact
+            delta reporting; Stage 38 plans
             comparison/scoring against historical fields; the
             editor and guided demo remain visual test harnesses. A written
             work log lives in{" "}

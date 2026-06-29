@@ -50,7 +50,7 @@ function testSanitizeOmitsPartnerFields(): void {
   );
 
   assert.equal(row.ds_id, "");
-  assert.equal(row.ds_number, "");
+  assert.equal(row.ds_number, "DS-999");
   assert.equal(row.project_title, "");
   assert.equal(row.shop_code, "");
   assert.equal(row.first_req_description_excerpt, "");

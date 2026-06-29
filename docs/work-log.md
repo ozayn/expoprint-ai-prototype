@@ -339,6 +339,33 @@ JSON-LD/footer/mailto/tel contact signals in shared scrape pipeline; email/phone
 
 ---
 
+## 2026-06-23
+
+**Targeted contact reruns and safer evaluation merging (Stage 41)**  
+Historical eval workflow extensions for contact-field reruns without reprocessing the full URL inventory, plus merge rules that preserve prior successes and richer contact when reruns fail or regress.
+
+- **Targeted rerun CLI** — `eval:extract-and-review` flags `--missing-contact`, `--missing-email`, `--missing-phone`, `--missing-address`, `--missing-social` with `--limit` / `--offset` batching; skips already-processed URLs by default unless reprocess flags are set.
+- **Preview** — `npm run eval:count-missing-contact` counts merged-queue gaps and previews URL candidate selection before a rerun.
+- **Non-destructive outputs** — New timestamped `extraction_run_*.jsonl` and `review_queue_*.csv` per batch; `--combine` writes a new combined queue and can publish sanitized JSON + coverage snapshot.
+- **Safer combined merge** — New failures do not replace older successes (`preserved_previous_success`). Among successes, contact-aware merge keeps older rows when a newer success loses contact without meaningful logo/color/offerings gains (`preserved_richer_contact`); plausible-address heuristic filters noise miscast as address.
+- **Row-level delta** — `npm run eval:contact-delta -- --latest-run` compares rerun batch vs pre-rerun combined baseline (field-level before/after, example URLs).
+- **First 50-row missing-contact batch** — 49 successes, 1 `fetch_error`; row-level deltas: 11 rows gained ≥1 contact field (4 email, 2 phone, 6 address, 2 social). Snapshot social on successful rows ~63% → 64% (+1 pt). Aggregate email coverage unchanged at ~45–46% on latest checkpoint — row-level email gains observed, but more targeted batches needed before claiming global email improvement.
+- **In progress** — Focused `--missing-email` rerun batches (e.g. `--limit 100 --offset 100`) to improve email coverage without full-inventory reprocessing.
+
+Validation:
+
+```bash
+npm run lint
+npm run build
+npm run eval:count-missing-contact
+npm run eval:contact-delta
+npm run eval:merge-quality:test
+npm run eval:combine-reviews:test
+npm run eval:select-urls:test
+```
+
+---
+
 ## Later (planned)
 
-Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers on `/internal/eval`, URL inventory, combined review queues, coverage metrics, palette extraction improvements (logo fallback with perceptual merge, 79% colors coverage on 191 processed sites), URL deduplication, publish flow, and batch-selection refinements. **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.
+Stages 9–12 on `/progress`: see `/progress` for the live list. Stages 13–36 cover guided `/demo`, style-guide colors, multi-page extraction, logo candidate review, proxied logo rendering, Vercel on `main`, typography signals, Phase 1 extract API, API docs/test tooling, canvas bullet layout, fixture evaluation, reliability metadata, large-site partial extraction, stale URL intake reset, logo contain-fit and roles, social footer/export polish, expanded fixtures, blocked-site warnings, canvas social display filtering, export filename polish, logo classification and role-aware sizing, contextual color fallbacks, and evaluation checks for logo regressions. **Stage 37** — historical Metabase CSV eval (URL candidates + limited extraction, partner-data git guards). **Stage 39** — visual brand-audit viewers on `/internal/eval`, URL inventory, combined review queues, coverage metrics, palette extraction improvements (logo fallback with perceptual merge, 79% colors coverage on 191 processed sites), URL deduplication, publish flow, and batch-selection refinements. **Stage 40** — scrape contact signals and scrape-depth diagnostics. **Stage 41 (in progress)** — targeted missing-contact reruns, safer combined-queue merge (`preserved_previous_success`, `preserved_richer_contact`), `eval:count-missing-contact`, `eval:contact-delta`, first 50-row missing-contact batch (+1 pt social snapshot; email aggregate still needs more batches). **Stage 38 (planned)** — compare/score extraction vs historical fields. Not production-final. Future: versioned API, auth, browser-rendered extraction (Stage 26), production-ready brief workflow, AI-generated DesignSpec, full template system.

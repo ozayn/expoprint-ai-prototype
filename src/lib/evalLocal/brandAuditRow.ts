@@ -92,7 +92,6 @@ export type BrandAuditExtractedField = (typeof BRAND_AUDIT_EXTRACTED_FIELDS)[num
 
 /** Partner-only fields omitted from published /internal/eval data. */
 export const BRAND_AUDIT_PARTNER_ONLY_FIELDS = [
-  "ds_number",
   "ds_id",
   "project_title",
   "project_type",

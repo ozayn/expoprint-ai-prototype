@@ -262,6 +262,61 @@ function testLatestFailureWinsWhenOnlyFailures(): void {
   assert.equal(kept.error_message, "new");
 }
 
+function testMergePreservesDsNumberFromOlderWhenNewerEmpty(): void {
+  const older = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "success",
+    ds_number: "15607",
+    processed_at: "2026-06-01T00:00:00.000Z",
+    source_review_queue: "review_queue_20260601000000000.csv",
+  });
+  const newer = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "fetch_error",
+    ds_number: "",
+    error_message: "timeout",
+    processed_at: "2026-06-22T00:00:00.000Z",
+    source_review_queue: "review_queue_20260622000000000.csv",
+  });
+
+  const kept = pickBetterReviewRow(newer, older);
+  const merged = mergeBrandAuditRows(kept, older.status === kept.status ? newer : older);
+  assert.equal(merged.ds_number, "15607");
+}
+
+function testMergePreservesDsNumberWhenNewerHasRicherContact(): void {
+  const older = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "success",
+    ds_number: "15607",
+    extracted_emails: "hello@example.com",
+    processed_at: "2026-06-01T00:00:00.000Z",
+    source_review_queue: "review_queue_20260601000000000.csv",
+  });
+  const newer = reviewRow({
+    normalized_url: "https://example.com",
+    domain: "example.com",
+    canonical_domain: "example.com",
+    status: "success",
+    ds_number: "",
+    extracted_emails: "hello@example.com",
+    extracted_phone_numbers: '["555-0100"]',
+    processed_at: "2026-06-22T00:00:00.000Z",
+    source_review_queue: "review_queue_20260622000000000.csv",
+  });
+
+  const kept = pickBetterReviewRow(older, newer);
+  const merged = mergeBrandAuditRows(kept, kept === older ? newer : older);
+  assert.equal(merged.ds_number, "15607");
+  assert.ok(merged.extracted_phone_numbers.includes("555-0100"));
+}
+
 function main(): void {
   testWwwNonWwwCollapse();
   testProcessedBeatsNotRun();
@@ -270,6 +325,8 @@ function main(): void {
   testNewerFailureDoesNotBeatOlderSuccess();
   testNewerSuccessBeatsOlderFailure();
   testLatestFailureWinsWhenOnlyFailures();
+  testMergePreservesDsNumberFromOlderWhenNewerEmpty();
+  testMergePreservesDsNumberWhenNewerHasRicherContact();
   testDuplicateVariantsPreservedInMerge();
   testInventoryCanonicalDedupe();
   console.log("evalCanonicalDedup.test.ts: all checks passed");

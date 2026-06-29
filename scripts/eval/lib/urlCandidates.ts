@@ -110,6 +110,26 @@ function pickField(
   return (record[actual] ?? "").trim();
 }
 
+const DS_NUMBER_HEADER_ALIASES = [
+  "ds_number",
+  "dsnumber",
+  "ds number",
+  "ds",
+  "source_ds_number",
+  "original_ds_number",
+] as const;
+
+export function pickDsNumberField(
+  record: Record<string, string>,
+  keyMap: Map<string, string>,
+): string {
+  for (const alias of DS_NUMBER_HEADER_ALIASES) {
+    const value = pickField(record, keyMap, alias);
+    if (value) return value;
+  }
+  return "";
+}
+
 function rowIdentity(
   base: Pick<UrlCandidateOutputRow, "ds_id" | "ds_number">,
   fallbackIndex: number,
@@ -299,7 +319,7 @@ export function extractUrlCandidatesFromRecords(
   records.forEach((record, recordIndex) => {
     const base = {
       ds_id: pickField(record, keyMap, "ds_id"),
-      ds_number: pickField(record, keyMap, "ds_number"),
+      ds_number: pickDsNumberField(record, keyMap),
       project_id: pickField(record, keyMap, "project_id"),
       project_title: pickField(record, keyMap, "project_title"),
       project_status: pickField(record, keyMap, "project_status"),
@@ -423,7 +443,7 @@ export function urlCandidateRowsFromCsvRecords(
     out.push(
       withCanonicalDomain({
         ds_id: pickField(record, keyMap, "ds_id"),
-        ds_number: pickField(record, keyMap, "ds_number"),
+        ds_number: pickDsNumberField(record, keyMap),
         project_id: pickField(record, keyMap, "project_id"),
         project_title: pickField(record, keyMap, "project_title"),
         project_status: pickField(record, keyMap, "project_status"),

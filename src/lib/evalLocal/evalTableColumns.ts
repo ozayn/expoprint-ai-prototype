@@ -58,7 +58,6 @@ export const EVAL_TABLE_INVENTORY_ONLY_COLUMNS: EvalTableColumnId[] = [
 ];
 
 export const EVAL_TABLE_PARTNER_ONLY_COLUMNS: EvalTableColumnId[] = [
-  "ds_number",
   "project_title",
   "project_type",
   "shop_code",

@@ -12,6 +12,7 @@ import {
   isValidBareDomainHost,
   maskUrlAndEmailSpans,
   normalizeUrl,
+  urlCandidateRowsFromCsvRecords,
   type UrlCandidateOutputRow,
 } from "./urlCandidates.js";
 import { selectUrlCandidatesForExtraction } from "./selectUrlCandidates.js";
@@ -150,6 +151,44 @@ function testUrlDedupeByNormalizedUrl(): void {
   assert.equal(deduped[0]?.normalized_url, "https://example.com");
 }
 
+function testCsvDsNumberHeaderAliases(): void {
+  const headers = [
+    "DS number",
+    "ds_id",
+    "project_title",
+    "project_status",
+    "project_type",
+    "turnaround_type",
+    "shop_code",
+    "source_column",
+    "raw_url",
+    "normalized_url",
+    "domain",
+    "first_req_description",
+    "first_req_note",
+  ];
+  const records = [
+    {
+      "DS number": "15607",
+      ds_id: "id-1",
+      project_title: "Booth",
+      project_status: "open",
+      project_type: "bundle",
+      turnaround_type: "",
+      shop_code: "ex",
+      source_column: "first_req_description",
+      raw_url: "https://example.com",
+      normalized_url: "https://example.com",
+      domain: "example.com",
+      first_req_description: "Visit example.com",
+      first_req_note: "",
+    },
+  ];
+  const rows = urlCandidateRowsFromCsvRecords(records, headers);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.ds_number, "15607");
+}
+
 function main(): void {
   testNormalizeUrl();
   testBareDomainExtraction();
@@ -159,6 +198,7 @@ function main(): void {
   testCanonicalDomain();
   testSelectDedupeByCanonicalDomain();
   testUrlDedupeByNormalizedUrl();
+  testCsvDsNumberHeaderAliases();
   console.log("urlCandidates.test.ts: all checks passed");
 }
 

@@ -131,6 +131,72 @@ function testMergePreservesRicherContactOnRerunSuccess(): void {
   assert.equal(merged.latest_rerun_status, "success");
 }
 
+function testMergePreservesDsNumberWhenIncomingEmpty(): void {
+  const existing = combinedRow(
+    {
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      status: "success",
+      ds_number: "15607",
+      processed_at: "2026-06-01T00:00:00.000Z",
+      extraction_run_id: "20260601000000000",
+    },
+    "review_queue_20260601000000000.csv",
+  );
+  const incoming = combinedRow(
+    {
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      status: "fetch_error",
+      ds_number: "",
+      error_message: "timeout",
+      processed_at: "2026-06-22T00:00:00.000Z",
+      extraction_run_id: "20260622000000000",
+    },
+    "review_queue_20260622000000000.csv",
+  );
+
+  const merged = mergeCombinedReviewRows(existing, incoming);
+  assert.equal(merged.ds_number, "15607");
+  assert.equal(merged.status, "success");
+}
+
+function testMergePreservesDsNumberWhenIncomingHasRicherContact(): void {
+  const existing = combinedRow(
+    {
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      status: "success",
+      ds_number: "15607",
+      extracted_emails: "hello@example.com",
+      processed_at: "2026-06-01T00:00:00.000Z",
+      extraction_run_id: "20260601000000000",
+    },
+    "review_queue_20260601000000000.csv",
+  );
+  const incoming = combinedRow(
+    {
+      normalized_url: "https://example.com/",
+      domain: "example.com",
+      canonical_domain: "example.com",
+      status: "success",
+      ds_number: "",
+      extracted_emails: "hello@example.com",
+      extracted_phone_numbers: '["555-0100"]',
+      processed_at: "2026-06-22T00:00:00.000Z",
+      extraction_run_id: "20260622000000000",
+    },
+    "review_queue_20260622000000000.csv",
+  );
+
+  const merged = mergeCombinedReviewRows(existing, incoming);
+  assert.equal(merged.ds_number, "15607");
+  assert.ok(merged.extracted_phone_numbers.includes("555-0100"));
+}
+
 function testCombinedCsvIncludesMergeMetadataColumns(): void {
   const rows: CombinedReviewQueueRow[] = [
     mergeCombinedReviewRows(
@@ -171,6 +237,8 @@ function main(): void {
   testMergePreservesSuccessOnRerunFailure();
   testMergeKeepsNewerSuccess();
   testMergePreservesRicherContactOnRerunSuccess();
+  testMergePreservesDsNumberWhenIncomingEmpty();
+  testMergePreservesDsNumberWhenIncomingHasRicherContact();
   testCombinedCsvIncludesMergeMetadataColumns();
   console.log("combineReviewQueues.test.ts: all checks passed");
 }

@@ -117,6 +117,7 @@ export function sanitizeReviewQueueRecord(
   }
 
   row.status = record.status?.trim() ?? "";
+  row.ds_number = record.ds_number?.trim() ?? "";
   row.error_message = sanitizePublishedErrorMessage(record.error_message ?? "");
   row.elapsed_ms = record.elapsed_ms?.trim() ?? "";
   row.pages_inspected = record.pages_inspected?.trim() ?? "";
@@ -221,7 +222,7 @@ export function buildPublishedInternalEvalFile(
   return {
     file: {
       description:
-        "Sanitized published review data for /internal/eval. No partner IDs, requirement text, or raw URLs with paths.",
+        "Sanitized published review data for /internal/eval. Includes ds_number for internal traceability; omits ds_id, requirement text, and raw URLs with paths.",
       published_at: new Date().toISOString(),
       source_review_queue: sourceReviewQueueBasename,
       include_domains: options.includeDomains,
